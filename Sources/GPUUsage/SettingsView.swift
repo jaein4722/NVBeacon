@@ -81,7 +81,7 @@ struct SettingsView: View {
                                 }
                             }
                             .labelsHidden()
-                            .frame(width: 250)
+                            .frame(minWidth: 260, maxWidth: 320)
 
                             Button("Reload") {
                                 reloadSSHConfigHosts()
@@ -105,6 +105,7 @@ struct SettingsView: View {
                     TextField("", text: $draft.sshTarget, prompt: Text("gpu-prod or user@host"))
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.leading)
                         .frame(width: 320)
                 }
 
@@ -115,7 +116,7 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 180)
+                    .fixedSize()
                 }
 
                 Text(draft.sshAuthenticationMode.detailText)
@@ -126,6 +127,7 @@ struct SettingsView: View {
                     TextField("", text: $draft.sshIdentityFilePath, prompt: Text("Optional"))
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
+                        .multilineTextAlignment(.leading)
                         .frame(width: 320)
                 }
 
@@ -134,6 +136,7 @@ struct SettingsView: View {
                         SecureField("", text: $draftPassword, prompt: Text("Optional"))
                             .labelsHidden()
                             .textFieldStyle(.roundedBorder)
+                            .multilineTextAlignment(.leading)
                             .frame(width: 240)
                     }
                 }
@@ -142,7 +145,8 @@ struct SettingsView: View {
                     TextField("", text: $draft.sshPort, prompt: Text("Optional"))
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
-                        .frame(width: 160)
+                        .multilineTextAlignment(.leading)
+                        .frame(width: 120)
                 }
             } header: {
                 Text("Connection")
@@ -154,8 +158,13 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Refresh Interval") {
-                    Stepper("\(draft.pollIntervalSeconds) seconds", value: $draft.pollIntervalSeconds, in: 3...300)
-                        .frame(width: 180, alignment: .trailing)
+                    HStack(spacing: 8) {
+                        Stepper("", value: $draft.pollIntervalSeconds, in: 3...300)
+                            .labelsHidden()
+                        Text("\(draft.pollIntervalSeconds) seconds")
+                            .monospacedDigit()
+                    }
+                    .fixedSize()
                 }
             } header: {
                 Text("Polling")
@@ -176,7 +185,7 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 180)
+                    .fixedSize()
                 }
 
                 Text(draft.appearanceMode.detailText)
@@ -190,7 +199,7 @@ struct SettingsView: View {
                         }
                     }
                     .labelsHidden()
-                    .frame(width: 220)
+                    .fixedSize()
                 }
 
                 Text(draft.menuBarDisplayMode.detailText)
@@ -209,6 +218,7 @@ struct SettingsView: View {
                 TextField("", text: $draft.remoteCommand, prompt: Text(AppSettings.defaultRemoteCommand))
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
             } header: {
                 Text("Remote Command")
             } footer: {
