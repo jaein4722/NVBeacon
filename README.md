@@ -124,10 +124,10 @@ git push origin v0.2.2
 
 ## Homebrew Tap Sync
 
-GitHub Release를 만들 때 `homebrew_tap` 저장소의 cask도 자동으로 갱신할 수 있습니다.
+GitHub Release를 만들 때 `homebrew-tap` 저장소의 cask도 자동으로 갱신할 수 있습니다.
 
 - `GPUUsage` 저장소 secrets에 `HOMEBREW_TAP_TOKEN` 추가
-- 권장: fine-grained PAT, 대상 저장소는 `jaein4722/homebrew_tap`
+- 권장: fine-grained PAT, 대상 저장소는 `jaein4722/homebrew-tap`
 - 필요 권한: `Contents: write`
 
-설정되면 release workflow가 DMG URL을 포함한 `repository_dispatch`를 `homebrew_tap`으로 보내고, tap 저장소가 새 SHA256을 계산해 `Casks/gpuusage.rb`를 자동 commit/push합니다.
+설정되면 release workflow가 DMG URL을 포함한 `repository_dispatch`를 `homebrew-tap`으로 보내고, tap 저장소가 새 SHA256을 계산해 `Casks/gpuusage.rb`를 자동 commit/push합니다.

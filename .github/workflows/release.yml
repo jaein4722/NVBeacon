@@ -93,7 +93,7 @@ jobs:
           gh api \
             --method POST \
             -H "Accept: application/vnd.github+json" \
-            "/repos/jaein4722/homebrew_tap/dispatches" \
+            "/repos/jaein4722/homebrew-tap/dispatches" \
             -f event_type='gpuusage_release_published' \
             -f client_payload[version]="$VERSION" \
             -f client_payload[tag]="$GITHUB_REF_NAME" \
@@ -102,4 +102,4 @@ jobs:
       - name: Note missing Homebrew tap token
         if: ${{ secrets.HOMEBREW_TAP_TOKEN == '' }}
         run: |
-          echo "Skipping homebrew_tap sync because HOMEBREW_TAP_TOKEN is not configured."
+          echo "Skipping homebrew-tap sync because HOMEBREW_TAP_TOKEN is not configured."
