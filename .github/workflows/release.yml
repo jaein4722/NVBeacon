@@ -16,6 +16,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Set up Swift 6.3
+        uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.3"
+
+      - name: Show Swift version
+        run: swift --version
+
       - name: Derive version from tag
         run: |
           echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
