@@ -84,10 +84,14 @@ jobs:
           fi
 
       - name: Dispatch Homebrew tap update
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN != '' }}
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
         run: |
+          if [[ -z "${GH_TOKEN:-}" ]]; then
+            echo "Skipping homebrew-tap sync because HOMEBREW_TAP_TOKEN is not configured."
+            exit 0
+          fi
+
           DMG_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/GPUUsage-${VERSION}.dmg"
 
           gh api \
@@ -98,8 +102,3 @@ jobs:
             -f client_payload[version]="$VERSION" \
             -f client_payload[tag]="$GITHUB_REF_NAME" \
             -f client_payload[dmg_url]="$DMG_URL"
-
-      - name: Note missing Homebrew tap token
-        if: ${{ secrets.HOMEBREW_TAP_TOKEN == '' }}
-        run: |
-          echo "Skipping homebrew-tap sync because HOMEBREW_TAP_TOKEN is not configured."
