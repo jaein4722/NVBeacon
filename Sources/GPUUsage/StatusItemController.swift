@@ -7,14 +7,17 @@ final class StatusItemController: NSObject {
     var showSettingsAction: (() -> Void)?
 
     private let store: GPUUsageStore
+    private let settingsOpenBridge: SettingsOpenBridge
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
     private let menu = NSMenu()
     private var cancellables = Set<AnyCancellable>()
     private lazy var settingsMenuItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
+    private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
 
-    init(store: GPUUsageStore) {
+    init(store: GPUUsageStore, settingsOpenBridge: SettingsOpenBridge) {
         self.store = store
+        self.settingsOpenBridge = settingsOpenBridge
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
 
@@ -77,6 +80,19 @@ final class StatusItemController: NSObject {
         button.action = #selector(handleStatusItemClick(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.imagePosition = .imageLeft
+
+        let relayHostingView = NSHostingView(rootView: SettingsActionRelayView(bridge: settingsOpenBridge))
+        relayHostingView.translatesAutoresizingMaskIntoConstraints = false
+        button.addSubview(relayHostingView)
+
+        NSLayoutConstraint.activate([
+            relayHostingView.leadingAnchor.constraint(equalTo: button.leadingAnchor),
+            relayHostingView.topAnchor.constraint(equalTo: button.topAnchor),
+            relayHostingView.widthAnchor.constraint(equalToConstant: 1),
+            relayHostingView.heightAnchor.constraint(equalToConstant: 1),
+        ])
+
+        settingsRelayHostingView = relayHostingView
     }
 
     private func bindStore() {
@@ -108,13 +124,17 @@ final class StatusItemController: NSObject {
 
     private func updateStatusItemAppearance() {
         guard let button = statusItem.button else { return }
+        let iconOnly = store.settings.menuBarDisplayMode == .iconOnly
 
+        statusItem.length = iconOnly ? NSStatusItem.squareLength : NSStatusItem.variableLength
         button.title = store.menuBarTitle
         button.image = NSImage(
             systemSymbolName: store.menuBarSymbolName,
             accessibilityDescription: "GPU Usage"
         )
         button.image?.isTemplate = true
+        button.imagePosition = iconOnly ? .imageOnly : .imageLeft
+        button.toolTip = store.menuBarToolTip
     }
 
     private func updatePopoverSize() {

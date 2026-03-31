@@ -4,6 +4,7 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     case averageAndBusy
     case averageOnly
     case busyOnly
+    case iconOnly
 
     var id: String { rawValue }
 
@@ -15,6 +16,21 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
             return "Average Util"
         case .busyOnly:
             return "Busy Count"
+        case .iconOnly:
+            return "Icon Only"
+        }
+    }
+
+    var detailText: String {
+        switch self {
+        case .averageAndBusy:
+            return "평균 GPU 사용률과 busy GPU 수를 함께 표시합니다."
+        case .averageOnly:
+            return "평균 GPU 사용률만 메뉴바에 표시합니다."
+        case .busyOnly:
+            return "busy GPU 개수만 메뉴바에 표시합니다."
+        case .iconOnly:
+            return "텍스트 없이 아이콘만 표시합니다. 상태 이상은 아이콘 색/심볼로 구분합니다."
         }
     }
 
@@ -26,6 +42,8 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
             return "GPU \(snapshot.averageUtilization)%"
         case .busyOnly:
             return "GPU \(snapshot.busyCount)/\(snapshot.gpus.count)"
+        case .iconOnly:
+            return ""
         }
     }
 }

@@ -28,6 +28,10 @@ final class GPUUsageStore: ObservableObject {
     }
 
     var menuBarTitle: String {
+        if settings.menuBarDisplayMode == .iconOnly {
+            return ""
+        }
+
         guard settings.isConfigured else { return "GPU --" }
 
         if let snapshot {
@@ -51,6 +55,26 @@ final class GPUUsageStore: ObservableObject {
         }
 
         return "memorychip.fill"
+    }
+
+    var menuBarToolTip: String {
+        guard settings.isConfigured else {
+            return "GPUUsage: 서버를 설정하면 polling을 시작합니다."
+        }
+
+        if let snapshot {
+            return "Average \(snapshot.averageUtilization)% · Busy \(snapshot.busyCount)/\(snapshot.gpus.count) · Processes \(snapshot.totalProcessCount)"
+        }
+
+        if isRefreshing {
+            return "GPUUsage: 서버 상태를 새로 가져오는 중입니다."
+        }
+
+        if let lastErrorMessage {
+            return lastErrorMessage
+        }
+
+        return "GPUUsage"
     }
 
     var lastUpdatedRelativeText: String? {

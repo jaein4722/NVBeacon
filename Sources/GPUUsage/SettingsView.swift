@@ -6,163 +6,279 @@ struct SettingsView: View {
     @State private var draftPassword = ""
     @State private var sshConfigHosts = SSHConfigLoader.loadHosts()
     @State private var selectedSSHConfigAlias = ""
+    @State private var autoApplyRevision = 0
+    @State private var suppressAutoApply = true
 
     private var selectedSSHConfigHost: SSHConfigHost? {
         sshConfigHosts.first { $0.alias == selectedSSHConfigAlias }
     }
 
+    private var appVersionText: String {
+        let shortVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let buildVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String
+
+        switch (shortVersion, buildVersion) {
+        case let (shortVersion?, buildVersion?) where shortVersion != buildVersion:
+            return "\(shortVersion) (\(buildVersion))"
+        case let (shortVersion?, _):
+            return shortVersion
+        default:
+            return "0.2.1"
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("GPUUsage Settings")
-                    .font(.title3.weight(.semibold))
-                Text("우클릭 메뉴로 언제든 다시 열 수 있습니다.")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
+        TabView {
+            generalPane
+                .tabItem {
+                    Label("General", systemImage: "gearshape")
+                }
 
-            if !sshConfigHosts.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Import From ~/.ssh/config")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
+            appearancePane
+                .tabItem {
+                    Label("Appearance", systemImage: "menubar.rectangle")
+                }
 
-                        Spacer()
+            advancedPane
+                .tabItem {
+                    Label("Advanced", systemImage: "slider.horizontal.3")
+                }
 
-                        Button("Reload") {
-                            reloadSSHConfigHosts()
-                        }
-                    }
+            aboutPane
+                .tabItem {
+                    Label("About", systemImage: "info.circle")
+                }
+        }
+        .frame(width: 720, height: 560)
+        .onAppear {
+            reloadSSHConfigHosts()
+            loadCurrentSettings()
+        }
+        .onChange(of: draft) { _, _ in
+            scheduleAutoApply()
+        }
+        .onChange(of: draftPassword) { _, _ in
+            scheduleAutoApply()
+        }
+        .task(id: autoApplyRevision) {
+            guard autoApplyRevision > 0 else { return }
+            try? await Task.sleep(for: .milliseconds(350))
+            applyDraftIfNeeded()
+        }
+    }
 
-                    Picker("Saved Host", selection: $selectedSSHConfigAlias) {
-                        Text("Select a saved host").tag("")
+    private var generalPane: some View {
+        Form {
+            Section {
+                if !sshConfigHosts.isEmpty {
+                    LabeledContent("Saved Host") {
+                        HStack(spacing: 8) {
+                            Picker("Saved Host", selection: $selectedSSHConfigAlias) {
+                                Text("Select a saved host").tag("")
 
-                        ForEach(sshConfigHosts) { host in
-                            Text(host.displayName).tag(host.alias)
+                                ForEach(sshConfigHosts) { host in
+                                    Text(host.displayName).tag(host.alias)
+                                }
+                            }
+                            .labelsHidden()
+                            .frame(width: 250)
+
+                            Button("Reload") {
+                                reloadSSHConfigHosts()
+                            }
+
+                            Button("Use") {
+                                applySSHConfigHost()
+                            }
+                            .disabled(selectedSSHConfigHost == nil)
                         }
                     }
 
                     if let selectedSSHConfigHost {
                         Text(selectedSSHConfigHost.detailSummary)
-                            .font(.caption2)
+                            .font(.caption)
                             .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
+                }
 
-                    HStack {
-                        Spacer()
+                LabeledContent("SSH Target") {
+                    TextField("", text: $draft.sshTarget, prompt: Text("gpu-prod or user@host"))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 320)
+                }
 
-                        Button("Use Selected Host") {
-                            applySSHConfigHost()
+                LabeledContent("Identity File") {
+                    TextField("", text: $draft.sshIdentityFilePath, prompt: Text("Optional"))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 320)
+                }
+
+                LabeledContent("SSH Password") {
+                    SecureField("", text: $draftPassword, prompt: Text("Optional"))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 240)
+                }
+
+                LabeledContent("SSH Port") {
+                    TextField("", text: $draft.sshPort, prompt: Text("Optional"))
+                        .labelsHidden()
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 160)
+                }
+            } header: {
+                Text("Connection")
+            } footer: {
+                Text("SSH 비밀번호는 UserDefaults가 아니라 macOS Keychain에 저장됩니다.")
+            }
+
+            Section {
+                LabeledContent("Refresh Interval") {
+                    Stepper("\(draft.pollIntervalSeconds) seconds", value: $draft.pollIntervalSeconds, in: 3...300)
+                        .frame(width: 180, alignment: .trailing)
+                }
+            } header: {
+                Text("Polling")
+            } footer: {
+                Text("설정 변경은 자동으로 저장되고, polling 주기도 즉시 다시 시작됩니다.")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var appearancePane: some View {
+        Form {
+            Section {
+                LabeledContent("Display") {
+                    Picker("Display", selection: $draft.menuBarDisplayMode) {
+                        ForEach(MenuBarDisplayMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
                         }
-                        .disabled(selectedSSHConfigHost == nil)
                     }
+                    .labelsHidden()
+                    .frame(width: 220)
                 }
-            }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text("SSH Target")
+                Text(draft.menuBarDisplayMode.detailText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                TextField("gpu-prod or user@host", text: $draft.sshTarget)
+            } header: {
+                Text("Menu Bar")
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var advancedPane: some View {
+        Form {
+            Section {
+                TextField("", text: $draft.remoteCommand, prompt: Text(AppSettings.defaultRemoteCommand))
+                    .labelsHidden()
                     .textFieldStyle(.roundedBorder)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Identity File (Optional)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("~/.ssh/id_ed25519", text: $draft.sshIdentityFilePath)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("SSH Password (Optional)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                SecureField("Password-based auth", text: $draftPassword)
-                    .textFieldStyle(.roundedBorder)
-                Text("비워두면 키 기반 인증을 사용합니다. 입력한 비밀번호는 UserDefaults가 아니라 macOS Keychain에 저장됩니다.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("SSH Port (Optional)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField("Leave blank to use ~/.ssh/config or port 22", text: $draft.sshPort)
-                    .textFieldStyle(.roundedBorder)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Refresh Interval")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Stepper(value: $draft.pollIntervalSeconds, in: 3...300) {
-                    Text("\(draft.pollIntervalSeconds) seconds")
-                }
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Menu Bar Summary")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Picker("Menu Bar Summary", selection: $draft.menuBarDisplayMode) {
-                    ForEach(MenuBarDisplayMode.allCases) { mode in
-                        Text(mode.title).tag(mode)
-                    }
-                }
-                .pickerStyle(.menu)
-            }
-
-            VStack(alignment: .leading, spacing: 8) {
+            } header: {
                 Text("Remote Command")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                TextField(AppSettings.defaultRemoteCommand, text: $draft.remoteCommand)
-                    .textFieldStyle(.roundedBorder)
+            } footer: {
+                Text("`SSH Target`에 alias를 넣으면 로컬 `~/.ssh/config`의 포트와 유저가 적용됩니다. PATH 문제가 있으면 `nvidia-smi` 대신 전체 경로를 넣으세요.")
             }
 
-            Text("로컬 Mac의 SSH 키와 ~/.ssh/config를 그대로 사용합니다. `SSH Target`에 alias를 넣으면 config의 포트/유저가 적용되고, 직접 host를 넣을 때만 `SSH Port`를 채우면 됩니다. PATH 문제가 있으면 `nvidia-smi` 대신 전체 경로를 넣으면 됩니다.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-
-            HStack {
-                Button("Reload Current") {
+            Section {
+                Button("Reload Current Settings") {
                     loadCurrentSettings()
                 }
 
-                Button("Clear Saved Settings") {
+                Button("Clear Saved Settings", role: .destructive) {
                     store.resetConfiguration()
                     loadCurrentSettings()
                 }
-
-                Spacer()
-
-                Button("Apply") {
-                    store.applySettings(draft, password: draftPassword)
-                }
-                .keyboardShortcut(.defaultAction)
-                .disabled(draft == store.settings && draftPassword == store.loadSavedPassword())
+            } header: {
+                Text("Saved State")
+            } footer: {
+                Text("`Clear Saved Settings`는 UserDefaults에 저장된 설정과 Keychain의 SSH 비밀번호를 함께 지웁니다.")
             }
         }
-        .padding(20)
-        .frame(width: 500)
-        .onAppear {
-            reloadSSHConfigHosts()
-            loadCurrentSettings()
+        .formStyle(.grouped)
+    }
+
+    private var aboutPane: some View {
+        Form {
+            Section {
+                LabeledContent("Version") {
+                    Text(appVersionText)
+                        .monospacedDigit()
+                }
+
+                LabeledContent("Current Target") {
+                    Text(store.settings.isConfigured ? store.settings.sshTarget : "Not configured")
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Refresh Interval") {
+                    Text("\(store.settings.pollIntervalSeconds) seconds")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Menu Bar") {
+                    Text(store.settings.menuBarDisplayMode.title)
+                        .foregroundStyle(.secondary)
+                }
+
+                if let snapshot = store.snapshot {
+                    LabeledContent("Visible GPUs") {
+                        Text("\(snapshot.gpus.count)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+
+                    LabeledContent("Processes") {
+                        Text("\(snapshot.totalProcessCount)")
+                            .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text("GPUUsage")
+            }
+
+            Section {
+                Text("로컬 Mac에서 `ssh`를 실행하고 원격 서버에서 `nvidia-smi`를 호출합니다.")
+                Text("키 기반 인증과 비밀번호 인증을 모두 지원합니다.")
+                Text("프로세스 상세는 `nvidia-smi`와 `ps`를 함께 조회해 user, pid, command를 보여줍니다.")
+            } header: {
+                Text("How It Works")
+            }
         }
+        .formStyle(.grouped)
+    }
+
+    private func scheduleAutoApply() {
+        guard !suppressAutoApply else { return }
+        autoApplyRevision += 1
+    }
+
+    private func applyDraftIfNeeded() {
+        guard !suppressAutoApply else { return }
+
+        let normalizedDraft = draft.normalized()
+        let trimmedPassword = draftPassword.trimmingCharacters(in: .newlines)
+
+        store.applySettings(normalizedDraft, password: trimmedPassword)
     }
 
     private func loadCurrentSettings() {
+        suppressAutoApply = true
         draft = store.settings
         draftPassword = store.loadSavedPassword()
+
+        if sshConfigHosts.contains(where: { $0.alias == store.settings.sshTarget }) {
+            selectedSSHConfigAlias = store.settings.sshTarget
+        } else if selectedSSHConfigAlias.isEmpty {
+            selectedSSHConfigAlias = sshConfigHosts.first?.alias ?? ""
+        }
+
+        releaseAutoApplySuppression()
     }
 
     private func reloadSSHConfigHosts() {
@@ -176,5 +292,11 @@ struct SettingsView: View {
     private func applySSHConfigHost() {
         guard let selectedSSHConfigHost else { return }
         draft = selectedSSHConfigHost.apply(to: draft)
+    }
+
+    private func releaseAutoApplySuppression() {
+        DispatchQueue.main.async {
+            suppressAutoApply = false
+        }
     }
 }

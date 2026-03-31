@@ -104,4 +104,5 @@ import Testing
     #expect(MenuBarDisplayMode.averageAndBusy.titleText(for: snapshot) == "GPU 50% · 2/2")
     #expect(MenuBarDisplayMode.averageOnly.titleText(for: snapshot) == "GPU 50%")
     #expect(MenuBarDisplayMode.busyOnly.titleText(for: snapshot) == "GPU 2/2")
+    #expect(MenuBarDisplayMode.iconOnly.titleText(for: snapshot).isEmpty)
 }

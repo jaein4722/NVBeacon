@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 APP_NAME="GPUUsage"
 PRODUCT_NAME="GPUUsage"
 
-VERSION="${VERSION:-0.2.0}"
+VERSION="${VERSION:-0.2.1}"
 BUILD_NUMBER="${BUILD_NUMBER:-1}"
 BUNDLE_ID="${BUNDLE_ID:-com.leejaein.GPUUsage}"
 MIN_SYSTEM_VERSION="${MIN_SYSTEM_VERSION:-14.0}"

@@ -6,7 +6,7 @@ struct GPUUsageApp: App {
 
     var body: some Scene {
         Settings {
-            EmptyView()
+            SettingsView(store: appDelegate.store)
         }
     }
 }

@@ -26,14 +26,14 @@ swift run
 
 ## First-time setup
 
-앱을 실행한 뒤 메뉴바 아이콘을 우클릭해서 `Settings…`를 열고 아래 값을 입력합니다.
+앱을 실행한 뒤 메뉴바 아이콘을 우클릭해서 `Settings…`를 엽니다. 설정 창은 macOS 기본 Settings 스타일을 따르며, `General`, `Appearance`, `Advanced`, `About` 네 섹션으로 나뉩니다. 변경 사항은 `Apply` 없이 자동 반영됩니다.
 
 - `Import From ~/.ssh/config`: 로컬 `~/.ssh/config`에 등록된 alias를 바로 가져와 적용
 - `SSH Target`: `gpu-prod` 또는 `user@host`
 - `Identity File`: 선택 사항, 필요하면 `~/.ssh/id_ed25519`
 - `SSH Password`: 선택 사항, 입력하면 비밀번호 인증 사용
 - `Refresh Interval`: polling 간격(초)
-- `Menu Bar Summary`: 메뉴바에 `평균 사용률`, `busy GPU 수`, 또는 둘 다 표시
+- `Menu Bar Summary`: 메뉴바에 `평균 사용률`, `busy GPU 수`, 둘 다, 또는 `icon only` 표시
 - `Remote Command`: 기본값은 `nvidia-smi` 쿼리, 필요하면 절대 경로로 변경
 
 좌클릭:
@@ -61,11 +61,11 @@ swift run
 기본 실행 결과:
 
 - `dist/GPUUsage.app`
-- `dist/GPUUsage-0.2.0.zip`
+- `dist/GPUUsage-0.2.1.zip`
 
 옵션 환경 변수:
 
-- `VERSION=0.2.0`
+- `VERSION=0.2.1`
 - `BUILD_NUMBER=1`
 - `BUNDLE_ID=com.example.GPUUsage`
 - `CODESIGN_IDENTITY="Developer ID Application: ..."`
@@ -99,4 +99,4 @@ KEYCHAIN_PROFILE="GPUUsageNotary" \
 ./scripts/package_app.sh
 ```
 
-4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.0.zip`를 배포합니다.
+4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.1.zip`를 배포합니다.

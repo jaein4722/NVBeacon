@@ -2,8 +2,22 @@
 /.build
 /dist
 /Packages
-xcuserdata/
 DerivedData/
-.swiftpm/configuration/registries.json
-.swiftpm/xcode/package.xcworkspace/contents.xcworkspacedata
+xcuserdata/
+*.xcworkspace/xcuserdata/
+*.xcodeproj/xcuserdata/
+.swiftpm/
+
+# Local env / credentials
 .netrc
+.env
+.env.*
+*.local
+*.p12
+*.mobileprovision
+*.keychain-db
+
+# Editor / temp files
+*.swp
+*.swo
+*.orig
