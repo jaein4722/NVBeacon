@@ -48,6 +48,31 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     }
 }
 
+enum SSHAuthenticationMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case keyBased
+    case passwordBased
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .keyBased:
+            return "Key-based"
+        case .passwordBased:
+            return "Password-based"
+        }
+    }
+
+    var detailText: String {
+        switch self {
+        case .keyBased:
+            return "SSH key와 ssh-agent를 사용합니다. background polling 중 Keychain을 읽지 않습니다."
+        case .passwordBased:
+            return "macOS Keychain에 저장된 SSH 비밀번호를 사용합니다."
+        }
+    }
+}
+
 struct AppSettings: Codable, Equatable, Sendable {
     static let legacyDefaultRemoteCommand = "nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
     static let defaultRemoteCommand = "nvidia-smi --query-gpu=index,name,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
@@ -55,6 +80,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var sshTarget: String = ""
     var sshPort: String = ""
     var sshIdentityFilePath: String = ""
+    var sshAuthenticationMode: SSHAuthenticationMode = .keyBased
     var pollIntervalSeconds: Int = 10
     var remoteCommand: String = Self.defaultRemoteCommand
     var menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
@@ -63,6 +89,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         sshTarget: String = "",
         sshPort: String = "",
         sshIdentityFilePath: String = "",
+        sshAuthenticationMode: SSHAuthenticationMode = .keyBased,
         pollIntervalSeconds: Int = 10,
         remoteCommand: String = Self.defaultRemoteCommand,
         menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
@@ -70,6 +97,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.sshTarget = sshTarget
         self.sshPort = sshPort
         self.sshIdentityFilePath = sshIdentityFilePath
+        self.sshAuthenticationMode = sshAuthenticationMode
         self.pollIntervalSeconds = pollIntervalSeconds
         self.remoteCommand = remoteCommand
         self.menuBarDisplayMode = menuBarDisplayMode
@@ -79,6 +107,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case sshTarget
         case sshPort
         case sshIdentityFilePath
+        case sshAuthenticationMode
         case pollIntervalSeconds
         case remoteCommand
         case menuBarDisplayMode
@@ -90,6 +119,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             sshTarget: try container.decodeIfPresent(String.self, forKey: .sshTarget) ?? "",
             sshPort: try container.decodeIfPresent(String.self, forKey: .sshPort) ?? "",
             sshIdentityFilePath: try container.decodeIfPresent(String.self, forKey: .sshIdentityFilePath) ?? "",
+            sshAuthenticationMode: try container.decodeIfPresent(SSHAuthenticationMode.self, forKey: .sshAuthenticationMode) ?? .keyBased,
             pollIntervalSeconds: try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? 10,
             remoteCommand: try container.decodeIfPresent(String.self, forKey: .remoteCommand) ?? Self.defaultRemoteCommand,
             menuBarDisplayMode: try container.decodeIfPresent(MenuBarDisplayMode.self, forKey: .menuBarDisplayMode) ?? .averageAndBusy
@@ -196,6 +226,10 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
 
     var id: String {
         "\(gpuUUID):\(pid):\(processName)"
+    }
+
+    var hasResolvedMetadata: Bool {
+        user != nil || commandLine != nil
     }
 
     var memorySummary: String {

@@ -97,11 +97,17 @@ struct StatusMenuView: View {
         VStack(alignment: .leading, spacing: 8) {
             ForEach(snapshot.gpus) { gpu in
                 let isExpanded = expandedGPUIds.contains(gpu.id)
+                let isLoadingDetails = store.isLoadingProcessDetails(for: gpu.id)
 
                 Button {
+                    let willExpand = !expandedGPUIds.contains(gpu.id)
                     toggleExpansion(for: gpu.id)
+
+                    if willExpand {
+                        store.loadProcessDetails(for: gpu.id)
+                    }
                 } label: {
-                    GPUListRow(gpu: gpu, isExpanded: isExpanded)
+                    GPUListRow(gpu: gpu, isExpanded: isExpanded, isLoadingDetails: isLoadingDetails)
                 }
                 .buttonStyle(.plain)
             }
@@ -128,6 +134,7 @@ struct StatusMenuView: View {
 private struct GPUListRow: View {
     let gpu: GPUReading
     let isExpanded: Bool
+    let isLoadingDetails: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -172,6 +179,17 @@ private struct GPUListRow: View {
                 Divider()
 
                 VStack(alignment: .leading, spacing: 6) {
+                    if isLoadingDetails {
+                        HStack(spacing: 6) {
+                            ProgressView()
+                                .controlSize(.small)
+
+                            Text("Loading process details...")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
                     if gpu.processes.isEmpty {
                         Text("이 GPU에서 보고된 active compute process가 없습니다.")
                             .font(.caption)

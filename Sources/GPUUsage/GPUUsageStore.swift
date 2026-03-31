@@ -7,6 +7,7 @@ final class GPUUsageStore: ObservableObject {
     @Published private(set) var snapshot: GPUSnapshot?
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var loadingProcessDetailGPUIds = Set<Int>()
 
     private let fetcher: SSHMetricsFetcher
     private let userDefaults: UserDefaults
@@ -86,15 +87,19 @@ final class GPUUsageStore: ObservableObject {
 
     func applySettings(_ newSettings: AppSettings, password: String = "") {
         let normalized = newSettings.normalized()
-        let existingPassword = (try? passwordStore.loadPassword()) ?? ""
         let trimmedPassword = password.trimmingCharacters(in: .newlines)
-        guard normalized != settings || trimmedPassword != existingPassword else { return }
+        if normalized.sshAuthenticationMode == .passwordBased {
+            let existingPassword = (try? passwordStore.loadPassword()) ?? ""
+            guard normalized != settings || trimmedPassword != existingPassword else { return }
 
-        do {
-            try passwordStore.savePassword(trimmedPassword)
-        } catch {
-            lastErrorMessage = error.localizedDescription
-            return
+            do {
+                try passwordStore.savePassword(trimmedPassword)
+            } catch {
+                lastErrorMessage = error.localizedDescription
+                return
+            }
+        } else {
+            guard normalized != settings else { return }
         }
 
         settings = normalized
@@ -103,7 +108,8 @@ final class GPUUsageStore: ObservableObject {
     }
 
     func loadSavedPassword() -> String {
-        (try? passwordStore.loadPassword()) ?? ""
+        guard settings.sshAuthenticationMode == .passwordBased else { return "" }
+        return (try? passwordStore.loadPassword()) ?? ""
     }
 
     func resetConfiguration() {
@@ -126,6 +132,16 @@ final class GPUUsageStore: ObservableObject {
         Task {
             await refresh()
         }
+    }
+
+    func loadProcessDetails(for gpuID: Int) {
+        Task {
+            await refreshProcessDetails(for: gpuID)
+        }
+    }
+
+    func isLoadingProcessDetails(for gpuID: Int) -> Bool {
+        loadingProcessDetailGPUIds.contains(gpuID)
     }
 
     private func configurePolling(resetState: Bool) {
@@ -170,12 +186,12 @@ final class GPUUsageStore: ObservableObject {
         }
 
         do {
-            let password = loadSavedPassword()
-            let snapshot = try await fetcher.fetch(
+            let password = currentSettings.sshAuthenticationMode == .passwordBased ? loadSavedPassword() : ""
+            let fetchedSnapshot = try await fetcher.fetchSummary(
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             )
-            self.snapshot = snapshot
+            self.snapshot = mergeProcessDetails(from: self.snapshot, into: fetchedSnapshot)
             lastErrorMessage = nil
         } catch is CancellationError {
             return
@@ -191,6 +207,87 @@ final class GPUUsageStore: ObservableObject {
         } catch {
             lastErrorMessage = "설정을 저장하지 못했습니다: \(error.localizedDescription)"
         }
+    }
+
+    private func refreshProcessDetails(for gpuID: Int) async {
+        guard settings.isConfigured else { return }
+        guard !loadingProcessDetailGPUIds.contains(gpuID) else { return }
+        guard let snapshot, let gpu = snapshot.gpus.first(where: { $0.id == gpuID }) else { return }
+        guard !gpu.processes.isEmpty else { return }
+        guard gpu.processes.contains(where: { !$0.hasResolvedMetadata }) else { return }
+
+        loadingProcessDetailGPUIds.insert(gpuID)
+        let currentSettings = settings
+
+        defer {
+            loadingProcessDetailGPUIds.remove(gpuID)
+        }
+
+        do {
+            let password = currentSettings.sshAuthenticationMode == .passwordBased ? loadSavedPassword() : ""
+            let enrichedProcesses = try await fetcher.fetchProcessDetails(
+                settings: currentSettings,
+                processes: gpu.processes,
+                password: password.isEmpty ? nil : password
+            )
+            applyProcessDetails(enrichedProcesses, toGPUWithID: gpuID)
+            lastErrorMessage = nil
+        } catch is CancellationError {
+            return
+        } catch {
+            lastErrorMessage = "프로세스 상세를 가져오지 못했습니다: \(error.localizedDescription)"
+        }
+    }
+
+    private func applyProcessDetails(_ processes: [GPUProcessReading], toGPUWithID gpuID: Int) {
+        guard let snapshot else { return }
+
+        let updatedGPUs = snapshot.gpus.map { gpu in
+            guard gpu.id == gpuID else { return gpu }
+
+            return GPUReading(
+                index: gpu.index,
+                name: gpu.name,
+                uuid: gpu.uuid,
+                utilization: gpu.utilization,
+                memoryUsedMB: gpu.memoryUsedMB,
+                memoryTotalMB: gpu.memoryTotalMB,
+                temperatureCelsius: gpu.temperatureCelsius,
+                processes: processes
+            )
+        }
+
+        self.snapshot = GPUSnapshot(takenAt: snapshot.takenAt, gpus: updatedGPUs)
+    }
+
+    private func mergeProcessDetails(from previous: GPUSnapshot?, into latest: GPUSnapshot) -> GPUSnapshot {
+        guard let previous else { return latest }
+
+        let previousProcessesByID = Dictionary(
+            uniqueKeysWithValues: previous.gpus
+                .flatMap(\.processes)
+                .filter(\.hasResolvedMetadata)
+                .map { ($0.id, $0) }
+        )
+
+        let mergedGPUs = latest.gpus.map { gpu in
+            let mergedProcesses = gpu.processes.map { process in
+                previousProcessesByID[process.id] ?? process
+            }
+
+            return GPUReading(
+                index: gpu.index,
+                name: gpu.name,
+                uuid: gpu.uuid,
+                utilization: gpu.utilization,
+                memoryUsedMB: gpu.memoryUsedMB,
+                memoryTotalMB: gpu.memoryTotalMB,
+                temperatureCelsius: gpu.temperatureCelsius,
+                processes: mergedProcesses
+            )
+        }
+
+        return GPUSnapshot(takenAt: latest.takenAt, gpus: mergedGPUs)
     }
 
     private static func loadSettings(from userDefaults: UserDefaults) -> AppSettings {

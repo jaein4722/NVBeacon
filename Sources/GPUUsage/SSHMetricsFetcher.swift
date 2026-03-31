@@ -34,15 +34,59 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    func fetch(settings: AppSettings, password: String? = nil) async throws -> GPUSnapshot {
+    func fetchSummary(settings: AppSettings, password: String? = nil) async throws -> GPUSnapshot {
         let normalized = settings.normalized()
         guard normalized.isConfigured else {
             throw FetchError.missingTarget
         }
 
-        let output = try await runSSHCommand(settings: normalized, password: password)
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand),
+            password: password
+        )
         let gpus = try Self.parseSnapshot(output)
         return GPUSnapshot(takenAt: Date(), gpus: gpus)
+    }
+
+    func fetchProcessDetails(
+        settings: AppSettings,
+        processes: [GPUProcessReading],
+        password: String? = nil
+    ) async throws -> [GPUProcessReading] {
+        let normalized = settings.normalized()
+        guard normalized.isConfigured else {
+            throw FetchError.missingTarget
+        }
+
+        let uniquePIDs = Array(Set(processes.map(\.pid))).sorted()
+        guard !uniquePIDs.isEmpty else {
+            return processes
+        }
+
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: Self.buildPSLookupCommand(pids: uniquePIDs),
+            password: password,
+            allowEmptyOutput: true
+        )
+        let processDetails = try Self.parsePSSection(output)
+        let processDetailsByPID = Dictionary(uniqueKeysWithValues: processDetails.map { ($0.pid, $0) })
+
+        return processes.map { process in
+            guard let details = processDetailsByPID[process.pid] else {
+                return process
+            }
+
+            return GPUProcessReading(
+                gpuUUID: process.gpuUUID,
+                pid: process.pid,
+                processName: process.processName,
+                usedGPUMemoryMB: process.usedGPUMemoryMB,
+                user: details.user,
+                commandLine: details.commandLine
+            )
+        }
     }
 
     static func parse(_ output: String) throws -> [GPUReading] {
@@ -128,7 +172,12 @@ struct SSHMetricsFetcher: Sendable {
         return try lines.map(parsePSLine(_:))
     }
 
-    private func runSSHCommand(settings: AppSettings, password: String?) async throws -> String {
+    private func runSSHCommand(
+        settings: AppSettings,
+        remoteCommand: String,
+        password: String?,
+        allowEmptyOutput: Bool = false
+    ) async throws -> String {
         try await Task.detached(priority: .utility) {
             let trimmedPassword = password?.trimmingCharacters(in: .newlines)
             let askPassScriptURL: URL?
@@ -149,7 +198,8 @@ struct SSHMetricsFetcher: Sendable {
             process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
             process.arguments = Self.buildSSHArguments(
                 settings: settings,
-                prefersPasswordAuth: !(trimmedPassword?.isEmpty ?? true)
+                prefersPasswordAuth: !(trimmedPassword?.isEmpty ?? true),
+                remoteCommand: remoteCommand
             )
 
             let stdoutPipe = Pipe()
@@ -182,7 +232,7 @@ struct SSHMetricsFetcher: Sendable {
                 throw FetchError.commandFailed(process.terminationStatus, stderr.isEmpty ? stdout : stderr)
             }
 
-            guard !stdout.isEmpty else {
+            guard allowEmptyOutput || !stdout.isEmpty else {
                 throw FetchError.emptyResponse
             }
 
@@ -190,7 +240,11 @@ struct SSHMetricsFetcher: Sendable {
         }.value
     }
 
-    private static func buildSSHArguments(settings: AppSettings, prefersPasswordAuth: Bool) -> [String] {
+    private static func buildSSHArguments(
+        settings: AppSettings,
+        prefersPasswordAuth: Bool,
+        remoteCommand: String
+    ) -> [String] {
         var arguments = [
             "-o", "ConnectTimeout=5",
         ]
@@ -204,6 +258,9 @@ struct SSHMetricsFetcher: Sendable {
         } else {
             arguments.append(contentsOf: [
                 "-o", "BatchMode=yes",
+                "-o", "PreferredAuthentications=publickey",
+                "-o", "PasswordAuthentication=no",
+                "-o", "KbdInteractiveAuthentication=no",
             ])
         }
 
@@ -219,7 +276,7 @@ struct SSHMetricsFetcher: Sendable {
         arguments.append(contentsOf: [
             "/bin/sh",
             "-lc",
-            shellQuoted(buildCombinedRemoteCommand(summaryCommand: settings.remoteCommand)),
+            shellQuoted(remoteCommand),
         ])
 
         return arguments
@@ -282,19 +339,19 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func buildCombinedRemoteCommand(summaryCommand: String) -> String {
+    private static func buildSummaryRemoteCommand(summaryCommand: String) -> String {
         """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
         process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
         printf '%s\\n' "$process_output"
-        printf '\\n\(psSectionSeparator)\\n'
-        if [ -n "$process_output" ]; then
-          pids="$(printf '%s\\n' "$process_output" | awk -F',' '{ gsub(/^[[:space:]]+|[[:space:]]+$/, "", $2); if ($2 != "") print $2 }' | sort -u | paste -sd, -)"
-          if [ -n "$pids" ]; then
-            ps -o pid= -o user= -o args= -p "$pids" 2>/dev/null || true
-          fi
-        fi
+        """
+    }
+
+    private static func buildPSLookupCommand(pids: [Int]) -> String {
+        let pidList = pids.map(String.init).joined(separator: ",")
+        return """
+        ps -o pid= -o user= -o args= -p "\(pidList)" 2>/dev/null || true
         """
     }
 

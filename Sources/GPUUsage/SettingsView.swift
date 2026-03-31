@@ -23,7 +23,7 @@ struct SettingsView: View {
         case let (shortVersion?, _):
             return shortVersion
         default:
-            return "0.2.1"
+            return "0.2.2"
         }
     }
 
@@ -108,6 +108,20 @@ struct SettingsView: View {
                         .frame(width: 320)
                 }
 
+                LabeledContent("Auth Method") {
+                    Picker("Auth Method", selection: $draft.sshAuthenticationMode) {
+                        ForEach(SSHAuthenticationMode.allCases) { mode in
+                            Text(mode.title).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .frame(width: 180)
+                }
+
+                Text(draft.sshAuthenticationMode.detailText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent("Identity File") {
                     TextField("", text: $draft.sshIdentityFilePath, prompt: Text("Optional"))
                         .labelsHidden()
@@ -115,11 +129,13 @@ struct SettingsView: View {
                         .frame(width: 320)
                 }
 
-                LabeledContent("SSH Password") {
-                    SecureField("", text: $draftPassword, prompt: Text("Optional"))
-                        .labelsHidden()
-                        .textFieldStyle(.roundedBorder)
-                        .frame(width: 240)
+                if draft.sshAuthenticationMode == .passwordBased {
+                    LabeledContent("SSH Password") {
+                        SecureField("", text: $draftPassword, prompt: Text("Optional"))
+                            .labelsHidden()
+                            .textFieldStyle(.roundedBorder)
+                            .frame(width: 240)
+                    }
                 }
 
                 LabeledContent("SSH Port") {
@@ -131,7 +147,9 @@ struct SettingsView: View {
             } header: {
                 Text("Connection")
             } footer: {
-                Text("SSH 비밀번호는 UserDefaults가 아니라 macOS Keychain에 저장됩니다.")
+                Text(draft.sshAuthenticationMode == .passwordBased
+                     ? "SSH 비밀번호는 UserDefaults가 아니라 macOS Keychain에 저장됩니다."
+                     : "Key-based 모드에서는 SSH 키와 ssh-agent를 사용하며, background polling 중 Keychain을 읽지 않습니다.")
             }
 
             Section {
@@ -244,7 +262,7 @@ struct SettingsView: View {
 
             Section {
                 Text("로컬 Mac에서 `ssh`를 실행하고 원격 서버에서 `nvidia-smi`를 호출합니다.")
-                Text("키 기반 인증과 비밀번호 인증을 모두 지원합니다.")
+                Text("기본값은 키 기반 인증이며, 필요할 때만 비밀번호 인증을 켤 수 있습니다.")
                 Text("프로세스 상세는 `nvidia-smi`와 `ps`를 함께 조회해 user, pid, command를 보여줍니다.")
             } header: {
                 Text("How It Works")
@@ -270,7 +288,7 @@ struct SettingsView: View {
     private func loadCurrentSettings() {
         suppressAutoApply = true
         draft = store.settings
-        draftPassword = store.loadSavedPassword()
+        draftPassword = draft.sshAuthenticationMode == .passwordBased ? store.loadSavedPassword() : ""
 
         if sshConfigHosts.contains(where: { $0.alias == store.settings.sshTarget }) {
             selectedSSHConfigAlias = store.settings.sshTarget

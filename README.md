@@ -30,8 +30,9 @@ swift run
 
 - `Import From ~/.ssh/config`: 로컬 `~/.ssh/config`에 등록된 alias를 바로 가져와 적용
 - `SSH Target`: `gpu-prod` 또는 `user@host`
+- `Auth Method`: 기본값은 `Key-based`, 필요하면 `Password-based`
 - `Identity File`: 선택 사항, 필요하면 `~/.ssh/id_ed25519`
-- `SSH Password`: 선택 사항, 입력하면 비밀번호 인증 사용
+- `SSH Password`: `Password-based`일 때만 사용
 - `Refresh Interval`: polling 간격(초)
 - `Menu Bar Summary`: 메뉴바에 `평균 사용률`, `busy GPU 수`, 둘 다, 또는 `icon only` 표시
 - `Remote Command`: 기본값은 `nvidia-smi` 쿼리, 필요하면 절대 경로로 변경
@@ -49,6 +50,7 @@ swift run
 ## Notes
 
 - 이 앱은 macOS의 기존 SSH 키와 `~/.ssh/config`를 그대로 사용합니다.
+- 기본 `Key-based` 모드에서는 background polling 중 Keychain을 읽지 않습니다.
 - 비밀번호 인증을 쓰는 경우 비밀번호는 `UserDefaults`가 아니라 macOS Keychain에 저장합니다.
 - 서버에서 non-interactive shell의 PATH가 다르면 `Remote Command`에 `/usr/bin/nvidia-smi ...` 같은 전체 경로를 넣으세요.
 
@@ -61,11 +63,12 @@ swift run
 기본 실행 결과:
 
 - `dist/GPUUsage.app`
-- `dist/GPUUsage-0.2.1.zip`
+- `dist/GPUUsage-0.2.2.dmg`
+- 저장소 루트에 `icon.png`가 있으면 자동으로 `.icns`로 변환되어 앱 아이콘으로 포함
 
 옵션 환경 변수:
 
-- `VERSION=0.2.1`
+- `VERSION=0.2.2`
 - `BUILD_NUMBER=1`
 - `BUNDLE_ID=com.example.GPUUsage`
 - `CODESIGN_IDENTITY="Developer ID Application: ..."`
@@ -80,6 +83,7 @@ swift run
 - `CODESIGN_IDENTITY`가 없으면 ad-hoc 서명으로 로컬 배포용 앱을 만듭니다.
 - 외부 사용자에게 배포하려면 `Developer ID Application` 서명과 notarization이 필요합니다.
 - ad-hoc 빌드는 다른 Mac에서 Gatekeeper에 의해 차단되는 것이 정상입니다.
+- 아이콘은 정사각형 PNG를 권장하며, 가장 좋은 품질은 `1024x1024` 이상입니다.
 
 ### Real Distribution
 
@@ -99,4 +103,21 @@ KEYCHAIN_PROFILE="GPUUsageNotary" \
 ./scripts/package_app.sh
 ```
 
-4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.1.zip`를 배포합니다.
+4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.2.dmg`를 배포합니다.
+
+## GitHub Releases
+
+이 저장소에는 tag 기반 릴리즈 워크플로가 포함됩니다.
+
+1. `master`에 릴리즈할 변경을 반영합니다.
+2. `swift test`를 확인합니다.
+3. `v0.2.2` 같은 tag를 생성하고 push합니다.
+
+```bash
+git tag v0.2.2
+git push origin v0.2.2
+```
+
+4. GitHub Actions가 macOS runner에서 DMG를 빌드하고 해당 tag의 GitHub Release에 업로드합니다.
+
+기본 workflow는 ad-hoc 서명의 DMG를 올립니다. Gatekeeper 경고 없이 배포하려면 이후에 Apple Developer 인증서와 notarization secret을 CI에 추가해야 합니다.

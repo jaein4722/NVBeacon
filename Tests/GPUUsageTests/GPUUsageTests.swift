@@ -40,6 +40,22 @@ import Testing
     #expect(gpus[1].processes.isEmpty)
 }
 
+@Test func summaryPollingKeepsProcessMetadataLazy() throws {
+    let output = """
+    0, NVIDIA RTX 6000 Ada Generation, GPU-111, 73, 12048, 49140, 65
+    __GPUUSAGE_PROCESS_SECTION__
+    GPU-111, 1001, python, 8192
+    """
+
+    let gpus = try SSHMetricsFetcher.parseSnapshot(output)
+
+    #expect(gpus.count == 1)
+    #expect(gpus[0].processes.count == 1)
+    #expect(gpus[0].processes[0].processName == "python")
+    #expect(gpus[0].processes[0].user == nil)
+    #expect(gpus[0].processes[0].commandLine == nil)
+}
+
 @Test func malformedOutputThrows() {
     #expect(throws: SSHMetricsFetcher.FetchError.self) {
         try SSHMetricsFetcher.parse("unexpected output")
@@ -89,6 +105,7 @@ import Testing
     let settings = try JSONDecoder().decode(AppSettings.self, from: #require(json.data(using: .utf8)))
 
     #expect(settings.sshTarget == "gpu-prod")
+    #expect(settings.sshAuthenticationMode == .keyBased)
     #expect(settings.menuBarDisplayMode == .averageAndBusy)
 }
 
