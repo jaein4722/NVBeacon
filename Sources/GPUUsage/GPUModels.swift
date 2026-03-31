@@ -236,6 +236,10 @@ struct GPUReading: Identifiable, Equatable, Sendable {
     var processSummary: String {
         processes.isEmpty ? "No active processes" : "\(processes.count) active process\(processes.count == 1 ? "" : "es")"
     }
+
+    var isIdle: Bool {
+        utilization < 10 && processes.isEmpty
+    }
 }
 
 struct GPUSnapshot: Equatable, Sendable {
