@@ -9,8 +9,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
-        NSApp.setActivationPolicy(.accessory)
+        applyActivationPolicy(showsDockIcon: store.settings.showsDockIcon)
         bindAppearance()
+        bindActivationPolicy()
         applyAppearance(for: store.settings.appearanceMode)
 
         let statusItemController = StatusItemController(store: store, settingsOpenBridge: settingsOpenBridge)
@@ -37,6 +38,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .store(in: &cancellables)
     }
 
+    private func bindActivationPolicy() {
+        store.$settings
+            .map(\.showsDockIcon)
+            .removeDuplicates()
+            .receive(on: RunLoop.main)
+            .sink { [weak self] showsDockIcon in
+                self?.applyActivationPolicy(showsDockIcon: showsDockIcon)
+            }
+            .store(in: &cancellables)
+    }
+
     private func applyAppearance(for mode: AppAppearanceMode) {
         switch mode {
         case .system:
@@ -45,6 +57,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             NSApp.appearance = NSAppearance(named: .aqua)
         case .dark:
             NSApp.appearance = NSAppearance(named: .darkAqua)
+        }
+    }
+
+    private func applyActivationPolicy(showsDockIcon: Bool) {
+        let policy: NSApplication.ActivationPolicy = showsDockIcon ? .regular : .accessory
+        NSApp.setActivationPolicy(policy)
+
+        if showsDockIcon {
+            NSApp.activate(ignoringOtherApps: true)
         }
     }
 

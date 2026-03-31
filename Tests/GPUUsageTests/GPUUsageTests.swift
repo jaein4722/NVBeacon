@@ -127,6 +127,7 @@ import Testing
     #expect(settings.sshAuthenticationMode == .keyBased)
     #expect(settings.menuBarDisplayMode == .averageAndBusy)
     #expect(settings.appearanceMode == .system)
+    #expect(settings.showsDockIcon == false)
 }
 
 @Test func menuBarDisplayModesBuildExpectedSummary() {

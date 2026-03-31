@@ -192,6 +192,14 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Toggle("Show Dock icon", isOn: $draft.showsDockIcon)
+
+                Text(draft.showsDockIcon
+                     ? "Dock과 App Switcher에 GPUUsage 아이콘을 표시합니다."
+                     : "메뉴바 전용 앱처럼 동작하며 Dock 아이콘을 숨깁니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent("Display") {
                     Picker("Display", selection: $draft.menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in
@@ -269,6 +277,11 @@ struct SettingsView: View {
 
                 LabeledContent("Theme") {
                     Text(store.settings.appearanceMode.title)
+                        .foregroundStyle(.secondary)
+                }
+
+                LabeledContent("Dock Icon") {
+                    Text(store.settings.showsDockIcon ? "Visible" : "Hidden")
                         .foregroundStyle(.secondary)
                 }
 

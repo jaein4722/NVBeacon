@@ -35,6 +35,7 @@ swift run
 - `SSH Password`: `Password-based`일 때만 사용
 - `Refresh Interval`: polling 간격(초)
 - `Theme`: `System`, `Light`, `Dark` 중 선택
+- `Show Dock icon`: Dock과 App Switcher에 앱 아이콘 표시 여부
 - `Menu Bar Summary`: 메뉴바에 `평균 사용률`, `busy GPU 수`, 둘 다, 또는 `icon only` 표시
 - `Remote Command`: 기본값은 `nvidia-smi` 쿼리, 필요하면 절대 경로로 변경
 

@@ -115,6 +115,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var remoteCommand: String = Self.defaultRemoteCommand
     var menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
     var appearanceMode: AppAppearanceMode = .system
+    var showsDockIcon: Bool = false
 
     init(
         sshTarget: String = "",
@@ -124,7 +125,8 @@ struct AppSettings: Codable, Equatable, Sendable {
         pollIntervalSeconds: Int = 10,
         remoteCommand: String = Self.defaultRemoteCommand,
         menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy,
-        appearanceMode: AppAppearanceMode = .system
+        appearanceMode: AppAppearanceMode = .system,
+        showsDockIcon: Bool = false
     ) {
         self.sshTarget = sshTarget
         self.sshPort = sshPort
@@ -134,6 +136,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.remoteCommand = remoteCommand
         self.menuBarDisplayMode = menuBarDisplayMode
         self.appearanceMode = appearanceMode
+        self.showsDockIcon = showsDockIcon
     }
 
     private enum CodingKeys: String, CodingKey {
@@ -145,6 +148,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case remoteCommand
         case menuBarDisplayMode
         case appearanceMode
+        case showsDockIcon
     }
 
     init(from decoder: Decoder) throws {
@@ -157,7 +161,8 @@ struct AppSettings: Codable, Equatable, Sendable {
             pollIntervalSeconds: try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? 10,
             remoteCommand: try container.decodeIfPresent(String.self, forKey: .remoteCommand) ?? Self.defaultRemoteCommand,
             menuBarDisplayMode: try container.decodeIfPresent(MenuBarDisplayMode.self, forKey: .menuBarDisplayMode) ?? .averageAndBusy,
-            appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system
+            appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system,
+            showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false
         )
     }
 
