@@ -1,6 +1,7 @@
 <a id="readme-top"></a>
 
 <div align="center">
+  <img src="icon.png" alt="GPUUsage Logo" width="128" height="128">
   <h1>GPUUsage</h1>
   <p>
     A native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH.
