@@ -7,6 +7,7 @@ final class GPUUsageStore: ObservableObject {
     @Published private(set) var snapshot: GPUSnapshot?
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrorMessage: String?
+    @Published private(set) var noticeMessage: String?
     @Published private(set) var loadingProcessDetailGPUIds = Set<Int>()
     @Published private(set) var watchedProcesses = [ProcessExitWatch]()
 
@@ -118,6 +119,7 @@ final class GPUUsageStore: ObservableObject {
 
         settings = normalized
         persistSettings()
+        noticeMessage = nil
 
         if connectionChanged {
             watchedProcesses.removeAll()
@@ -147,6 +149,7 @@ final class GPUUsageStore: ObservableObject {
         userDefaults.removeObject(forKey: settingsKey)
         userDefaults.removeObject(forKey: watchedProcessesKey)
         lastErrorMessage = "SSH target를 입력하면 polling을 시작합니다."
+        noticeMessage = nil
         configurePolling(resetState: false)
     }
 
@@ -337,17 +340,18 @@ final class GPUUsageStore: ObservableObject {
         if let existingIndex = watchedProcesses.firstIndex(where: { $0.matches(process) && $0.connectionFingerprint == settings.connectionFingerprint }) {
             watchedProcesses.remove(at: existingIndex)
             persistWatchedProcesses()
+            noticeMessage = nil
             return
         }
 
         guard notificationManager.isSupportedEnvironment else {
-            lastErrorMessage = "프로세스 종료 알림은 번들 앱(.app)으로 실행할 때만 사용할 수 있습니다."
+            noticeMessage = "프로세스 종료 알림은 번들 앱(.app)으로 실행할 때만 사용할 수 있습니다."
             return
         }
 
         let isAuthorized = await notificationManager.requestAuthorizationIfNeeded()
         guard isAuthorized else {
-            lastErrorMessage = "macOS 알림 권한이 없어 종료 알림을 등록하지 못했습니다."
+            noticeMessage = "macOS 알림 권한이 없어 종료 알림을 등록하지 못했습니다."
             return
         }
 
@@ -360,7 +364,7 @@ final class GPUUsageStore: ObservableObject {
             return lhs.gpuIndex < rhs.gpuIndex
         }
         persistWatchedProcesses()
-        lastErrorMessage = nil
+        noticeMessage = "프로세스 종료 알림을 등록했습니다."
     }
 
     private func evaluateWatchedProcesses(using snapshot: GPUSnapshot, settings: AppSettings, password: String?) async {

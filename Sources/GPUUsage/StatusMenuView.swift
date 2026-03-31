@@ -20,6 +20,13 @@ struct StatusMenuView: View {
                     emptyState
                 }
 
+                if let noticeMessage = store.noticeMessage, store.settings.isConfigured {
+                    Label(noticeMessage, systemImage: "info.circle")
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, 2)
+                }
+
                 if let lastErrorMessage = store.lastErrorMessage, store.settings.isConfigured {
                     Text(lastErrorMessage)
                         .font(.footnote)
