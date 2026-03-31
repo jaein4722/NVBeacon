@@ -306,15 +306,21 @@ struct SettingsView: View {
 
     private func loadCurrentSettings() {
         suppressAutoApply = true
-        draft = store.settings
-        draftPassword = draft.sshAuthenticationMode == .passwordBased ? store.loadSavedPassword() : ""
+        let currentSettings = store.settings
 
-        if sshConfigHosts.contains(where: { $0.alias == store.settings.sshTarget }) {
-            selectedSSHConfigAlias = store.settings.sshTarget
+        if sshConfigHosts.contains(where: { $0.alias == currentSettings.sshTarget }) {
+            selectedSSHConfigAlias = currentSettings.sshTarget
         } else if selectedSSHConfigAlias.isEmpty {
             selectedSSHConfigAlias = sshConfigHosts.first?.alias ?? ""
         }
 
+        if let selectedSSHConfigHost, selectedSSHConfigHost.alias == currentSettings.sshTarget {
+            draft = selectedSSHConfigHost.backfillingMissingFields(in: currentSettings)
+        } else {
+            draft = currentSettings
+        }
+
+        draftPassword = draft.sshAuthenticationMode == .passwordBased ? store.loadSavedPassword() : ""
         releaseAutoApplySuppression()
     }
 

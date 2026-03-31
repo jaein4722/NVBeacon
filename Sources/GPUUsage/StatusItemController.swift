@@ -2,6 +2,26 @@ import AppKit
 import Combine
 import SwiftUI
 
+private struct StatusMenuContainerView: View {
+    @ObservedObject var store: GPUUsageStore
+
+    var body: some View {
+        StatusMenuView(store: store)
+            .preferredColorScheme(colorScheme)
+    }
+
+    private var colorScheme: ColorScheme? {
+        switch store.settings.appearanceMode {
+        case .system:
+            return nil
+        case .light:
+            return .light
+        case .dark:
+            return .dark
+        }
+    }
+}
+
 @MainActor
 final class StatusItemController: NSObject {
     var showSettingsAction: (() -> Void)?
@@ -57,7 +77,8 @@ final class StatusItemController: NSObject {
     private func configurePopover() {
         popover.behavior = .transient
         popover.animates = true
-        popover.contentViewController = NSHostingController(rootView: StatusMenuView(store: store))
+        popover.contentViewController = NSHostingController(rootView: StatusMenuContainerView(store: store))
+        updatePopoverAppearance()
     }
 
     private func configureMenu() {
@@ -101,6 +122,7 @@ final class StatusItemController: NSObject {
             .sink { [weak self] _ in
                 self?.updateStatusItemAppearance()
                 self?.updatePopoverSize()
+                self?.updatePopoverAppearance()
             }
             .store(in: &cancellables)
     }
@@ -110,7 +132,9 @@ final class StatusItemController: NSObject {
             popover.performClose(sender)
         } else {
             updatePopoverSize()
+            updatePopoverAppearance()
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
+            updatePopoverAppearance()
             popover.contentViewController?.view.window?.becomeKey()
         }
     }
@@ -141,5 +165,20 @@ final class StatusItemController: NSObject {
         let gpuCount = max(store.snapshot?.gpus.count ?? 0, 1)
         let height = min(CGFloat(820), max(260, CGFloat(110 + gpuCount * 58)))
         popover.contentSize = NSSize(width: 500, height: height)
+    }
+
+    private func updatePopoverAppearance() {
+        let appearance: NSAppearance? = switch store.settings.appearanceMode {
+        case .system:
+            nil
+        case .light:
+            NSAppearance(named: .aqua)
+        case .dark:
+            NSAppearance(named: .darkAqua)
+        }
+
+        popover.appearance = appearance
+        popover.contentViewController?.view.appearance = appearance
+        popover.contentViewController?.view.window?.appearance = appearance
     }
 }

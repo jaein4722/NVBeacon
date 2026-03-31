@@ -42,8 +42,22 @@ struct SSHConfigHost: Identifiable, Equatable {
     func apply(to settings: AppSettings) -> AppSettings {
         var copy = settings
         copy.sshTarget = alias
-        copy.sshPort = ""
-        copy.sshIdentityFilePath = ""
+        copy.sshPort = port ?? ""
+        copy.sshIdentityFilePath = identityFilePath ?? ""
+        return copy.normalized()
+    }
+
+    func backfillingMissingFields(in settings: AppSettings) -> AppSettings {
+        var copy = settings
+
+        if copy.sshPort.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            copy.sshPort = port ?? ""
+        }
+
+        if copy.sshIdentityFilePath.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            copy.sshIdentityFilePath = identityFilePath ?? ""
+        }
+
         return copy.normalized()
     }
 }

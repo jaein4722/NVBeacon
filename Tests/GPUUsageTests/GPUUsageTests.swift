@@ -91,6 +91,25 @@ import Testing
     #expect(hosts.first(where: { $0.alias == "train-box" })?.user == "ubuntu")
 }
 
+@Test func applyingSSHConfigHostPopulatesPortAndIdentity() {
+    let host = SSHConfigHost(
+        alias: "gpu-prod",
+        hostName: "10.0.0.10",
+        user: "lee",
+        port: "2222",
+        identityFilePath: "/Users/test/.ssh/id_gpu"
+    )
+
+    let applied = host.apply(to: AppSettings())
+    let backfilled = host.backfillingMissingFields(in: AppSettings(sshTarget: "gpu-prod"))
+
+    #expect(applied.sshTarget == "gpu-prod")
+    #expect(applied.sshPort == "2222")
+    #expect(applied.sshIdentityFilePath == "/Users/test/.ssh/id_gpu")
+    #expect(backfilled.sshPort == "2222")
+    #expect(backfilled.sshIdentityFilePath == "/Users/test/.ssh/id_gpu")
+}
+
 @Test func decodesLegacySettingsWithoutMenuBarMode() throws {
     let json = """
     {
