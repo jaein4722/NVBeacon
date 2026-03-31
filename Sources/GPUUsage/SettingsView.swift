@@ -166,13 +166,12 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Refresh Interval") {
-                    HStack(spacing: 8) {
-                        Stepper("", value: $draft.pollIntervalSeconds, in: 3...300)
-                            .labelsHidden()
-                        Text("\(draft.pollIntervalSeconds) seconds")
-                            .monospacedDigit()
-                    }
-                    .fixedSize()
+                    NumericStepperField(
+                        value: $draft.pollIntervalSeconds,
+                        range: 1...300,
+                        suffix: "s",
+                        fieldWidth: 72
+                    )
                 }
             } header: {
                 Text("Polling")
@@ -220,23 +219,21 @@ struct SettingsView: View {
 
             Section {
                 LabeledContent("Idle Duration") {
-                    HStack(spacing: 8) {
-                        Stepper("", value: $draft.idleNotificationSeconds, in: 30...86_400, step: 30)
-                            .labelsHidden()
-                        Text("\(draft.idleNotificationSeconds) seconds")
-                            .monospacedDigit()
-                    }
-                    .fixedSize()
+                    NumericStepperField(
+                        value: $draft.idleNotificationSeconds,
+                        range: 1...3_600,
+                        suffix: "s",
+                        fieldWidth: 72
+                    )
                 }
 
                 LabeledContent("Memory Threshold") {
-                    HStack(spacing: 8) {
-                        Stepper("", value: $draft.idleMemoryThresholdMB, in: 0...4_096, step: 10)
-                            .labelsHidden()
-                        Text("\(draft.idleMemoryThresholdMB) MB")
-                            .monospacedDigit()
-                    }
-                    .fixedSize()
+                    NumericStepperField(
+                        value: $draft.idleMemoryThresholdMB,
+                        range: 0...10_240,
+                        suffix: "MB",
+                        fieldWidth: 88
+                    )
                 }
             } header: {
                 Text("GPU Idle Alert")
@@ -245,57 +242,7 @@ struct SettingsView: View {
             }
 
             Section {
-                if store.watchedIdleGPUs.isEmpty && store.watchedProcesses.isEmpty {
-                    Text("현재 설정된 notification watch가 없습니다.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    if !store.watchedIdleGPUs.isEmpty {
-                        Text("GPU Idle Alerts")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        ForEach(store.watchedIdleGPUs) { watch in
-                            NotificationWatchRow(
-                                badgeTitle: "GPU Idle",
-                                badgeSystemImage: "star.fill",
-                                badgeTint: .yellow,
-                                title: watch.title,
-                                primaryMetadata: watch.subtitle,
-                                secondaryMetadata: "Idle \(draft.idleNotificationSeconds)s · <=\(draft.idleMemoryThresholdMB)MB",
-                                removeButtonTitle: "Disable",
-                                removeAction: {
-                                    store.removeIdleWatch(watch)
-                                }
-                            )
-                        }
-                    }
-
-                    if !store.watchedIdleGPUs.isEmpty && !store.watchedProcesses.isEmpty {
-                        Divider()
-                            .padding(.vertical, 2)
-                    }
-
-                    if !store.watchedProcesses.isEmpty {
-                        Text("Process Exit Alerts")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(.secondary)
-
-                        ForEach(store.watchedProcesses) { watch in
-                            NotificationWatchRow(
-                                badgeTitle: "Process Exit",
-                                badgeSystemImage: "bell.fill",
-                                badgeTint: .orange,
-                                title: watch.displayProcessName,
-                                primaryMetadata: processWatchPrimaryMetadataText(for: watch),
-                                secondaryMetadata: watch.connectionLabel,
-                                removeButtonTitle: "Disable",
-                                removeAction: {
-                                    store.removeProcessWatch(watch)
-                                }
-                            )
-                        }
-                    }
-                }
+                activeWatchesContent
             } header: {
                 Text("Active Watches")
             }
@@ -512,6 +459,77 @@ struct SettingsView: View {
         draft = selectedSSHConfigHost.apply(to: draft)
     }
 
+    @ViewBuilder
+    private var activeWatchesContent: some View {
+        if store.watchedIdleGPUs.isEmpty && store.watchedProcesses.isEmpty {
+            Text("현재 설정된 notification watch가 없습니다.")
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 14) {
+                if !store.watchedIdleGPUs.isEmpty {
+                    watchGroup(
+                        title: "GPU Idle Alerts",
+                        rows: store.watchedIdleGPUs.map { watch in
+                            AnyView(
+                                NotificationWatchRow(
+                                    badgeTitle: "GPU Idle",
+                                    badgeSystemImage: "star.fill",
+                                    badgeTint: .yellow,
+                                    title: watch.title,
+                                    primaryMetadata: watch.subtitle,
+                                    secondaryMetadata: "Idle \(draft.idleNotificationSeconds)s · <=\(draft.idleMemoryThresholdMB)MB",
+                                    removeAction: {
+                                        store.removeIdleWatch(watch)
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+
+                if !store.watchedProcesses.isEmpty {
+                    watchGroup(
+                        title: "Process Exit Alerts",
+                        rows: store.watchedProcesses.map { watch in
+                            AnyView(
+                                NotificationWatchRow(
+                                    badgeTitle: "Process Exit",
+                                    badgeSystemImage: "bell.fill",
+                                    badgeTint: .orange,
+                                    title: watch.displayProcessName,
+                                    primaryMetadata: processWatchPrimaryMetadataText(for: watch),
+                                    secondaryMetadata: watch.connectionLabel,
+                                    removeAction: {
+                                        store.removeProcessWatch(watch)
+                                    }
+                                )
+                            )
+                        }
+                    )
+                }
+            }
+            .padding(.vertical, 2)
+        }
+    }
+
+    private func watchGroup(title: String, rows: [AnyView]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.bottom, 8)
+
+            ForEach(Array(rows.enumerated()), id: \.offset) { index, row in
+                row
+
+                if index < rows.count - 1 {
+                    Divider()
+                        .padding(.vertical, 8)
+                }
+            }
+        }
+    }
+
     private func releaseAutoApplySuppression() {
         DispatchQueue.main.async {
             suppressAutoApply = false
@@ -526,7 +544,6 @@ private struct NotificationWatchRow: View {
     let title: String
     let primaryMetadata: String
     let secondaryMetadata: String
-    let removeButtonTitle: String
     let removeAction: () -> Void
 
     var body: some View {
@@ -550,8 +567,7 @@ private struct NotificationWatchRow: View {
 
             Spacer(minLength: 12)
 
-            Button(removeButtonTitle, role: .destructive, action: removeAction)
-                .controlSize(.small)
+            DisableWatchButton(action: removeAction)
         }
         .padding(.vertical, 2)
     }
@@ -594,4 +610,60 @@ private struct NotificationHistoryRow: View {
 private func processWatchPrimaryMetadataText(for watch: ProcessExitWatch) -> String {
     let userText = watch.user?.isEmpty == false ? watch.user! : "--"
     return "User \(userText) · PID \(watch.pid) · GPU \(watch.gpuIndex)"
+}
+
+private struct NumericStepperField: View {
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let suffix: String
+    let fieldWidth: CGFloat
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Stepper("", value: $value, in: range)
+                .labelsHidden()
+
+            TextField("", value: $value, format: .number.grouping(.never))
+                .textFieldStyle(.roundedBorder)
+                .multilineTextAlignment(.trailing)
+                .frame(width: fieldWidth)
+                .onChange(of: value) { _, newValue in
+                    value = min(max(newValue, range.lowerBound), range.upperBound)
+                }
+
+            Text(suffix)
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+        }
+        .fixedSize()
+    }
+}
+
+private struct DisableWatchButton: View {
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 4) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+
+                Text("Disable")
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(.red)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(Color.red.opacity(0.1))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .stroke(Color.red.opacity(0.24), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.plain)
+        .contentShape(Capsule(style: .continuous))
+    }
 }

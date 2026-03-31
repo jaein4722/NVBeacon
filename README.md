@@ -53,8 +53,9 @@ open dist/GPUUsage-0.2.4-test-<commit>.app
 - `Auth Method`: 기본값은 `Key-based`, 필요하면 `Password-based`
 - `Identity File`: 선택 사항, 필요하면 `~/.ssh/id_ed25519`
 - `SSH Password`: `Password-based`일 때만 사용
-- `Refresh Interval`: polling 간격(초)
+- `Refresh Interval`: polling 간격(초), `1...300` 범위에서 직접 입력 또는 stepper로 조정
 - `Notifications`: macOS 알림 권한 상태 확인, 권한 요청, 테스트 알림 전송, 현재 `프로세스 종료` / `GPU idle` watch 목록 관리, 최근 24시간 notification 설정 내역 확인
+- `Idle Duration` / `Memory Threshold`: GPU idle 알림 기준, 각각 `1...3600s`, `0...10240MB` 범위에서 직접 입력 또는 stepper로 조정
 - `Theme`: `System`, `Light`, `Dark` 중 선택
 - `Show Dock icon`: Dock과 App Switcher에 앱 아이콘 표시 여부
 - `Menu Bar Summary`: 메뉴바에 `평균 사용률`, `busy GPU 수`, 둘 다, 또는 `icon only` 표시

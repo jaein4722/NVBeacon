@@ -220,13 +220,23 @@ import Testing
 }
 
 @Test func normalizesIdleAlertThresholds() {
-    let settings = AppSettings(
-        idleNotificationSeconds: 5,
+    let lowerBoundSettings = AppSettings(
+        pollIntervalSeconds: 0,
+        idleNotificationSeconds: 0,
         idleMemoryThresholdMB: 50_000
     ).normalized()
+    let upperBoundSettings = AppSettings(
+        pollIntervalSeconds: 500,
+        idleNotificationSeconds: 5_000,
+        idleMemoryThresholdMB: 12_000
+    ).normalized()
 
-    #expect(settings.idleNotificationSeconds == 30)
-    #expect(settings.idleMemoryThresholdMB == 4_096)
+    #expect(lowerBoundSettings.pollIntervalSeconds == 1)
+    #expect(lowerBoundSettings.idleNotificationSeconds == 1)
+    #expect(lowerBoundSettings.idleMemoryThresholdMB == 10_240)
+    #expect(upperBoundSettings.pollIntervalSeconds == 300)
+    #expect(upperBoundSettings.idleNotificationSeconds == 3_600)
+    #expect(upperBoundSettings.idleMemoryThresholdMB == 10_240)
 }
 
 @Test func gpuIdleWatchMatchesByUUIDOrIndex() {

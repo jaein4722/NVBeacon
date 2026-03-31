@@ -218,9 +218,9 @@ struct AppSettings: Codable, Equatable, Sendable {
         copy.sshTarget = sshTarget.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.sshPort = sshPort.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.sshIdentityFilePath = NSString(string: sshIdentityFilePath.trimmingCharacters(in: .whitespacesAndNewlines)).expandingTildeInPath
-        copy.pollIntervalSeconds = min(max(pollIntervalSeconds, 3), 300)
-        copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 30), 86_400)
-        copy.idleMemoryThresholdMB = min(max(idleMemoryThresholdMB, 0), 4_096)
+        copy.pollIntervalSeconds = min(max(pollIntervalSeconds, 1), 300)
+        copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 1), 3_600)
+        copy.idleMemoryThresholdMB = min(max(idleMemoryThresholdMB, 0), 10_240)
 
         let trimmedCommand = remoteCommand.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedCommand.isEmpty || trimmedCommand == Self.legacyDefaultRemoteCommand {

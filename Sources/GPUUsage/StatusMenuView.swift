@@ -462,23 +462,6 @@ private struct ProcessRow: View {
                 .help(isWatched ? "프로세스 종료 알림 해제" : "프로세스 종료 알림 받기")
             }
  
-            if isWatched {
-                HStack(spacing: 0) {
-                    Color.clear
-                        .frame(width: userColumnWidth + 10, height: 1)
-
-                    Label("Exit notification armed", systemImage: "bell.badge.fill")
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.orange)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(Color.orange.opacity(0.12))
-                        )
-                }
-            }
-
             if process.showsSeparateCommandSummary {
                 HStack(spacing: 0) {
                     Color.clear
