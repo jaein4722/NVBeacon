@@ -2,6 +2,8 @@
 
 macOS 메뉴바에서 원격 서버의 `nvidia-smi` 결과를 주기적으로 가져와 GPU 사용량을 보여주는 간단한 앱입니다.
 
+짧은 릴리즈 기록은 [CHANGELOG.md](/Users/leejaein/Documents/SideProjects/GPUUsage/CHANGELOG.md)에서 관리합니다.
+
 ## How it works
 
 - 로컬 Mac에서 `ssh`를 실행합니다.
@@ -65,12 +67,12 @@ swift run
 기본 실행 결과:
 
 - `dist/GPUUsage.app`
-- `dist/GPUUsage-0.2.3.dmg`
+- `dist/GPUUsage-0.2.4.dmg`
 - 저장소 루트에 `icon.png`가 있으면 자동으로 `.icns`로 변환되어 앱 아이콘으로 포함
 
 옵션 환경 변수:
 
-- `VERSION=0.2.3`
+- `VERSION=0.2.4`
 - `BUILD_NUMBER=1`
 - `BUNDLE_ID=com.example.GPUUsage`
 - `CODESIGN_IDENTITY="Developer ID Application: ..."`
@@ -105,7 +107,7 @@ KEYCHAIN_PROFILE="GPUUsageNotary" \
 ./scripts/package_app.sh
 ```
 
-4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.3.dmg`를 배포합니다.
+4. 스크립트가 끝난 뒤 `dist/GPUUsage-0.2.4.dmg`를 배포합니다.
 
 ## GitHub Releases
 
@@ -113,14 +115,15 @@ KEYCHAIN_PROFILE="GPUUsageNotary" \
 
 1. `master`에 릴리즈할 변경을 반영합니다.
 2. `swift test`를 확인합니다.
-3. `v0.2.3` 같은 tag를 생성하고 push합니다.
+3. `CHANGELOG.md`를 짧게 업데이트합니다.
+4. `v0.2.4` 같은 tag를 생성하고 push합니다.
 
 ```bash
-git tag v0.2.3
-git push origin v0.2.3
+git tag v0.2.4
+git push origin v0.2.4
 ```
 
-4. GitHub Actions가 macOS runner에서 DMG를 빌드하고 해당 tag의 GitHub Release에 업로드합니다.
+5. GitHub Actions가 macOS runner에서 DMG를 빌드하고 해당 tag의 GitHub Release에 업로드합니다.
 
 기본 workflow는 ad-hoc 서명의 DMG를 올립니다. Gatekeeper 경고 없이 배포하려면 이후에 Apple Developer 인증서와 notarization secret을 CI에 추가해야 합니다.
 
