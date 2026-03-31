@@ -135,26 +135,6 @@ private struct GPUListRow: View {
     let gpu: GPUReading
     let isExpanded: Bool
     let isLoadingDetails: Bool
-
-    private var cardBackgroundColor: Color {
-        if gpu.isIdle {
-            let base = NSColor.controlBackgroundColor
-            let tint = NSColor.separatorColor
-            let mixed = base.blended(withFraction: 0.24, of: tint) ?? base
-            return Color(nsColor: mixed)
-        }
-
-        return Color(nsColor: .controlBackgroundColor)
-    }
-
-    private var cardBorderColor: Color {
-        if isExpanded {
-            return .orange.opacity(0.42)
-        }
-
-        return gpu.isIdle ? Color.primary.opacity(0.11) : Color.primary.opacity(0.05)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -227,11 +207,14 @@ private struct GPUListRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(cardBackgroundColor)
+                .fill(Color(nsColor: .controlBackgroundColor))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(cardBorderColor, lineWidth: 1)
+                .strokeBorder(
+                    isExpanded ? Color.orange.opacity(0.42) : Color.primary.opacity(0.05),
+                    lineWidth: 1
+                )
         )
     }
 }
