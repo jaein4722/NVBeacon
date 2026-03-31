@@ -29,9 +29,11 @@ swift run
 알림처럼 번들 앱이 필요한 기능을 개발 중에 확인하려면 테스트용 `.app`를 만드세요.
 
 ```bash
-./scripts/build_test_app.sh
+OPEN_APP=1 ./scripts/build_test_app.sh
 open dist/GPUUsage-0.2.4-test-<commit>.app
 ```
+
+이 스크립트는 기존 테스트 앱 프로세스를 종료하고, 이전 테스트 앱 번들을 정리한 뒤 새 테스트 앱을 생성합니다.
 
 반복 개발용으로는 아래 스크립트를 쓰면 `swift build` 또는 `swift test` 뒤에 테스트용 `.app`까지 같이 생성합니다.
 

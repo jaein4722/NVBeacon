@@ -7,6 +7,18 @@ SHORT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD | tr '[:upper:]' '[:lower
 APP_NAME="GPUUsage-${VERSION}-test-${SHORT_SHA}"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
 TEST_BUNDLE_ID="com.leejaein.GPUUsage.test.${SHORT_SHA}"
+OPEN_APP="${OPEN_APP:-0}"
+CLEAN_OLD_TEST_APPS="${CLEAN_OLD_TEST_APPS:-1}"
+
+if [[ "$CLEAN_OLD_TEST_APPS" == "1" ]]; then
+  while IFS= read -r pid; do
+    kill -9 "$pid" 2>/dev/null || true
+  done < <(pgrep -f 'GPUUsage-.*-test-.*\.app/Contents/MacOS/GPUUsage' || true)
+
+  while IFS= read -r old_app; do
+    rm -rf "$old_app"
+  done < <(find "$ROOT_DIR/dist" -maxdepth 1 -type d -name 'GPUUsage-*-test-*.app' ! -name "${APP_NAME}.app" -print 2>/dev/null)
+fi
 
 APP_NAME="$APP_NAME" \
 BUNDLE_ID="$TEST_BUNDLE_ID" \
@@ -16,3 +28,7 @@ SKIP_DMG=1 \
 
 echo "Test app bundle: $APP_PATH"
 echo "Open it with: open \"$APP_PATH\""
+
+if [[ "$OPEN_APP" == "1" ]]; then
+  open "$APP_PATH"
+fi

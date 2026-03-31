@@ -230,22 +230,31 @@ struct SettingsView: View {
             } header: {
                 Text("Active Watches")
             } footer: {
-                Text("현재 종료 알림을 감시 중인 프로세스입니다. pid, user, 프로세스명, GPU index 기준으로 표시합니다.")
+                Text("현재 종료 알림을 감시 중인 프로세스입니다.")
             }
 
             Section {
-                if store.recentNotificationHistory.isEmpty {
-                    Text("최근 24시간 내 notification 설정 내역이 없습니다.")
-                        .foregroundStyle(.secondary)
-                } else {
-                    ForEach(store.recentNotificationHistory) { entry in
-                        NotificationHistoryRow(entry: entry)
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 0) {
+                        if store.recentNotificationHistory.isEmpty {
+                            Text("최근 24시간 내 notification 설정 내역이 없습니다.")
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .padding(.vertical, 8)
+                        } else {
+                            ForEach(Array(store.recentNotificationHistory.enumerated()), id: \.element.id) { index, entry in
+                                NotificationHistoryRow(entry: entry)
+
+                                if index < store.recentNotificationHistory.count - 1 {
+                                    Divider()
+                                }
+                            }
+                        }
                     }
                 }
+                .frame(minHeight: 150, maxHeight: 240)
             } header: {
                 Text("Recent 24 Hours")
-            } footer: {
-                Text("최근 24시간 동안의 권한 허용, watch on/off, 테스트 알림, 실제 종료 알림 전송 내역입니다.")
             }
         }
         .formStyle(.grouped)
@@ -452,24 +461,27 @@ private struct NotificationWatchRow: View {
                 Text(watch.displayProcessName)
                     .font(.body.weight(.semibold))
 
-                Text(metadataText)
+                Text(primaryMetadataText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
-                    .lineLimit(2)
+
+                Text(secondaryMetadataText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
             }
 
             Spacer(minLength: 12)
-
-            Text("\(watch.usedGPUMemoryMB) MB")
-                .font(.caption.monospacedDigit())
-                .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
 
-    private var metadataText: String {
+    private var primaryMetadataText: String {
         let userText = watch.user?.isEmpty == false ? watch.user! : "--"
-        return "GPU \(watch.gpuIndex) · PID \(watch.pid) · User \(userText) · \(watch.connectionLabel)"
+        return "User \(userText) · PID \(watch.pid) · GPU \(watch.gpuIndex)"
+    }
+
+    private var secondaryMetadataText: String {
+        watch.connectionLabel
     }
 }
 
@@ -492,16 +504,17 @@ private struct NotificationHistoryRow: View {
 
             Spacer(minLength: 12)
 
-            Text(relativeTimeText)
+            Text(timestampText)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .padding(.vertical, 2)
     }
 
-    private var relativeTimeText: String {
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: entry.timestamp, relativeTo: Date())
+    private var timestampText: String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.dateFormat = "yyyy.MM.dd. HH:mm:ss"
+        return formatter.string(from: entry.timestamp)
     }
 }
