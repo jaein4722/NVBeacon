@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 struct SettingsView: View {
@@ -33,6 +34,26 @@ struct SettingsView: View {
         default:
             return "0.2.4"
         }
+    }
+
+    private var buildVersionText: String {
+        (Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String) ?? "1"
+    }
+
+    private var bundleIdentifierText: String {
+        Bundle.main.bundleIdentifier ?? "com.leejaein.GPUUsage"
+    }
+
+    private var repoURL: URL {
+        URL(string: "https://github.com/jaein4722/GPUUsage")!
+    }
+
+    private var profileURL: URL {
+        URL(string: "https://github.com/jaein4722")!
+    }
+
+    private var appIconImage: NSImage {
+        NSApplication.shared.applicationIconImage
     }
 
     var body: some View {
@@ -383,70 +404,101 @@ struct SettingsView: View {
     }
 
     private var aboutPane: some View {
-        Form {
-            Section {
-                LabeledContent(t("Version", "버전")) {
-                    Text(appVersionText)
-                        .monospacedDigit()
-                }
+        ScrollView {
+            VStack(spacing: 20) {
+                VStack(spacing: 10) {
+                    Link(destination: repoURL) {
+                        Image(nsImage: appIconImage)
+                            .resizable()
+                            .interpolation(.high)
+                            .frame(width: 112, height: 112)
+                            .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                            .shadow(color: .black.opacity(0.12), radius: 10, y: 6)
+                    }
+                    .buttonStyle(.plain)
+                    .help(t("Open the GitHub repository", "GitHub 저장소 열기"))
 
-                LabeledContent(t("Current Target", "현재 대상")) {
-                    Text(store.settings.isConfigured ? store.settings.sshTarget : t("Not configured", "미설정"))
+                    Text("GPUUsage")
+                        .font(.title2.weight(.semibold))
+
+                    Text(t("Remote NVIDIA GPU monitoring from your macOS menu bar.", "macOS 메뉴바에서 원격 NVIDIA GPU를 확인하는 앱입니다."))
+                        .font(.subheadline)
                         .foregroundStyle(.secondary)
-                }
+                        .multilineTextAlignment(.center)
 
-                LabeledContent(t("Refresh Interval", "새로고침 주기")) {
-                    Text(t("\(store.settings.pollIntervalSeconds) seconds", "\(store.settings.pollIntervalSeconds)초"))
-                        .monospacedDigit()
+                    Text("Version \(appVersionText)")
+                        .font(.title3.monospacedDigit())
                         .foregroundStyle(.secondary)
+
+                    HStack(spacing: 10) {
+                        Link(destination: repoURL) {
+                            Label("Repository", systemImage: "shippingbox")
+                        }
+
+                        Link(destination: profileURL) {
+                            Label("GitHub Profile", systemImage: "person.crop.circle")
+                        }
+                    }
+                    .labelStyle(.titleAndIcon)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+
+                AboutCard(title: t("Build Information", "빌드 정보")) {
+                    AboutInfoRow(title: t("Version", "버전"), value: appVersionText)
+                    AboutInfoRow(title: t("Build", "빌드"), value: buildVersionText)
+                    AboutInfoRow(title: t("Bundle Identifier", "번들 식별자"), value: bundleIdentifierText)
+                    AboutInfoRow(title: t("Repository", "저장소"), value: "github.com/jaein4722/GPUUsage")
+                    AboutInfoRow(title: t("Developer", "개발자"), value: "github.com/jaein4722")
                 }
 
-                LabeledContent(t("Menu Bar", "메뉴바")) {
-                    Text(store.settings.menuBarDisplayMode.title(in: language))
-                        .foregroundStyle(.secondary)
+                AboutCard(title: t("Current Configuration", "현재 설정")) {
+                    AboutInfoRow(
+                        title: t("Current Target", "현재 대상"),
+                        value: store.settings.isConfigured ? store.settings.sshTarget : t("Not configured", "미설정")
+                    )
+                    AboutInfoRow(
+                        title: t("Authentication", "인증 방식"),
+                        value: store.settings.sshAuthenticationMode.title(in: language)
+                    )
+                    AboutInfoRow(
+                        title: t("Refresh Interval", "새로고침 주기"),
+                        value: t("\(store.settings.pollIntervalSeconds) seconds", "\(store.settings.pollIntervalSeconds)초")
+                    )
+                    AboutInfoRow(title: t("Menu Bar", "메뉴바"), value: store.settings.menuBarDisplayMode.title(in: language))
+                    AboutInfoRow(title: t("Language", "언어"), value: store.settings.languagePreference.title(in: language))
+                    AboutInfoRow(title: t("Theme", "테마"), value: store.settings.appearanceMode.title(in: language))
+                    AboutInfoRow(
+                        title: t("Dock Icon", "Dock 아이콘"),
+                        value: store.settings.showsDockIcon ? t("Visible", "표시") : t("Hidden", "숨김")
+                    )
+                    AboutInfoRow(
+                        title: t("Notifications", "알림"),
+                        value: store.notificationPermissionState.title(in: language)
+                    )
                 }
 
-                LabeledContent(t("Language", "언어")) {
-                    Text(store.settings.languagePreference.title(in: language))
-                        .foregroundStyle(.secondary)
-                }
+                AboutCard(title: t("Runtime Snapshot", "현재 상태")) {
+                    AboutInfoRow(title: t("Process Watches", "프로세스 감시"), value: "\(store.watchedProcesses.count)")
+                    AboutInfoRow(title: t("GPU Idle Watches", "GPU idle 감시"), value: "\(store.watchedIdleGPUs.count)")
 
-                LabeledContent(t("Theme", "테마")) {
-                    Text(store.settings.appearanceMode.title(in: language))
-                        .foregroundStyle(.secondary)
-                }
-
-                LabeledContent(t("Dock Icon", "Dock 아이콘")) {
-                    Text(store.settings.showsDockIcon ? t("Visible", "표시") : t("Hidden", "숨김"))
-                        .foregroundStyle(.secondary)
-                }
-
-                if let snapshot = store.snapshot {
-                    LabeledContent(t("Visible GPUs", "표시 중인 GPU")) {
-                        Text("\(snapshot.gpus.count)")
-                            .monospacedDigit()
+                    if let snapshot = store.snapshot {
+                        AboutInfoRow(title: t("Visible GPUs", "표시 중인 GPU"), value: "\(snapshot.gpus.count)")
+                        AboutInfoRow(title: t("Busy GPUs", "사용 중인 GPU"), value: "\(snapshot.busyCount)")
+                        AboutInfoRow(title: t("Processes", "프로세스"), value: "\(snapshot.totalProcessCount)")
+                        AboutInfoRow(title: t("Average Utilization", "평균 사용률"), value: "\(snapshot.averageUtilization)%")
+                    } else {
+                        Text(t("GPU data has not been loaded yet.", "GPU 데이터가 아직 로드되지 않았습니다."))
+                            .font(.subheadline)
                             .foregroundStyle(.secondary)
-                    }
-
-                    LabeledContent(t("Processes", "프로세스")) {
-                        Text("\(snapshot.totalProcessCount)")
-                            .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-            } header: {
-                Text("GPUUsage")
             }
-
-            Section {
-                Text(t("The app runs `ssh` from your local Mac and calls `nvidia-smi` on the remote server.", "로컬 Mac에서 `ssh`를 실행하고 원격 서버에서 `nvidia-smi`를 호출합니다."))
-                Text(t("The default is key-based authentication, and password mode can be enabled only when needed.", "기본값은 키 기반 인증이며, 필요할 때만 비밀번호 인증을 켤 수 있습니다."))
-                Text(t("Process details are resolved with both `nvidia-smi` and `ps`, so the UI can show user, pid, and command.", "프로세스 상세는 `nvidia-smi`와 `ps`를 함께 조회해 user, pid, command를 보여줍니다."))
-            } header: {
-                Text(t("How It Works", "동작 방식"))
-            }
+            .padding(22)
+            .frame(maxWidth: .infinity, alignment: .top)
         }
-        .formStyle(.grouped)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 
     private func scheduleAutoApply() {
@@ -645,6 +697,49 @@ private struct NotificationHistoryRow: View {
         formatter.locale = language.locale
         formatter.dateFormat = "yyyy.MM.dd. HH:mm:ss"
         return formatter.string(from: entry.timestamp)
+    }
+}
+
+private struct AboutCard<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.primary.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct AboutInfoRow: View {
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 14) {
+            Text(title)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(.secondary)
+
+            Spacer(minLength: 12)
+
+            Text(value)
+                .font(.subheadline.monospacedDigit())
+                .multilineTextAlignment(.trailing)
+        }
     }
 }
 
