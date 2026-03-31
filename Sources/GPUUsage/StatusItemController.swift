@@ -23,7 +23,7 @@ private struct StatusMenuContainerView: View {
 }
 
 @MainActor
-final class StatusItemController: NSObject {
+final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
 
     private let store: GPUUsageStore
@@ -32,6 +32,7 @@ final class StatusItemController: NSObject {
     private let popover = NSPopover()
     private let menu = NSMenu()
     private var cancellables = Set<AnyCancellable>()
+    private var localOutsideClickMonitor: Any?
     private lazy var settingsMenuItem = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
 
@@ -75,8 +76,9 @@ final class StatusItemController: NSObject {
     }
 
     private func configurePopover() {
-        popover.behavior = .transient
+        popover.behavior = .applicationDefined
         popover.animates = true
+        popover.delegate = self
         popover.contentViewController = NSHostingController(rootView: StatusMenuContainerView(store: store))
         updatePopoverAppearance()
     }
@@ -123,6 +125,14 @@ final class StatusItemController: NSObject {
                 self?.updateStatusItemAppearance()
                 self?.updatePopoverSize()
                 self?.updatePopoverAppearance()
+                self?.updatePopoverAutoCloseBehavior()
+            }
+            .store(in: &cancellables)
+
+        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.closePopoverForOutsideInteraction()
             }
             .store(in: &cancellables)
     }
@@ -136,6 +146,7 @@ final class StatusItemController: NSObject {
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
             updatePopoverAppearance()
             popover.contentViewController?.view.window?.becomeKey()
+            updatePopoverAutoCloseBehavior()
         }
     }
 
@@ -180,5 +191,64 @@ final class StatusItemController: NSObject {
         popover.appearance = appearance
         popover.contentViewController?.view.appearance = appearance
         popover.contentViewController?.view.window?.appearance = appearance
+    }
+
+    private func updatePopoverAutoCloseBehavior() {
+        guard popover.isShown else {
+            removeOutsideClickMonitor()
+            return
+        }
+
+        if store.settings.closesPopoverOnOutsideClick {
+            installOutsideClickMonitorIfNeeded()
+        } else {
+            removeOutsideClickMonitor()
+        }
+    }
+
+    private func installOutsideClickMonitorIfNeeded() {
+        guard localOutsideClickMonitor == nil else { return }
+
+        localOutsideClickMonitor = NSEvent.addLocalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]) { [weak self] event in
+            guard let self else { return event }
+            return self.handleLocalOutsideClick(event)
+        }
+    }
+
+    private func removeOutsideClickMonitor() {
+        if let localOutsideClickMonitor {
+            NSEvent.removeMonitor(localOutsideClickMonitor)
+            self.localOutsideClickMonitor = nil
+        }
+    }
+
+    private func handleLocalOutsideClick(_ event: NSEvent) -> NSEvent? {
+        guard popover.isShown, store.settings.closesPopoverOnOutsideClick else {
+            return event
+        }
+
+        if isClickInsidePopover(event) || isClickOnStatusButton(event) {
+            return event
+        }
+
+        popover.performClose(nil)
+        return event
+    }
+
+    private func isClickInsidePopover(_ event: NSEvent) -> Bool {
+        event.window === popover.contentViewController?.view.window
+    }
+
+    private func isClickOnStatusButton(_ event: NSEvent) -> Bool {
+        event.window === statusItem.button?.window
+    }
+
+    private func closePopoverForOutsideInteraction() {
+        guard popover.isShown, store.settings.closesPopoverOnOutsideClick else { return }
+        popover.performClose(nil)
+    }
+
+    func popoverDidClose(_ notification: Notification) {
+        removeOutsideClickMonitor()
     }
 }

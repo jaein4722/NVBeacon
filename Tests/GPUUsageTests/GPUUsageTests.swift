@@ -128,6 +128,7 @@ import Testing
     #expect(settings.menuBarDisplayMode == .averageAndBusy)
     #expect(settings.appearanceMode == .system)
     #expect(settings.showsDockIcon == false)
+    #expect(settings.closesPopoverOnOutsideClick == true)
     #expect(settings.idleNotificationSeconds == 300)
     #expect(settings.idleMemoryThresholdMB == 50)
 }

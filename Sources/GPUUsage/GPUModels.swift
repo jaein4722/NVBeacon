@@ -149,6 +149,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
     var appearanceMode: AppAppearanceMode = .system
     var showsDockIcon: Bool = false
+    var closesPopoverOnOutsideClick: Bool = true
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
 
@@ -162,6 +163,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy,
         appearanceMode: AppAppearanceMode = .system,
         showsDockIcon: Bool = false,
+        closesPopoverOnOutsideClick: Bool = true,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
     ) {
@@ -174,6 +176,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.menuBarDisplayMode = menuBarDisplayMode
         self.appearanceMode = appearanceMode
         self.showsDockIcon = showsDockIcon
+        self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
     }
@@ -188,6 +191,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case menuBarDisplayMode
         case appearanceMode
         case showsDockIcon
+        case closesPopoverOnOutsideClick
         case idleNotificationSeconds
         case idleMemoryThresholdMB
     }
@@ -204,6 +208,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             menuBarDisplayMode: try container.decodeIfPresent(MenuBarDisplayMode.self, forKey: .menuBarDisplayMode) ?? .averageAndBusy,
             appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system,
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
+            closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
         )

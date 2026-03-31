@@ -299,6 +299,14 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Toggle("Close popover on outside click", isOn: $draft.closesPopoverOnOutsideClick)
+
+                Text(draft.closesPopoverOnOutsideClick
+                     ? "팝오버 바깥 영역이나 다른 앱을 클릭하면 팝오버를 자동으로 닫습니다."
+                     : "팝오버를 직접 다시 클릭할 때까지 유지합니다.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent("Display") {
                     Picker("Display", selection: $draft.menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in
