@@ -1,8 +1,17 @@
 import AppKit
 import SwiftUI
 
+private struct StatusMenuContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct StatusMenuView: View {
     @ObservedObject var store: GPUUsageStore
+    let onContentHeightChange: (CGFloat) -> Void
     @State private var expandedGPUIds: Set<Int> = []
 
     private var snapshotGPUIds: [Int] {
@@ -43,6 +52,12 @@ struct StatusMenuView: View {
                 }
             }
             .padding(12)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear
+                        .preference(key: StatusMenuContentHeightKey.self, value: proxy.size.height)
+                }
+            )
         }
         .scrollIndicators(.visible)
         .frame(width: 480, alignment: .top)
@@ -50,6 +65,10 @@ struct StatusMenuView: View {
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
         .onChange(of: snapshotGPUIds) { _, newValue in
             expandedGPUIds.formIntersection(Set(newValue))
+        }
+        .onPreferenceChange(StatusMenuContentHeightKey.self) { height in
+            guard height > 0 else { return }
+            onContentHeightChange(height)
         }
     }
 

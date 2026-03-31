@@ -4,9 +4,10 @@ import SwiftUI
 
 private struct StatusMenuContainerView: View {
     @ObservedObject var store: GPUUsageStore
+    let onContentHeightChange: (CGFloat) -> Void
 
     var body: some View {
-        StatusMenuView(store: store)
+        StatusMenuView(store: store, onContentHeightChange: onContentHeightChange)
             .preferredColorScheme(colorScheme)
     }
 
@@ -37,6 +38,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private lazy var settingsMenuItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
     private lazy var quitMenuItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
+    private var measuredContentHeight: CGFloat = 0
 
     init(store: GPUUsageStore, settingsOpenBridge: SettingsOpenBridge) {
         self.store = store
@@ -81,7 +83,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.behavior = .applicationDefined
         popover.animates = true
         popover.delegate = self
-        popover.contentViewController = NSHostingController(rootView: StatusMenuContainerView(store: store))
+        popover.contentViewController = NSHostingController(
+            rootView: StatusMenuContainerView(
+                store: store,
+                onContentHeightChange: { [weak self] height in
+                    self?.updateMeasuredContentHeight(height)
+                }
+            )
+        )
         updatePopoverAppearance()
     }
 
@@ -181,8 +190,18 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func updatePopoverSize() {
         let gpuCount = max(store.snapshot?.gpus.count ?? 0, 1)
-        let height = min(CGFloat(940), max(320, CGFloat(170 + gpuCount * 84)))
+        let fallbackHeight = CGFloat(150 + min(gpuCount, 8) * 84)
+        let contentHeight = measuredContentHeight > 0 ? measuredContentHeight : fallbackHeight
+        let maxVisibleHeight = CGFloat(150 + 8 * 84)
+        let clampedHeight = gpuCount > 8 ? min(contentHeight, maxVisibleHeight) : contentHeight
+        let height = min(CGFloat(920), max(320, clampedHeight))
         popover.contentSize = NSSize(width: 500, height: height)
+    }
+
+    private func updateMeasuredContentHeight(_ height: CGFloat) {
+        guard abs(measuredContentHeight - height) > 1 else { return }
+        measuredContentHeight = height
+        updatePopoverSize()
     }
 
     private func updatePopoverAppearance() {
