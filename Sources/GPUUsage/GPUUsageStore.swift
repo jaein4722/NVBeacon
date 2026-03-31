@@ -8,17 +8,26 @@ final class GPUUsageStore: ObservableObject {
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastErrorMessage: String?
     @Published private(set) var loadingProcessDetailGPUIds = Set<Int>()
+    @Published private(set) var watchedProcesses = [ProcessExitWatch]()
 
     private let fetcher: SSHMetricsFetcher
+    private let notificationManager: ProcessExitNotificationManager
     private let userDefaults: UserDefaults
     private let passwordStore = SSHPasswordStore()
     private let settingsKey = "gpu_usage.settings"
+    private let watchedProcessesKey = "gpu_usage.process_exit_watches"
     private var pollingTask: Task<Void, Never>?
 
-    init(fetcher: SSHMetricsFetcher = SSHMetricsFetcher(), userDefaults: UserDefaults = .standard) {
+    init(
+        fetcher: SSHMetricsFetcher = SSHMetricsFetcher(),
+        notificationManager: ProcessExitNotificationManager = ProcessExitNotificationManager(),
+        userDefaults: UserDefaults = .standard
+    ) {
         self.fetcher = fetcher
+        self.notificationManager = notificationManager
         self.userDefaults = userDefaults
         self.settings = Self.loadSettings(from: userDefaults)
+        self.watchedProcesses = Self.loadWatchedProcesses(from: userDefaults)
         self.lastErrorMessage = self.settings.isConfigured ? nil : "SSH target를 입력하면 polling을 시작합니다."
 
         configurePolling(resetState: false)
@@ -85,8 +94,13 @@ final class GPUUsageStore: ObservableObject {
         return formatter.localizedString(for: snapshot.takenAt, relativeTo: Date())
     }
 
+    var watchedProcessCount: Int {
+        watchedProcesses.count
+    }
+
     func applySettings(_ newSettings: AppSettings, password: String = "") {
         let normalized = newSettings.normalized()
+        let connectionChanged = normalized.connectionFingerprint != settings.connectionFingerprint
         let trimmedPassword = password.trimmingCharacters(in: .newlines)
         if normalized.sshAuthenticationMode == .passwordBased {
             let existingPassword = (try? passwordStore.loadPassword()) ?? ""
@@ -104,6 +118,12 @@ final class GPUUsageStore: ObservableObject {
 
         settings = normalized
         persistSettings()
+
+        if connectionChanged {
+            watchedProcesses.removeAll()
+            persistWatchedProcesses()
+        }
+
         configurePolling(resetState: true)
     }
 
@@ -123,7 +143,9 @@ final class GPUUsageStore: ObservableObject {
 
         settings = AppSettings()
         snapshot = nil
+        watchedProcesses = []
         userDefaults.removeObject(forKey: settingsKey)
+        userDefaults.removeObject(forKey: watchedProcessesKey)
         lastErrorMessage = "SSH target를 입력하면 polling을 시작합니다."
         configurePolling(resetState: false)
     }
@@ -142,6 +164,16 @@ final class GPUUsageStore: ObservableObject {
 
     func isLoadingProcessDetails(for gpuID: Int) -> Bool {
         loadingProcessDetailGPUIds.contains(gpuID)
+    }
+
+    func isWatchingExit(for process: GPUProcessReading) -> Bool {
+        watchedProcesses.contains { $0.matches(process) && $0.connectionFingerprint == settings.connectionFingerprint }
+    }
+
+    func toggleExitWatch(for process: GPUProcessReading, on gpu: GPUReading) {
+        Task {
+            await toggleExitWatchTask(for: process, on: gpu)
+        }
     }
 
     private func configurePolling(resetState: Bool) {
@@ -191,7 +223,9 @@ final class GPUUsageStore: ObservableObject {
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             )
-            self.snapshot = mergeProcessDetails(from: self.snapshot, into: fetchedSnapshot)
+            let mergedSnapshot = mergeProcessDetails(from: self.snapshot, into: fetchedSnapshot)
+            self.snapshot = mergedSnapshot
+            await evaluateWatchedProcesses(using: mergedSnapshot, settings: currentSettings, password: password.isEmpty ? nil : password)
             lastErrorMessage = nil
         } catch is CancellationError {
             return
@@ -206,6 +240,15 @@ final class GPUUsageStore: ObservableObject {
             userDefaults.set(data, forKey: settingsKey)
         } catch {
             lastErrorMessage = "설정을 저장하지 못했습니다: \(error.localizedDescription)"
+        }
+    }
+
+    private func persistWatchedProcesses() {
+        do {
+            let data = try JSONEncoder().encode(watchedProcesses)
+            userDefaults.set(data, forKey: watchedProcessesKey)
+        } catch {
+            lastErrorMessage = "감시 목록을 저장하지 못했습니다: \(error.localizedDescription)"
         }
     }
 
@@ -290,6 +333,67 @@ final class GPUUsageStore: ObservableObject {
         return GPUSnapshot(takenAt: latest.takenAt, gpus: mergedGPUs)
     }
 
+    private func toggleExitWatchTask(for process: GPUProcessReading, on gpu: GPUReading) async {
+        if let existingIndex = watchedProcesses.firstIndex(where: { $0.matches(process) && $0.connectionFingerprint == settings.connectionFingerprint }) {
+            watchedProcesses.remove(at: existingIndex)
+            persistWatchedProcesses()
+            return
+        }
+
+        let isAuthorized = await notificationManager.requestAuthorizationIfNeeded()
+        guard isAuthorized else {
+            lastErrorMessage = "macOS 알림 권한이 없어 종료 알림을 등록하지 못했습니다."
+            return
+        }
+
+        watchedProcesses.append(ProcessExitWatch(settings: settings, gpu: gpu, process: process))
+        watchedProcesses.sort { lhs, rhs in
+            if lhs.gpuIndex == rhs.gpuIndex {
+                return lhs.pid < rhs.pid
+            }
+
+            return lhs.gpuIndex < rhs.gpuIndex
+        }
+        persistWatchedProcesses()
+        lastErrorMessage = nil
+    }
+
+    private func evaluateWatchedProcesses(using snapshot: GPUSnapshot, settings: AppSettings, password: String?) async {
+        let matchingWatches = watchedProcesses.filter { $0.connectionFingerprint == settings.connectionFingerprint }
+        guard !matchingWatches.isEmpty else { return }
+
+        let visibleProcesses = snapshot.gpus.flatMap(\.processes)
+        let hiddenWatches = matchingWatches.filter { watch in
+            !visibleProcesses.contains(where: watch.matches(_:))
+        }
+        guard !hiddenWatches.isEmpty else { return }
+
+        do {
+            let remoteStatuses = try await fetcher.fetchProcessStatuses(
+                settings: settings,
+                pids: hiddenWatches.map(\.pid),
+                password: password
+            )
+            let exitedWatches = ProcessExitWatchEvaluator.exitedWatches(
+                watches: hiddenWatches,
+                visibleProcesses: visibleProcesses,
+                remoteStatuses: remoteStatuses
+            )
+
+            guard !exitedWatches.isEmpty else { return }
+
+            for watch in exitedWatches {
+                await notificationManager.sendExitNotification(for: watch)
+            }
+
+            let exitedWatchIDs = Set(exitedWatches.map(\.id))
+            watchedProcesses.removeAll { exitedWatchIDs.contains($0.id) }
+            persistWatchedProcesses()
+        } catch {
+            return
+        }
+    }
+
     private static func loadSettings(from userDefaults: UserDefaults) -> AppSettings {
         guard
             let data = userDefaults.data(forKey: "gpu_usage.settings"),
@@ -299,5 +403,16 @@ final class GPUUsageStore: ObservableObject {
         }
 
         return settings.normalized()
+    }
+
+    private static func loadWatchedProcesses(from userDefaults: UserDefaults) -> [ProcessExitWatch] {
+        guard
+            let data = userDefaults.data(forKey: "gpu_usage.process_exit_watches"),
+            let watches = try? JSONDecoder().decode([ProcessExitWatch].self, from: data)
+        else {
+            return []
+        }
+
+        return watches
     }
 }

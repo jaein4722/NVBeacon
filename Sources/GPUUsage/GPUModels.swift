@@ -194,6 +194,15 @@ struct AppSettings: Codable, Equatable, Sendable {
 
         return port
     }
+
+    var connectionFingerprint: String {
+        [
+            sshTarget,
+            sshPort,
+            sshIdentityFilePath,
+            sshAuthenticationMode.rawValue,
+        ].joined(separator: "|")
+    }
 }
 
 struct GPUReading: Identifiable, Equatable, Sendable {
@@ -300,5 +309,115 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
         let normalizedProcessName = processName.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedCommand = commandSummary.trimmingCharacters(in: .whitespacesAndNewlines)
         return !normalizedCommand.isEmpty && normalizedProcessName != normalizedCommand
+    }
+}
+
+struct RemoteProcessStatus: Equatable, Sendable {
+    let pid: Int
+    let user: String
+    let commandLine: String?
+}
+
+struct ProcessExitWatch: Codable, Identifiable, Equatable, Sendable {
+    let connectionFingerprint: String
+    let connectionLabel: String
+    let gpuUUID: String
+    let gpuIndex: Int
+    let gpuName: String
+    let pid: Int
+    let processName: String
+    let usedGPUMemoryMB: Int
+    let user: String?
+    let commandLine: String?
+    let createdAt: Date
+
+    init(settings: AppSettings, gpu: GPUReading, process: GPUProcessReading, createdAt: Date = Date()) {
+        self.connectionFingerprint = settings.connectionFingerprint
+        self.connectionLabel = settings.sshTarget
+        self.gpuUUID = process.gpuUUID
+        self.gpuIndex = gpu.index
+        self.gpuName = gpu.name
+        self.pid = process.pid
+        self.processName = process.processName
+        self.usedGPUMemoryMB = process.usedGPUMemoryMB
+        self.user = process.user
+        self.commandLine = process.commandLine
+        self.createdAt = createdAt
+    }
+
+    var id: String {
+        "\(connectionFingerprint):\(gpuUUID):\(pid):\(processName)"
+    }
+
+    var displayProcessName: String {
+        let trimmedName = processName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !trimmedName.isEmpty {
+            return trimmedName
+        }
+
+        let trimmedCommand = commandLine?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        if !trimmedCommand.isEmpty {
+            return trimmedCommand
+        }
+
+        return "PID \(pid)"
+    }
+
+    var subtitle: String {
+        var parts = [connectionLabel, "GPU \(gpuIndex)", "PID \(pid)"]
+        if let user, !user.isEmpty {
+            parts.append(user)
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    func matches(_ process: GPUProcessReading) -> Bool {
+        process.gpuUUID == gpuUUID && process.pid == pid && process.processName == processName
+    }
+
+    func matches(_ status: RemoteProcessStatus) -> Bool {
+        guard status.pid == pid else { return false }
+
+        if let user, !user.isEmpty, user != status.user {
+            return false
+        }
+
+        let normalizedCommand = normalized(commandLine)
+        if !normalizedCommand.isEmpty {
+            return normalizedCommand == normalized(status.commandLine)
+        }
+
+        return true
+    }
+
+    private func normalized(_ string: String?) -> String {
+        string?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+}
+
+enum ProcessExitWatchEvaluator {
+    static func exitedWatches(
+        watches: [ProcessExitWatch],
+        visibleProcesses: [GPUProcessReading],
+        remoteStatuses: [RemoteProcessStatus]
+    ) -> [ProcessExitWatch] {
+        let visibleWatchIDs = Set(
+            watches.compactMap { watch in
+                visibleProcesses.contains(where: watch.matches(_:)) ? watch.id : nil
+            }
+        )
+        let statusesByPID = Dictionary(uniqueKeysWithValues: remoteStatuses.map { ($0.pid, $0) })
+
+        return watches.filter { watch in
+            guard !visibleWatchIDs.contains(watch.id) else {
+                return false
+            }
+
+            guard let remoteStatus = statusesByPID[watch.pid] else {
+                return true
+            }
+
+            return !watch.matches(remoteStatus)
+        }
     }
 }

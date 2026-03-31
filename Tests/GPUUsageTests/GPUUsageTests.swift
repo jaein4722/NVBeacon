@@ -144,3 +144,49 @@ import Testing
     #expect(MenuBarDisplayMode.busyOnly.titleText(for: snapshot) == "GPU 2/2")
     #expect(MenuBarDisplayMode.iconOnly.titleText(for: snapshot).isEmpty)
 }
+
+@Test func exitWatchDoesNotFireWhileProcessIsStillVisible() {
+    let settings = AppSettings(sshTarget: "gpu-prod")
+    let gpu = GPUReading(index: 0, name: "A6000", uuid: "GPU-1", utilization: 90, memoryUsedMB: 10, memoryTotalMB: 20, temperatureCelsius: 60, processes: [])
+    let process = GPUProcessReading(gpuUUID: "GPU-1", pid: 1234, processName: "python", usedGPUMemoryMB: 8192, user: "alice", commandLine: "python train.py")
+    let watch = ProcessExitWatch(settings: settings, gpu: gpu, process: process)
+
+    let exited = ProcessExitWatchEvaluator.exitedWatches(
+        watches: [watch],
+        visibleProcesses: [process],
+        remoteStatuses: []
+    )
+
+    #expect(exited.isEmpty)
+}
+
+@Test func exitWatchFiresWhenProcessDisappearsFromGPUAndPS() {
+    let settings = AppSettings(sshTarget: "gpu-prod")
+    let gpu = GPUReading(index: 0, name: "A6000", uuid: "GPU-1", utilization: 90, memoryUsedMB: 10, memoryTotalMB: 20, temperatureCelsius: 60, processes: [])
+    let process = GPUProcessReading(gpuUUID: "GPU-1", pid: 1234, processName: "python", usedGPUMemoryMB: 8192, user: "alice", commandLine: "python train.py")
+    let watch = ProcessExitWatch(settings: settings, gpu: gpu, process: process)
+
+    let exited = ProcessExitWatchEvaluator.exitedWatches(
+        watches: [watch],
+        visibleProcesses: [],
+        remoteStatuses: []
+    )
+
+    #expect(exited == [watch])
+}
+
+@Test func exitWatchFiresWhenPIDIsReusedByDifferentCommand() {
+    let settings = AppSettings(sshTarget: "gpu-prod")
+    let gpu = GPUReading(index: 0, name: "A6000", uuid: "GPU-1", utilization: 90, memoryUsedMB: 10, memoryTotalMB: 20, temperatureCelsius: 60, processes: [])
+    let process = GPUProcessReading(gpuUUID: "GPU-1", pid: 1234, processName: "python", usedGPUMemoryMB: 8192, user: "alice", commandLine: "python train.py")
+    let watch = ProcessExitWatch(settings: settings, gpu: gpu, process: process)
+    let reusedPID = RemoteProcessStatus(pid: 1234, user: "alice", commandLine: "python serve.py")
+
+    let exited = ProcessExitWatchEvaluator.exitedWatches(
+        watches: [watch],
+        visibleProcesses: [],
+        remoteStatuses: [reusedPID]
+    )
+
+    #expect(exited == [watch])
+}

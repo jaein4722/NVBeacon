@@ -89,6 +89,31 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
+    func fetchProcessStatuses(
+        settings: AppSettings,
+        pids: [Int],
+        password: String? = nil
+    ) async throws -> [RemoteProcessStatus] {
+        let normalized = settings.normalized()
+        guard normalized.isConfigured else {
+            throw FetchError.missingTarget
+        }
+
+        let uniquePIDs = Array(Set(pids)).sorted()
+        guard !uniquePIDs.isEmpty else {
+            return []
+        }
+
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: Self.buildPSLookupCommand(pids: uniquePIDs),
+            password: password,
+            allowEmptyOutput: true
+        )
+
+        return try Self.parsePSSection(output)
+    }
+
     static func parse(_ output: String) throws -> [GPUReading] {
         try parseGPUSection(output)
     }
@@ -159,7 +184,7 @@ struct SSHMetricsFetcher: Sendable {
         return try lines.map(parseProcessLine(_:))
     }
 
-    private static func parsePSSection(_ output: String) throws -> [ProcessDetails] {
+    private static func parsePSSection(_ output: String) throws -> [RemoteProcessStatus] {
         let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
             return []
@@ -403,7 +428,7 @@ struct SSHMetricsFetcher: Sendable {
         return String(output[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    private static func parsePSLine(_ line: String) throws -> ProcessDetails {
+    private static func parsePSLine(_ line: String) throws -> RemoteProcessStatus {
         let columns = line
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .split(maxSplits: 2, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
@@ -413,16 +438,10 @@ struct SSHMetricsFetcher: Sendable {
         }
 
         let commandLine = columns.count == 3 ? String(columns[2]) : nil
-        return ProcessDetails(
+        return RemoteProcessStatus(
             pid: pid,
             user: String(columns[1]),
             commandLine: commandLine
         )
     }
-}
-
-private struct ProcessDetails: Equatable, Sendable {
-    let pid: Int
-    let user: String
-    let commandLine: String?
 }

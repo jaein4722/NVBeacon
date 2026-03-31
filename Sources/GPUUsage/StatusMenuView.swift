@@ -84,6 +84,15 @@ struct StatusMenuView: View {
             Text("Right-click the menu bar item for settings and quit.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+
+            if store.watchedProcessCount > 0 {
+                Label(
+                    "Watching \(store.watchedProcessCount) process exit\(store.watchedProcessCount == 1 ? "" : "s")",
+                    systemImage: "bell.badge.fill"
+                )
+                .font(.caption2)
+                .foregroundStyle(.orange)
+            }
         }
         .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -98,18 +107,25 @@ struct StatusMenuView: View {
             ForEach(snapshot.gpus) { gpu in
                 let isExpanded = expandedGPUIds.contains(gpu.id)
                 let isLoadingDetails = store.isLoadingProcessDetails(for: gpu.id)
+                GPUListRow(
+                    gpu: gpu,
+                    isExpanded: isExpanded,
+                    isLoadingDetails: isLoadingDetails,
+                    isWatchingProcessExit: { process in
+                        store.isWatchingExit(for: process)
+                    },
+                    toggleProcessExitWatch: { process in
+                        store.toggleExitWatch(for: process, on: gpu)
+                    },
+                    toggleExpansion: {
+                        let willExpand = !expandedGPUIds.contains(gpu.id)
+                        toggleExpansion(for: gpu.id)
 
-                Button {
-                    let willExpand = !expandedGPUIds.contains(gpu.id)
-                    toggleExpansion(for: gpu.id)
-
-                    if willExpand {
-                        store.loadProcessDetails(for: gpu.id)
+                        if willExpand {
+                            store.loadProcessDetails(for: gpu.id)
+                        }
                     }
-                } label: {
-                    GPUListRow(gpu: gpu, isExpanded: isExpanded, isLoadingDetails: isLoadingDetails)
-                }
-                .buttonStyle(.plain)
+                )
             }
         }
     }
@@ -135,44 +151,54 @@ private struct GPUListRow: View {
     let gpu: GPUReading
     let isExpanded: Bool
     let isLoadingDetails: Bool
+    let isWatchingProcessExit: (GPUProcessReading) -> Bool
+    let toggleProcessExitWatch: (GPUProcessReading) -> Void
+    let toggleExpansion: () -> Void
+
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text("GPU \(gpu.index)")
-                    .font(.headline)
+            Button(action: toggleExpansion) {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text("GPU \(gpu.index)")
+                            .font(.headline)
 
-                Text(gpu.name)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                        Text(gpu.name)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
 
-                Spacer(minLength: 8)
+                        Spacer(minLength: 8)
 
-                Text("\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
+                        Text("\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .monospacedDigit()
 
-                Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isExpanded ? .orange : .secondary)
+                        Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundStyle(isExpanded ? .orange : .secondary)
+                    }
+
+                    HStack(spacing: 10) {
+                        ThinMetricBar(
+                            title: "Util",
+                            valueText: "\(gpu.utilization)%",
+                            ratio: gpu.utilizationRatio,
+                            tint: Color(red: 0.93, green: 0.45, blue: 0.15)
+                        )
+
+                        ThinMetricBar(
+                            title: "Mem",
+                            valueText: "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB",
+                            ratio: gpu.memoryUsageRatio,
+                            tint: Color(red: 0.12, green: 0.54, blue: 0.94)
+                        )
+                    }
+                }
+                .contentShape(Rectangle())
             }
-
-            HStack(spacing: 10) {
-                ThinMetricBar(
-                    title: "Util",
-                    valueText: "\(gpu.utilization)%",
-                    ratio: gpu.utilizationRatio,
-                    tint: Color(red: 0.93, green: 0.45, blue: 0.15)
-                )
-
-                ThinMetricBar(
-                    title: "Mem",
-                    valueText: "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB",
-                    ratio: gpu.memoryUsageRatio,
-                    tint: Color(red: 0.12, green: 0.54, blue: 0.94)
-                )
-            }
+            .buttonStyle(.plain)
 
             if isExpanded {
                 Divider()
@@ -195,7 +221,13 @@ private struct GPUListRow: View {
                             .foregroundStyle(.secondary)
                     } else {
                         ForEach(gpu.processes) { process in
-                            ProcessRow(process: process)
+                            ProcessRow(
+                                process: process,
+                                isWatched: isWatchingProcessExit(process),
+                                toggleWatch: {
+                                    toggleProcessExitWatch(process)
+                                }
+                            )
                         }
                     }
                 }
@@ -315,6 +347,8 @@ private struct ThinMetricBar: View {
 
 private struct ProcessRow: View {
     let process: GPUProcessReading
+    let isWatched: Bool
+    let toggleWatch: () -> Void
     private let userColumnWidth: CGFloat = 52
 
     var body: some View {
@@ -342,6 +376,19 @@ private struct ProcessRow: View {
                 Text(process.memorySummary)
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
+
+                Button(action: toggleWatch) {
+                    Image(systemName: isWatched ? "bell.fill" : "bell")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(isWatched ? .orange : .secondary)
+                        .frame(width: 22, height: 22)
+                        .background(
+                            Circle()
+                                .fill((isWatched ? Color.orange : Color.primary).opacity(0.10))
+                        )
+                }
+                .buttonStyle(.plain)
+                .help(isWatched ? "프로세스 종료 알림 해제" : "프로세스 종료 알림 받기")
             }
 
             if process.showsSeparateCommandSummary {

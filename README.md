@@ -45,6 +45,8 @@ swift run
 
 - 현재 GPU 상태와 프로세스 정보를 보여주는 팝오버를 엽니다.
 - 팝오버 오른쪽 상단의 새로고침 아이콘으로 즉시 polling 가능
+- GPU를 펼친 뒤 각 프로세스 오른쪽의 종 아이콘으로 `프로세스 종료 시 알림` 감시를 걸 수 있음
+- 감시한 프로세스가 GPU 목록에서 사라져도, 원격 `ps`로 실제 종료 여부를 확인한 뒤 macOS 기본 알림으로 알려줌
 
 우클릭:
 
@@ -56,6 +58,7 @@ swift run
 - 이 앱은 macOS의 기존 SSH 키와 `~/.ssh/config`를 그대로 사용합니다.
 - 기본 `Key-based` 모드에서는 background polling 중 Keychain을 읽지 않습니다.
 - 비밀번호 인증을 쓰는 경우 비밀번호는 `UserDefaults`가 아니라 macOS Keychain에 저장합니다.
+- 프로세스 종료 알림을 처음 사용할 때 macOS 알림 권한을 요청할 수 있습니다.
 - 서버에서 non-interactive shell의 PATH가 다르면 `Remote Command`에 `/usr/bin/nvidia-smi ...` 같은 전체 경로를 넣으세요.
 
 ## Package For Distribution
