@@ -61,9 +61,18 @@ jobs:
             --output "$RELEASE_NOTES_PATH"
 
       - name: Build DMG artifact
+        env:
+          SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
         run: |
+          if [[ -z "${SPARKLE_PUBLIC_ED_KEY:-}" ]]; then
+            echo "SPARKLE_PUBLIC_ED_KEY secret is required for secure Sparkle updates." >&2
+            exit 1
+          fi
+
           chmod +x ./scripts/package_app.sh
-          VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER" ./scripts/package_app.sh
+          VERSION="$VERSION" BUILD_NUMBER="$BUILD_NUMBER" \
+            SPARKLE_PUBLIC_ED_KEY="$SPARKLE_PUBLIC_ED_KEY" \
+            ./scripts/package_app.sh
 
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
@@ -95,16 +104,31 @@ jobs:
               --notes-file "$RELEASE_NOTES_PATH"
           fi
 
-      - name: Generate appcast feed
+      - name: Generate signed appcast feed
+        env:
+          SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
         run: |
-          python3 ./scripts/generate_appcast.py \
-            --version "$VERSION" \
-            --build-number "$BUILD_NUMBER" \
-            --download-url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/GPUUsage-${VERSION}.dmg" \
-            --archive-path "dist/GPUUsage-${VERSION}.dmg" \
-            --release-url "https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
-            --notes-file "$RELEASE_NOTES_PATH" \
-            --output "$APPCAST_PATH"
+          if [[ -z "${SPARKLE_PRIVATE_ED_KEY:-}" ]]; then
+            echo "SPARKLE_PRIVATE_ED_KEY secret is required for secure Sparkle updates." >&2
+            exit 1
+          fi
+
+          APPCAST_WORKDIR="${RUNNER_TEMP}/appcast-workdir"
+          rm -rf "$APPCAST_WORKDIR"
+          mkdir -p "$APPCAST_WORKDIR"
+
+          cp "dist/GPUUsage-${VERSION}.dmg" "$APPCAST_WORKDIR/"
+          cp "$RELEASE_NOTES_PATH" "$APPCAST_WORKDIR/GPUUsage-${VERSION}.md"
+
+          printf '%s' "$SPARKLE_PRIVATE_ED_KEY" | .build/artifacts/sparkle/Sparkle/bin/generate_appcast \
+            --ed-key-file - \
+            --download-url-prefix "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/" \
+            --link "https://github.com/${{ github.repository }}" \
+            --full-release-notes-url "https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
+            --embed-release-notes \
+            --maximum-versions 1 \
+            -o "$APPCAST_PATH" \
+            "$APPCAST_WORKDIR"
 
       - name: Publish appcast branch
         env:

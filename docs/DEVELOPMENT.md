@@ -155,7 +155,31 @@ https://raw.githubusercontent.com/jaein4722/GPUUsage/appcast/appcast.xml
 Notes:
 
 - Update installation is most reliable when release builds are Developer ID signed and notarized.
-- `SUPublicEDKey` support is wired through packaging, but secure signed appcasts still need an EdDSA signing key workflow if you want full Sparkle feed signing.
+- The package script embeds `SUPublicEDKey` in the app bundle, and the release workflow signs update archives and the generated appcast feed with Sparkle's EdDSA tools.
+
+### Sparkle Signing Keys
+
+Sparkle uses an EdDSA key pair for signing update archives and appcast feeds.
+
+Generate or inspect your keys with Sparkle's tools:
+
+```bash
+.build/artifacts/sparkle/Sparkle/bin/generate_keys
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -p
+```
+
+For CI-friendly signing, export the private key from your login keychain:
+
+```bash
+.build/artifacts/sparkle/Sparkle/bin/generate_keys -x sparkle-private-key.txt
+```
+
+Repository secrets expected by the release workflow:
+
+- `SPARKLE_PUBLIC_ED_KEY`
+- `SPARKLE_PRIVATE_ED_KEY`
+
+The release workflow now fails if these secrets are missing, because GPUUsage treats unsigned update feeds as not ready for production use.
 
 ## Homebrew Tap Sync
 

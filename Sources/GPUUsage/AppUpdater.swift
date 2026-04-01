@@ -6,6 +6,7 @@ enum AppUpdaterAvailability: Equatable {
     case ready
     case requiresAppBundle
     case missingFeedURL
+    case missingPublicKey
 
     var isAvailable: Bool {
         self == .ready
@@ -19,6 +20,8 @@ enum AppUpdaterAvailability: Equatable {
             return language.text("Packaged App Required", "패키징된 앱 필요")
         case .missingFeedURL:
             return language.text("Feed URL Missing", "피드 URL 없음")
+        case .missingPublicKey:
+            return language.text("Signing Key Missing", "서명 키 없음")
         }
     }
 
@@ -38,6 +41,11 @@ enum AppUpdaterAvailability: Equatable {
             return language.text(
                 "The appcast feed URL is missing from the app bundle, so update checks are disabled.",
                 "앱 번들에 appcast feed URL이 없어 업데이트 확인이 비활성화되어 있습니다."
+            )
+        case .missingPublicKey:
+            return language.text(
+                "The Sparkle public signing key is missing from the app bundle, so secure update checks are disabled.",
+                "앱 번들에 Sparkle 공개 서명 키가 없어 안전한 업데이트 확인이 비활성화되어 있습니다."
             )
         }
     }
@@ -68,6 +76,15 @@ final class AppUpdater: ObservableObject {
         else {
             availability = .missingFeedURL
             self.feedURL = nil
+            return
+        }
+
+        guard
+            let publicKey = Bundle.main.object(forInfoDictionaryKey: "SUPublicEDKey") as? String,
+            !publicKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            availability = .missingPublicKey
+            self.feedURL = feedURL
             return
         }
 
