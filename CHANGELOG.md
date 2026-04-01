@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.4 - 2026-04-01
+
+- Rebranded the app from GPUUsage to NVBeacon across the app UI, packaging output, release metadata, and repository URLs.
+- Renamed the GitHub repository to `jaein4722/NVBeacon` and updated Sparkle/appcast references to the new repository path.
+- Renamed the Homebrew cask integration from `gpuusage` to `nvbeacon` so future release automation and installation paths match the new product name.
+
 ## 0.3.3 - 2026-04-01
 
 - Reworked password-based SSH authentication to avoid repeated Keychain prompts during background polling.
