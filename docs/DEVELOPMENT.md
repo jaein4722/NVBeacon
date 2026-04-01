@@ -83,6 +83,8 @@ Supported environment variables:
 - `VERSION`
 - `BUILD_NUMBER`
 - `BUNDLE_ID`
+- `SPARKLE_FEED_URL`
+- `SPARKLE_PUBLIC_ED_KEY`
 - `CODESIGN_IDENTITY`
 - `NOTARIZE`
 - `KEYCHAIN_PROFILE`
@@ -133,7 +135,27 @@ The release workflow:
 - builds the DMG on a macOS runner
 - publishes the GitHub Release
 - uses the matching `CHANGELOG.md` section as the release notes
+- generates a Sparkle `appcast.xml`
+- publishes the latest appcast to the `appcast` branch
 - syncs the Homebrew cask repository
+
+## App Updates
+
+GPUUsage uses [Sparkle](https://sparkle-project.org/) for in-app update checks.
+
+- App-side integration lives in `Sources/GPUUsage/AppUpdater.swift`
+- The packaged app bundle includes `Sparkle.framework`
+- The app reads its feed URL from `SUFeedURL` in `Info.plist`
+- GitHub Actions publishes the latest appcast to the `appcast` branch at:
+
+```text
+https://raw.githubusercontent.com/jaein4722/GPUUsage/appcast/appcast.xml
+```
+
+Notes:
+
+- Update installation is most reliable when release builds are Developer ID signed and notarized.
+- `SUPublicEDKey` support is wired through packaging, but secure signed appcasts still need an EdDSA signing key workflow if you want full Sparkle feed signing.
 
 ## Homebrew Tap Sync
 

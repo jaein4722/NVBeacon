@@ -8,9 +8,21 @@ let package = Package(
     platforms: [
         .macOS(.v14),
     ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.3"),
+    ],
     targets: [
         .executableTarget(
-            name: "GPUUsage"
+            name: "GPUUsage",
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
+            linkerSettings: [
+                .unsafeFlags(
+                    ["-Xlinker", "-rpath", "-Xlinker", "@executable_path/../Frameworks"],
+                    .when(platforms: [.macOS])
+                ),
+            ]
         ),
         .testTarget(
             name: "GPUUsageTests",

@@ -53,6 +53,7 @@ It connects over `ssh`, runs `nvidia-smi` on the target server, and turns the re
 - Process exit notifications through macOS Notification Center
 - GPU idle notifications with configurable idle duration and memory threshold
 - Configurable busy GPU detection based on active processes, memory usage, or utilization
+- Built-in update checks using Sparkle, the standard macOS update framework
 - Import from local `~/.ssh/config`
 - SSH key authentication and password-based authentication
 - English / Korean UI with a `System` language option
@@ -93,6 +94,7 @@ Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722
 4. Choose your authentication method.
 5. Allow notifications if you want process exit or GPU idle alerts.
 6. Left-click the menu bar item to open the GPU popover.
+7. Use `Check for Updates…` from the right-click menu or the `Updates` settings tab when you want to look for a newer release manually.
 
 All settings apply automatically. There is no separate apply button.
 
@@ -112,6 +114,7 @@ GPUUsage uses a native macOS-style settings window with these sections:
 - `General`: server connection, authentication, polling, busy GPU detection
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
 - `Appearance`: theme, language, Dock icon, menu bar summary, popover behavior
+- `Updates`: automatic update checks, background downloads, and manual checks
 - `Advanced`: remote command override
 - `About`: version, links, runtime summary, and current configuration
 

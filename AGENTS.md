@@ -49,6 +49,12 @@ Before merging or tagging:
 2. Run `./scripts/package_app.sh` if packaging changed.
 3. Update `README.md` when user-facing behavior, setup, or release steps changed.
 
+## Test App Rule
+
+- During normal feature work, build a fresh test app after each commit when the user is actively testing the app.
+- When the user explicitly asks for a release, do not build or open a test app as part of the release flow unless they ask for it separately.
+- Assume a release request means the user has already finished validation and wants the release path to stay minimal.
+
 ## Commit Guidance
 
 Keep commits focused and reviewable.

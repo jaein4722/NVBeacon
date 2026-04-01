@@ -3,6 +3,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @ObservedObject var store: GPUUsageStore
+    @ObservedObject var appUpdater: AppUpdater
     @State private var draft = AppSettings()
     @State private var draftPassword = ""
     @State private var sshConfigHosts = SSHConfigLoader.loadHosts()
@@ -71,6 +72,11 @@ struct SettingsView: View {
             appearancePane
                 .tabItem {
                     Label(t("Appearance", "표시"), systemImage: "menubar.rectangle")
+                }
+
+            updatesPane
+                .tabItem {
+                    Label(t("Updates", "업데이트"), systemImage: "arrow.triangle.2.circlepath")
                 }
 
             advancedPane
@@ -341,6 +347,92 @@ struct SettingsView: View {
         .formStyle(.grouped)
     }
 
+    private var updatesPane: some View {
+        Form {
+            Section {
+                LabeledContent(t("Status", "상태")) {
+                    Text(appUpdater.availability.title(in: language))
+                        .foregroundStyle(appUpdater.availability.isAvailable ? .green : .secondary)
+                }
+
+                Text(appUpdater.availability.detail(in: language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let feedURL = appUpdater.feedURL {
+                    LabeledContent("Appcast") {
+                        Text(feedURL.absoluteString)
+                            .font(.caption.monospaced())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(2)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 360, alignment: .trailing)
+                    }
+                }
+            } header: {
+                Text(t("Update Engine", "업데이트 엔진"))
+            } footer: {
+                Text(
+                    t(
+                        "GPUUsage uses Sparkle, the standard macOS update framework used by many independent apps.",
+                        "GPUUsage는 많은 macOS 앱이 사용하는 표준 업데이트 프레임워크 Sparkle을 사용합니다."
+                    )
+                )
+            }
+
+            Section {
+                Toggle(
+                    t("Automatically check for updates", "자동으로 업데이트 확인"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyChecksForUpdates },
+                        set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable)
+
+                Text(appUpdater.automaticallyChecksForUpdates
+                     ? t("Sparkle will periodically check for new releases in the background.", "Sparkle이 백그라운드에서 주기적으로 새 릴리즈를 확인합니다.")
+                     : t("Automatic update checks are disabled. You can still run a manual check at any time.", "자동 업데이트 확인이 비활성화되어 있습니다. 대신 언제든 수동 확인은 가능합니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle(
+                    t("Automatically download updates", "업데이트 자동 다운로드"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyDownloadsUpdates },
+                        set: { appUpdater.setAutomaticallyDownloadsUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
+
+                Text(appUpdater.automaticallyDownloadsUpdates
+                     ? t("When a new release is found, Sparkle may download it in the background and prepare installation.", "새 릴리즈를 찾으면 Sparkle이 백그라운드에서 다운로드하고 설치를 준비할 수 있습니다.")
+                     : t("Updates will be offered interactively instead of downloading silently.", "업데이트는 백그라운드 자동 다운로드 대신 대화형으로 안내됩니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text(t("Preferences", "환경설정"))
+            }
+
+            Section {
+                Button(t("Check for Updates…", "업데이트 확인…")) {
+                    appUpdater.checkForUpdates()
+                }
+                .disabled(!appUpdater.canCheckForUpdates)
+            } header: {
+                Text(t("Manual Check", "수동 확인"))
+            } footer: {
+                Text(
+                    t(
+                        "For update installation to work in public builds, the distributed app should be Developer ID signed and notarized.",
+                        "공개 배포 빌드에서 업데이트 설치가 안정적으로 동작하려면 Developer ID 서명과 notarization이 권장됩니다."
+                    )
+                )
+            }
+        }
+        .formStyle(.grouped)
+    }
+
     private var appearancePane: some View {
         Form {
             Section {
@@ -467,6 +559,11 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 10) {
+                        Button(t("Check for Updates…", "업데이트 확인…")) {
+                            appUpdater.checkForUpdates()
+                        }
+                        .disabled(!appUpdater.canCheckForUpdates)
+
                         Link(destination: repoURL) {
                             Label("Repository", systemImage: "shippingbox")
                         }
@@ -504,6 +601,7 @@ struct SettingsView: View {
                     AboutInfoRow(title: t("Menu Bar", "메뉴바"), value: store.settings.menuBarDisplayMode.title(in: language))
                     AboutInfoRow(title: t("Language", "언어"), value: store.settings.languagePreference.title(in: language))
                     AboutInfoRow(title: t("Theme", "테마"), value: store.settings.appearanceMode.title(in: language))
+                    AboutInfoRow(title: t("Updates", "업데이트"), value: appUpdater.availability.title(in: language))
                     AboutInfoRow(
                         title: t("Dock Icon", "Dock 아이콘"),
                         value: store.settings.showsDockIcon ? t("Visible", "표시") : t("Hidden", "숨김")

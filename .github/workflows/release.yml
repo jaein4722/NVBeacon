@@ -51,6 +51,7 @@ jobs:
           echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
           echo "BUILD_NUMBER=${GITHUB_RUN_NUMBER}" >> "$GITHUB_ENV"
           echo "RELEASE_NOTES_PATH=${RUNNER_TEMP}/release-notes.md" >> "$GITHUB_ENV"
+          echo "APPCAST_PATH=${RUNNER_TEMP}/appcast.xml" >> "$GITHUB_ENV"
 
       - name: Extract release notes from changelog
         run: |
@@ -93,6 +94,48 @@ jobs:
               --title "$GITHUB_REF_NAME" \
               --notes-file "$RELEASE_NOTES_PATH"
           fi
+
+      - name: Generate appcast feed
+        run: |
+          python3 ./scripts/generate_appcast.py \
+            --version "$VERSION" \
+            --build-number "$BUILD_NUMBER" \
+            --download-url "https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/GPUUsage-${VERSION}.dmg" \
+            --archive-path "dist/GPUUsage-${VERSION}.dmg" \
+            --release-url "https://github.com/${{ github.repository }}/releases/tag/${GITHUB_REF_NAME}" \
+            --notes-file "$RELEASE_NOTES_PATH" \
+            --output "$APPCAST_PATH"
+
+      - name: Publish appcast branch
+        env:
+          REPOSITORY_URL: https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git
+        run: |
+          APPCAST_REPO="${RUNNER_TEMP}/appcast-repo"
+          rm -rf "$APPCAST_REPO"
+
+          if git clone --depth 1 --branch appcast "$REPOSITORY_URL" "$APPCAST_REPO"; then
+            :
+          else
+            git clone --depth 1 "$REPOSITORY_URL" "$APPCAST_REPO"
+            cd "$APPCAST_REPO"
+            git switch --orphan appcast
+          fi
+
+          cd "$APPCAST_REPO"
+          find . -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+          cp "$APPCAST_PATH" appcast.xml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+
+          if git diff --cached --quiet; then
+            echo "Appcast is already up to date."
+            exit 0
+          fi
+
+          git commit -m "Update appcast for $VERSION"
+          git push origin HEAD:appcast --force
 
       - name: Dispatch Homebrew tap update
         env:

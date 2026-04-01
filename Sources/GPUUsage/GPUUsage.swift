@@ -6,7 +6,7 @@ struct GPUUsageApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(store: appDelegate.store)
+            SettingsView(store: appDelegate.store, appUpdater: appDelegate.appUpdater)
         }
     }
 }

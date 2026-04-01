@@ -14,6 +14,8 @@ CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 BUILD_CONFIGURATION="${BUILD_CONFIGURATION:-release}"
 SKIP_DMG="${SKIP_DMG:-0}"
 NOTARIZE="${NOTARIZE:-0}"
+SPARKLE_FEED_URL="${SPARKLE_FEED_URL:-https://raw.githubusercontent.com/jaein4722/GPUUsage/appcast/appcast.xml}"
+SPARKLE_PUBLIC_ED_KEY="${SPARKLE_PUBLIC_ED_KEY:-}"
 KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
@@ -32,6 +34,8 @@ ICON_RESOURCE_PATH="$APP_PATH/Contents/Resources/${ICON_NAME}.icns"
 BIN_PATH="$(swift build -c "$BUILD_CONFIGURATION" --show-bin-path)"
 EXECUTABLE_PATH="$BIN_PATH/$PRODUCT_NAME"
 INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
+FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
+SPARKLE_FRAMEWORK_SOURCE_PATH="$BIN_PATH/Sparkle.framework"
 
 cleanup() {
   rm -rf "$DMG_STAGING_DIR" "$NOTARIZE_ZIP_PATH" "$ICONSET_DIR" "$ICON_NORMALIZED_PATH"
@@ -63,7 +67,7 @@ generate_app_icon() {
 }
 
 rm -rf "$APP_PATH" "$DMG_PATH" "$NOTARIZE_ZIP_PATH" "$DMG_STAGING_DIR"
-mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources"
+mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$FRAMEWORKS_DIR"
 
 echo "Building $BUILD_CONFIGURATION binary..."
 swift build -c "$BUILD_CONFIGURATION" --product "$PRODUCT_NAME"
@@ -76,11 +80,24 @@ fi
 cp "$EXECUTABLE_PATH" "$APP_PATH/Contents/MacOS/$APP_NAME"
 chmod 755 "$APP_PATH/Contents/MacOS/$APP_NAME"
 
+if [[ ! -d "$SPARKLE_FRAMEWORK_SOURCE_PATH" ]]; then
+  echo "Expected Sparkle.framework not found at $SPARKLE_FRAMEWORK_SOURCE_PATH" >&2
+  exit 1
+fi
+
+echo "Bundling Sparkle.framework..."
+ditto "$SPARKLE_FRAMEWORK_SOURCE_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
+
 generate_app_icon
 
 ICON_PLIST_ENTRY=""
 if [[ -f "$ICON_RESOURCE_PATH" ]]; then
   ICON_PLIST_ENTRY=$'  <key>CFBundleIconFile</key>\n  <string>'"$ICON_NAME"$'</string>\n'
+fi
+
+SPARKLE_PUBLIC_KEY_ENTRY=""
+if [[ -n "$SPARKLE_PUBLIC_ED_KEY" ]]; then
+  SPARKLE_PUBLIC_KEY_ENTRY=$'  <key>SUPublicEDKey</key>\n  <string>'"$SPARKLE_PUBLIC_ED_KEY"$'</string>\n'
 fi
 
 cat > "$INFO_PLIST_PATH" <<EOF
@@ -112,7 +129,15 @@ ${ICON_PLIST_ENTRY}  <key>CFBundleIdentifier</key>
   <true/>
   <key>NSHighResolutionCapable</key>
   <true/>
-</dict>
+  <key>SUFeedURL</key>
+  <string>${SPARKLE_FEED_URL}</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>SUScheduledCheckInterval</key>
+  <integer>86400</integer>
+  <key>SUAllowsAutomaticUpdates</key>
+  <true/>
+${SPARKLE_PUBLIC_KEY_ENTRY}</dict>
 </plist>
 EOF
 

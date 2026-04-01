@@ -5,6 +5,7 @@ import UserNotifications
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = GPUUsageStore()
+    let appUpdater = AppUpdater()
     private let settingsOpenBridge = SettingsOpenBridge()
     private var statusItemController: StatusItemController?
     private var cancellables = Set<AnyCancellable>()
@@ -15,10 +16,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         bindActivationPolicy()
         applyAppearance(for: store.settings.appearanceMode)
         configureNotificationPresentation()
+        appUpdater.startIfPossible()
 
-        let statusItemController = StatusItemController(store: store, settingsOpenBridge: settingsOpenBridge)
+        let statusItemController = StatusItemController(
+            store: store,
+            settingsOpenBridge: settingsOpenBridge,
+            appUpdater: appUpdater
+        )
         statusItemController.showSettingsAction = { [weak self] in
             self?.showSettingsWindow()
+        }
+        statusItemController.checkForUpdatesAction = { [weak self] in
+            self?.appUpdater.checkForUpdates()
         }
         self.statusItemController = statusItemController
 
