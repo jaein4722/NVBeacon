@@ -3,19 +3,19 @@
     <channel>
         <title>GPUUsage</title>
         <item>
-            <title>0.3.2</title>
-            <pubDate>Wed, 01 Apr 2026 06:58:04 +0000</pubDate>
+            <title>0.3.3</title>
+            <pubDate>Wed, 01 Apr 2026 07:32:20 +0000</pubDate>
             <link>https://github.com/jaein4722/GPUUsage</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/GPUUsage/releases/tag/v0.3.2</sparkle:fullReleaseNotesLink>
-            <sparkle:version>13</sparkle:version>
-            <sparkle:shortVersionString>0.3.2</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/GPUUsage/releases/tag/v0.3.3</sparkle:fullReleaseNotesLink>
+            <sparkle:version>14</sparkle:version>
+            <sparkle:shortVersionString>0.3.3</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[- Added Sparkle-based in-app update support with standard macOS update behavior.
-- Added secure Sparkle signing flow using `SUPublicEDKey`, signed release assets, and an auto-published `appcast` branch in GitHub Actions.
-- Moved automatic update preferences into `General` settings and simplified the About screen to keep manual update checks in one natural place.
+            <description sparkle:format="markdown"><![CDATA[- Reworked password-based SSH authentication to avoid repeated Keychain prompts during background polling.
+- Added a session-based unlock flow so password-based mode reads Keychain only when the user explicitly saves or unlocks the stored password.
+- Added a one-time security warning before enabling password-based authentication, with a do-not-show-again option.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/GPUUsage/releases/download/v0.3.2/GPUUsage-0.3.2.dmg" length="3906495" type="application/octet-stream" sparkle:edSignature="O2cWs9kszHMDpp+i098PghMmy2Nrk8xFrvJ9+0mEKJqMmgk9y8bfE1ZmdWUPvHD9e1d4puh7gsVKuqOux+csAg=="/>
+            <enclosure url="https://github.com/jaein4722/GPUUsage/releases/download/v0.3.3/GPUUsage-0.3.3.dmg" length="3922399" type="application/octet-stream" sparkle:edSignature="0f564mgRNmnguwSFaHcq3EzJxpLkkqLwWVixR2QWeW5u82FB+HatIaMwCf+Wr9JuyPBw6B/HaXE6INl/wbN6Cg=="/>
         </item>
     </channel>
 </rss>
