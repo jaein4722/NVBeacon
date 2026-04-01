@@ -240,7 +240,7 @@ struct SSHMetricsFetcher: Sendable {
                         "SSH_ASKPASS": askPassScriptURL.path,
                         "SSH_ASKPASS_REQUIRE": "force",
                         "GPUUSAGE_SSH_PASSWORD": trimmedPassword,
-                        "DISPLAY": "gpuusage:0",
+                        "DISPLAY": "nvbeacon:0",
                     ],
                     uniquingKeysWith: { _, newValue in newValue }
                 )
@@ -386,7 +386,7 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     private static func createAskPassScript() throws -> URL {
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("gpuusage-askpass-\(UUID().uuidString).sh")
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-askpass-\(UUID().uuidString).sh")
         let contents = """
         #!/bin/sh
         printf '%s' "$GPUUSAGE_SSH_PASSWORD"

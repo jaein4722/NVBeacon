@@ -185,7 +185,7 @@ jobs:
             --method POST \
             -H "Accept: application/vnd.github+json" \
             "/repos/jaein4722/homebrew-tap/dispatches" \
-            -f event_type='gpuusage_release_published' \
+            -f event_type='nvbeacon_release_published' \
             -f client_payload[version]="$VERSION" \
             -f client_payload[tag]="$GITHUB_REF_NAME" \
             -f client_payload[dmg_url]="$DMG_URL"

@@ -150,13 +150,13 @@ Release page wording should stay aligned with the repository positioning:
 
 NVBeacon uses [Sparkle](https://sparkle-project.org/) for in-app update checks.
 
-- App-side integration lives in `Sources/GPUUsage/AppUpdater.swift`
+- App-side integration lives in `Sources/NVBeacon/AppUpdater.swift`
 - The packaged app bundle includes `Sparkle.framework`
 - The app reads its feed URL from `SUFeedURL` in `Info.plist`
 - GitHub Actions publishes the latest appcast to the `appcast` branch at:
 
 ```text
-https://raw.githubusercontent.com/jaein4722/GPUUsage/appcast/appcast.xml
+https://raw.githubusercontent.com/jaein4722/NVBeacon/appcast/appcast.xml
 ```
 
 Notes:

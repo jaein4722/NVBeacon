@@ -72,7 +72,7 @@ struct ProcessExitNotificationManager {
         content.interruptionLevel = .active
 
         let request = UNNotificationRequest(
-            identifier: "gpuusage.process-exit.\(watch.id)",
+            identifier: "nvbeacon.process-exit.\(watch.id)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
@@ -103,7 +103,7 @@ struct ProcessExitNotificationManager {
         content.interruptionLevel = .active
 
         let request = UNNotificationRequest(
-            identifier: "gpuusage.gpu-idle.\(watch.id)",
+            identifier: "nvbeacon.gpu-idle.\(watch.id)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )
@@ -127,7 +127,7 @@ struct ProcessExitNotificationManager {
         content.interruptionLevel = .active
 
         let request = UNNotificationRequest(
-            identifier: "gpuusage.test.\(UUID().uuidString)",
+            identifier: "nvbeacon.test.\(UUID().uuidString)",
             content: content,
             trigger: UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         )

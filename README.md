@@ -5,17 +5,17 @@
   <h1>NVBeacon</h1>
   <p>A native macOS menu bar app for remote NVIDIA GPU monitoring over SSH.</p>
   <p>
-    <img src="https://img.shields.io/github/v/release/jaein4722/GPUUsage?style=flat-square" alt="GitHub Release">
+    <img src="https://img.shields.io/github/v/release/jaein4722/NVBeacon?style=flat-square" alt="GitHub Release">
     <img src="https://img.shields.io/badge/macOS-14%2B-111111?style=flat-square&logo=apple" alt="macOS 14+">
     <img src="https://img.shields.io/badge/Swift-6.2-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6.2">
     <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License">
   </p>
   <p>
-    <a href="https://github.com/jaein4722/GPUUsage/releases">Download Latest Release</a>
+    <a href="https://github.com/jaein4722/NVBeacon/releases">Download Latest Release</a>
     ·
-    <a href="https://github.com/jaein4722/GPUUsage/issues">Report Bug</a>
+    <a href="https://github.com/jaein4722/NVBeacon/issues">Report Bug</a>
     ·
-    <a href="https://github.com/jaein4722/GPUUsage/issues">Request Feature</a>
+    <a href="https://github.com/jaein4722/NVBeacon/issues">Request Feature</a>
   </p>
 </div>
 
@@ -67,18 +67,16 @@ It connects over `ssh`, runs `nvidia-smi` on the target server, and turns the re
 ### Homebrew
 
 ```bash
-brew install --cask jaein4722/tap/gpuusage
+brew install --cask jaein4722/tap/nvbeacon
 ```
-
-The Homebrew cask name is still `gpuusage` for compatibility, but it installs `NVBeacon.app`.
 
 ### GitHub Releases
 
-Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722/GPUUsage/releases).
+Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722/NVBeacon/releases).
 
 ### Manual Installation
 
-1. Download the latest `NVBeacon-<version>.dmg` from [GitHub Releases](https://github.com/jaein4722/GPUUsage/releases).
+1. Download the latest `NVBeacon-<version>.dmg` from [GitHub Releases](https://github.com/jaein4722/NVBeacon/releases).
 2. Open the DMG.
 3. Drag `NVBeacon.app` into `Applications`.
 4. Launch the app from `Applications`.

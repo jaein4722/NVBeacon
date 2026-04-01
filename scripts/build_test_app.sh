@@ -6,7 +6,7 @@ VERSION="${VERSION:-0.3.3}"
 SHORT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD | tr '[:upper:]' '[:lower:]')"
 APP_NAME="NVBeacon-${VERSION}-test-${SHORT_SHA}"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
-TEST_BUNDLE_ID="com.leejaein.GPUUsage.test.${SHORT_SHA}"
+TEST_BUNDLE_ID="com.leejaein.NVBeacon.test.${SHORT_SHA}"
 OPEN_APP="${OPEN_APP:-0}"
 CLEAN_OLD_TEST_APPS="${CLEAN_OLD_TEST_APPS:-1}"
 

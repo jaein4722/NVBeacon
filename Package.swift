@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "GPUUsage",
+    name: "NVBeacon",
     platforms: [
         .macOS(.v14),
     ],
@@ -13,7 +13,7 @@ let package = Package(
     ],
     targets: [
         .executableTarget(
-            name: "GPUUsage",
+            name: "NVBeacon",
             dependencies: [
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
@@ -25,8 +25,8 @@ let package = Package(
             ]
         ),
         .testTarget(
-            name: "GPUUsageTests",
-            dependencies: ["GPUUsage"]
+            name: "NVBeaconTests",
+            dependencies: ["NVBeacon"]
         ),
     ],
     swiftLanguageModes: [.v6]

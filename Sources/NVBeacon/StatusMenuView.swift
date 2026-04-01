@@ -10,7 +10,7 @@ private struct StatusMenuContentHeightKey: PreferenceKey {
 }
 
 struct StatusMenuView: View {
-    @ObservedObject var store: GPUUsageStore
+    @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     @State private var expandedGPUIds: Set<Int> = []
 

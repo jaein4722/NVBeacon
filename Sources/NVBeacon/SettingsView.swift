@@ -2,7 +2,7 @@ import AppKit
 import SwiftUI
 
 struct SettingsView: View {
-    @ObservedObject var store: GPUUsageStore
+    @ObservedObject var store: NVBeaconStore
     @ObservedObject var appUpdater: AppUpdater
     @State private var draft = AppSettings()
     @State private var draftPassword = ""
@@ -57,22 +57,15 @@ struct SettingsView: View {
     }
 
     private var bundleIdentifierText: String {
-        Bundle.main.bundleIdentifier ?? "com.leejaein.GPUUsage"
+        Bundle.main.bundleIdentifier ?? "com.leejaein.NVBeacon"
     }
 
     private var bundleIdentifierDisplayText: String {
-        if bundleIdentifierText == "com.leejaein.GPUUsage" {
-            return t(
-                "\(bundleIdentifierText) (kept for upgrade compatibility)",
-                "\(bundleIdentifierText) (업데이트 호환성 유지)"
-            )
-        }
-
         return bundleIdentifierText
     }
 
     private var repoURL: URL {
-        URL(string: "https://github.com/jaein4722/GPUUsage")!
+        URL(string: "https://github.com/jaein4722/NVBeacon")!
     }
 
     private var profileURL: URL {
@@ -615,7 +608,7 @@ struct SettingsView: View {
                     AboutInfoRow(title: t("Version", "버전"), value: appVersionText)
                     AboutInfoRow(title: t("Build", "빌드"), value: buildVersionText)
                     AboutInfoRow(title: t("Bundle Identifier", "번들 식별자"), value: bundleIdentifierDisplayText)
-                    AboutInfoRow(title: t("Repository", "저장소"), value: "github.com/jaein4722/GPUUsage")
+                    AboutInfoRow(title: t("Repository", "저장소"), value: "github.com/jaein4722/NVBeacon")
                     AboutInfoRow(title: t("Developer", "개발자"), value: "github.com/jaein4722")
                 }
 

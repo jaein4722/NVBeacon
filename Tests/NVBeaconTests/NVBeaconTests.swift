@@ -1,6 +1,6 @@
 import Foundation
 import Testing
-@testable import GPUUsage
+@testable import NVBeacon
 
 @Test func parsesMultipleGPUsFromNvidiaSMIOutput() throws {
     let output = """

@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct GPUUsageApp: App {
+struct NVBeaconApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {

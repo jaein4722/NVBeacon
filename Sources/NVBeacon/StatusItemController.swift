@@ -3,7 +3,7 @@ import Combine
 import SwiftUI
 
 private struct StatusMenuContainerView: View {
-    @ObservedObject var store: GPUUsageStore
+    @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
 
     var body: some View {
@@ -27,7 +27,7 @@ private struct StatusMenuContainerView: View {
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
 
-    private let store: GPUUsageStore
+    private let store: NVBeaconStore
     private let settingsOpenBridge: SettingsOpenBridge
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
@@ -40,7 +40,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
     private var measuredContentHeight: CGFloat = 0
 
-    init(store: GPUUsageStore, settingsOpenBridge: SettingsOpenBridge) {
+    init(store: NVBeaconStore, settingsOpenBridge: SettingsOpenBridge) {
         self.store = store
         self.settingsOpenBridge = settingsOpenBridge
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)

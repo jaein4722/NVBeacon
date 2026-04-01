@@ -7,7 +7,7 @@ private struct GPUIdleWatchTrackingState: Sendable {
 }
 
 @MainActor
-final class GPUUsageStore: ObservableObject {
+final class NVBeaconStore: ObservableObject {
     @Published private(set) var settings: AppSettings
     @Published private(set) var snapshot: GPUSnapshot?
     @Published private(set) var isRefreshing = false
@@ -24,12 +24,12 @@ final class GPUUsageStore: ObservableObject {
     private let notificationManager: ProcessExitNotificationManager
     private let userDefaults: UserDefaults
     private let passwordStore: SSHPasswordStore
-    private let settingsKey = "gpu_usage.settings"
-    private let watchedProcessesKey = "gpu_usage.process_exit_watches"
-    private let watchedIdleGPUsKey = "gpu_usage.gpu_idle_watches"
-    private let notificationHistoryKey = "gpu_usage.notification_history"
-    private let passwordStoredHintKey = "gpu_usage.password_saved_hint"
-    private let passwordAuthWarningAcknowledgedKey = "gpu_usage.password_auth_warning_acknowledged"
+    private let settingsKey = "nvbeacon.settings"
+    private let watchedProcessesKey = "nvbeacon.process_exit_watches"
+    private let watchedIdleGPUsKey = "nvbeacon.gpu_idle_watches"
+    private let notificationHistoryKey = "nvbeacon.notification_history"
+    private let passwordStoredHintKey = "nvbeacon.password_saved_hint"
+    private let passwordAuthWarningAcknowledgedKey = "nvbeacon.password_auth_warning_acknowledged"
     private var pollingTask: Task<Void, Never>?
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPassword: String?
@@ -822,7 +822,7 @@ final class GPUUsageStore: ObservableObject {
 
     private static func loadSettings(from userDefaults: UserDefaults) -> AppSettings {
         guard
-            let data = userDefaults.data(forKey: "gpu_usage.settings"),
+            let data = userDefaults.data(forKey: "nvbeacon.settings"),
             let settings = try? JSONDecoder().decode(AppSettings.self, from: data)
         else {
             return AppSettings()
@@ -833,7 +833,7 @@ final class GPUUsageStore: ObservableObject {
 
     private static func loadWatchedProcesses(from userDefaults: UserDefaults) -> [ProcessExitWatch] {
         guard
-            let data = userDefaults.data(forKey: "gpu_usage.process_exit_watches"),
+            let data = userDefaults.data(forKey: "nvbeacon.process_exit_watches"),
             let watches = try? JSONDecoder().decode([ProcessExitWatch].self, from: data)
         else {
             return []
@@ -844,7 +844,7 @@ final class GPUUsageStore: ObservableObject {
 
     private static func loadWatchedIdleGPUs(from userDefaults: UserDefaults) -> [GPUIdleWatch] {
         guard
-            let data = userDefaults.data(forKey: "gpu_usage.gpu_idle_watches"),
+            let data = userDefaults.data(forKey: "nvbeacon.gpu_idle_watches"),
             let watches = try? JSONDecoder().decode([GPUIdleWatch].self, from: data)
         else {
             return []
@@ -855,7 +855,7 @@ final class GPUUsageStore: ObservableObject {
 
     private static func loadNotificationHistory(from userDefaults: UserDefaults) -> [NotificationHistoryEntry] {
         guard
-            let data = userDefaults.data(forKey: "gpu_usage.notification_history"),
+            let data = userDefaults.data(forKey: "nvbeacon.notification_history"),
             let history = try? JSONDecoder().decode([NotificationHistoryEntry].self, from: data)
         else {
             return []
@@ -873,8 +873,8 @@ final class GPUUsageStore: ObservableObject {
             return .notRequired
         }
 
-        if userDefaults.bool(forKey: "gpu_usage.password_saved_hint") || passwordStore.hasPasswordWithoutPrompt() {
-            userDefaults.set(true, forKey: "gpu_usage.password_saved_hint")
+        if userDefaults.bool(forKey: "nvbeacon.password_saved_hint") || passwordStore.hasPasswordWithoutPrompt() {
+            userDefaults.set(true, forKey: "nvbeacon.password_saved_hint")
             return .locked
         }
 

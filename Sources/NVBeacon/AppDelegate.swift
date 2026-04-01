@@ -4,7 +4,7 @@ import UserNotifications
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    let store = GPUUsageStore()
+    let store = NVBeaconStore()
     let appUpdater = AppUpdater()
     private let settingsOpenBridge = SettingsOpenBridge()
     private var statusItemController: StatusItemController?

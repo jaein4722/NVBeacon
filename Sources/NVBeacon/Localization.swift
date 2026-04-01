@@ -76,7 +76,7 @@ enum AppLanguagePreference: String, Codable, CaseIterable, Equatable, Hashable, 
 enum AppLocalizer {
     static func currentLanguage(from userDefaults: UserDefaults = .standard) -> AppInterfaceLanguage {
         guard
-            let data = userDefaults.data(forKey: "gpu_usage.settings"),
+            let data = userDefaults.data(forKey: "nvbeacon.settings"),
             let settings = try? JSONDecoder().decode(AppSettings.self, from: data)
         else {
             return .resolved(from: .system)
