@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1 - 2026-04-01
+
+- Added configurable busy GPU detection with support for active process, memory threshold, process-or-memory, and utilization threshold modes.
+- Changed the default busy GPU rule to count GPUs with active compute processes as busy even when utilization temporarily drops to `0%`.
+- Added busy detection controls to Settings and updated busy counts across the menu bar, popover, and About view.
+
 ## 0.3.0 - 2026-04-01
 
 - Added process exit notifications with per-process watch controls, notification history, and permission management.
