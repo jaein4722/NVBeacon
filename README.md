@@ -94,7 +94,7 @@ Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722
 4. Choose your authentication method.
 5. Allow notifications if you want process exit or GPU idle alerts.
 6. Left-click the menu bar item to open the GPU popover.
-7. Use `Check for Updates…` from the right-click menu or the `Updates` settings tab when you want to look for a newer release manually.
+7. Open the `About` tab when you want to check for a newer release manually.
 
 All settings apply automatically. There is no separate apply button.
 
@@ -112,9 +112,9 @@ You can manage notification permission, active watches, and recent notification 
 GPUUsage uses a native macOS-style settings window with these sections:
 
 - `General`: server connection, authentication, polling, busy GPU detection
+- `General`: server connection, authentication, polling, busy GPU detection, update preferences
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
 - `Appearance`: theme, language, Dock icon, menu bar summary, popover behavior
-- `Updates`: automatic update checks, background downloads, and manual checks
 - `Advanced`: remote command override
 - `About`: version, links, runtime summary, and current configuration
 

@@ -20,14 +20,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let statusItemController = StatusItemController(
             store: store,
-            settingsOpenBridge: settingsOpenBridge,
-            appUpdater: appUpdater
+            settingsOpenBridge: settingsOpenBridge
         )
         statusItemController.showSettingsAction = { [weak self] in
             self?.showSettingsWindow()
-        }
-        statusItemController.checkForUpdatesAction = { [weak self] in
-            self?.appUpdater.checkForUpdates()
         }
         self.statusItemController = statusItemController
 

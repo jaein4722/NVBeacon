@@ -74,11 +74,6 @@ struct SettingsView: View {
                     Label(t("Appearance", "표시"), systemImage: "menubar.rectangle")
                 }
 
-            updatesPane
-                .tabItem {
-                    Label(t("Updates", "업데이트"), systemImage: "arrow.triangle.2.circlepath")
-                }
-
             advancedPane
                 .tabItem {
                     Label(t("Advanced", "고급"), systemImage: "slider.horizontal.3")
@@ -251,6 +246,42 @@ struct SettingsView: View {
             } footer: {
                 Text(t("Changes are applied automatically, and polling restarts immediately.", "설정 변경은 자동으로 저장되고, polling 주기도 즉시 다시 시작됩니다."))
             }
+
+            Section {
+                Toggle(
+                    t("Automatically check for updates", "자동으로 업데이트 확인"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyChecksForUpdates },
+                        set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable)
+
+                Text(appUpdater.automaticallyChecksForUpdates
+                     ? t("GPUUsage will periodically look for new releases in the background.", "GPUUsage가 백그라운드에서 주기적으로 새 릴리즈를 확인합니다.")
+                     : t("Automatic update checks are off. You can still check manually from About.", "자동 업데이트 확인이 꺼져 있습니다. About에서 수동 확인은 계속 가능합니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Toggle(
+                    t("Automatically download updates", "업데이트 자동 다운로드"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyDownloadsUpdates },
+                        set: { appUpdater.setAutomaticallyDownloadsUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
+
+                Text(appUpdater.automaticallyDownloadsUpdates
+                     ? t("When a new release is found, the updater may download it in the background and prepare installation.", "새 릴리즈를 찾으면 updater가 백그라운드에서 다운로드하고 설치를 준비할 수 있습니다.")
+                     : t("Updates will be offered interactively instead of downloading in the background.", "업데이트는 백그라운드 자동 다운로드 대신 대화형으로 안내됩니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } header: {
+                Text(t("Updates", "업데이트"))
+            } footer: {
+                Text(appUpdater.availability.detail(in: language))
+            }
         }
         .formStyle(.grouped)
     }
@@ -342,92 +373,6 @@ struct SettingsView: View {
                 .frame(minHeight: 150, maxHeight: 240)
             } header: {
                 Text(t("Recent 24 Hours", "최근 24시간"))
-            }
-        }
-        .formStyle(.grouped)
-    }
-
-    private var updatesPane: some View {
-        Form {
-            Section {
-                LabeledContent(t("Status", "상태")) {
-                    Text(appUpdater.availability.title(in: language))
-                        .foregroundStyle(appUpdater.availability.isAvailable ? .green : .secondary)
-                }
-
-                Text(appUpdater.availability.detail(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                if let feedURL = appUpdater.feedURL {
-                    LabeledContent("Appcast") {
-                        Text(feedURL.absoluteString)
-                            .font(.caption.monospaced())
-                            .foregroundStyle(.secondary)
-                            .lineLimit(2)
-                            .multilineTextAlignment(.trailing)
-                            .frame(maxWidth: 360, alignment: .trailing)
-                    }
-                }
-            } header: {
-                Text(t("Update Engine", "업데이트 엔진"))
-            } footer: {
-                Text(
-                    t(
-                        "GPUUsage uses Sparkle, the standard macOS update framework used by many independent apps.",
-                        "GPUUsage는 많은 macOS 앱이 사용하는 표준 업데이트 프레임워크 Sparkle을 사용합니다."
-                    )
-                )
-            }
-
-            Section {
-                Toggle(
-                    t("Automatically check for updates", "자동으로 업데이트 확인"),
-                    isOn: Binding(
-                        get: { appUpdater.automaticallyChecksForUpdates },
-                        set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdater.availability.isAvailable)
-
-                Text(appUpdater.automaticallyChecksForUpdates
-                     ? t("Sparkle will periodically check for new releases in the background.", "Sparkle이 백그라운드에서 주기적으로 새 릴리즈를 확인합니다.")
-                     : t("Automatic update checks are disabled. You can still run a manual check at any time.", "자동 업데이트 확인이 비활성화되어 있습니다. 대신 언제든 수동 확인은 가능합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle(
-                    t("Automatically download updates", "업데이트 자동 다운로드"),
-                    isOn: Binding(
-                        get: { appUpdater.automaticallyDownloadsUpdates },
-                        set: { appUpdater.setAutomaticallyDownloadsUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
-
-                Text(appUpdater.automaticallyDownloadsUpdates
-                     ? t("When a new release is found, Sparkle may download it in the background and prepare installation.", "새 릴리즈를 찾으면 Sparkle이 백그라운드에서 다운로드하고 설치를 준비할 수 있습니다.")
-                     : t("Updates will be offered interactively instead of downloading silently.", "업데이트는 백그라운드 자동 다운로드 대신 대화형으로 안내됩니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } header: {
-                Text(t("Preferences", "환경설정"))
-            }
-
-            Section {
-                Button(t("Check for Updates…", "업데이트 확인…")) {
-                    appUpdater.checkForUpdates()
-                }
-                .disabled(!appUpdater.canCheckForUpdates)
-            } header: {
-                Text(t("Manual Check", "수동 확인"))
-            } footer: {
-                Text(
-                    t(
-                        "For update installation to work in public builds, the distributed app should be Developer ID signed and notarized.",
-                        "공개 배포 빌드에서 업데이트 설치가 안정적으로 동작하려면 Developer ID 서명과 notarization이 권장됩니다."
-                    )
-                )
             }
         }
         .formStyle(.grouped)
@@ -559,20 +504,27 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
 
                     HStack(spacing: 10) {
-                        Button(t("Check for Updates…", "업데이트 확인…")) {
-                            appUpdater.checkForUpdates()
-                        }
-                        .disabled(!appUpdater.canCheckForUpdates)
-
                         Link(destination: repoURL) {
-                            Label("Repository", systemImage: "shippingbox")
+                            AboutActionLabel(title: "Repository", systemImage: "shippingbox")
                         }
+                        .buttonStyle(.plain)
 
                         Link(destination: profileURL) {
-                            Label("GitHub Profile", systemImage: "person.crop.circle")
+                            AboutActionLabel(title: "GitHub Profile", systemImage: "person.crop.circle")
                         }
+                        .buttonStyle(.plain)
                     }
-                    .labelStyle(.titleAndIcon)
+
+                    Button {
+                        appUpdater.checkForUpdates()
+                    } label: {
+                        AboutActionLabel(
+                            title: t("Check for Updates…", "업데이트 확인…"),
+                            systemImage: "arrow.triangle.2.circlepath"
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!appUpdater.canCheckForUpdates)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 10)
@@ -860,6 +812,18 @@ private struct AboutCard<Content: View>: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(Color.primary.opacity(0.06), lineWidth: 1)
         )
+    }
+}
+
+private struct AboutActionLabel: View {
+    let title: String
+    let systemImage: String
+
+    var body: some View {
+        Label(title, systemImage: systemImage)
+            .font(.title3.weight(.medium))
+            .foregroundStyle(Color.accentColor)
+            .labelStyle(.titleAndIcon)
     }
 }
 

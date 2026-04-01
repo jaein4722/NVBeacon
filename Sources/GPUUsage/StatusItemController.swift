@@ -26,10 +26,8 @@ private struct StatusMenuContainerView: View {
 @MainActor
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
-    var checkForUpdatesAction: (() -> Void)?
 
     private let store: GPUUsageStore
-    private let appUpdater: AppUpdater
     private let settingsOpenBridge: SettingsOpenBridge
     private let statusItem: NSStatusItem
     private let popover = NSPopover()
@@ -37,15 +35,13 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private var cancellables = Set<AnyCancellable>()
     private var localOutsideClickMonitor: Any?
     private var globalOutsideClickMonitor: Any?
-    private lazy var checkForUpdatesMenuItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
     private lazy var settingsMenuItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
     private lazy var quitMenuItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
     private var measuredContentHeight: CGFloat = 0
 
-    init(store: GPUUsageStore, settingsOpenBridge: SettingsOpenBridge, appUpdater: AppUpdater) {
+    init(store: GPUUsageStore, settingsOpenBridge: SettingsOpenBridge) {
         self.store = store
-        self.appUpdater = appUpdater
         self.settingsOpenBridge = settingsOpenBridge
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         super.init()
@@ -79,11 +75,6 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         showSettingsAction?()
     }
 
-    @objc private func checkForUpdates() {
-        popover.performClose(nil)
-        checkForUpdatesAction?()
-    }
-
     @objc private func quit() {
         NSApplication.shared.terminate(nil)
     }
@@ -104,12 +95,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     private func configureMenu() {
-        checkForUpdatesMenuItem.target = self
         settingsMenuItem.target = self
         quitMenuItem.target = self
         menu.items = [
-            checkForUpdatesMenuItem,
-            .separator(),
             settingsMenuItem,
             .separator(),
             quitMenuItem,
@@ -150,14 +138,6 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                 self?.updateMenuTitles()
             }
             .store(in: &cancellables)
-
-        appUpdater.objectWillChange
-            .receive(on: RunLoop.main)
-            .sink { [weak self] _ in
-                self?.updateMenuTitles()
-            }
-            .store(in: &cancellables)
-
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
             .receive(on: RunLoop.main)
             .sink { [weak self] _ in
@@ -203,8 +183,6 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func updateMenuTitles() {
         let language = store.settings.resolvedLanguage
-        checkForUpdatesMenuItem.title = language.text("Check for Updates…", "업데이트 확인…")
-        checkForUpdatesMenuItem.isEnabled = appUpdater.canCheckForUpdates
         settingsMenuItem.title = language.text("Settings…", "설정…")
         quitMenuItem.title = language.text("Quit GPUUsage", "GPUUsage 종료")
     }
