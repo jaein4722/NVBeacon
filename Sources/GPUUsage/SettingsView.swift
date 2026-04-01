@@ -10,6 +10,8 @@ struct SettingsView: View {
     @State private var selectedSSHConfigAlias = ""
     @State private var autoApplyRevision = 0
     @State private var suppressAutoApply = true
+    @State private var suppressPasswordAuthWarning = false
+    @State private var showPasswordAuthWarning = false
 
     private var selectedSSHConfigHost: SSHConfigHost? {
         sshConfigHosts.first { $0.alias == selectedSSHConfigAlias }
@@ -109,6 +111,11 @@ struct SettingsView: View {
             scheduleAutoApply()
         }
         .onChange(of: draft.sshAuthenticationMode) { _, newValue in
+            if shouldPresentPasswordAuthWarning(for: newValue) {
+                presentPasswordAuthWarning()
+                return
+            }
+
             if newValue != .passwordBased {
                 draftPassword = ""
             }
@@ -117,6 +124,26 @@ struct SettingsView: View {
             guard autoApplyRevision > 0 else { return }
             try? await Task.sleep(for: .milliseconds(350))
             applyDraftIfNeeded()
+        }
+        .alert(t("Password-Based Authentication", "비밀번호 기반 인증"), isPresented: $showPasswordAuthWarning) {
+            Button(t("Do Not Show Again", "다시 보지 않기")) {
+                store.acknowledgePasswordAuthWarning(skipFutureWarnings: true)
+                enablePasswordAuthAfterWarning()
+            }
+
+            Button(t("Continue", "계속")) {
+                store.acknowledgePasswordAuthWarning(skipFutureWarnings: false)
+                enablePasswordAuthAfterWarning()
+            }
+
+            Button(t("Cancel", "취소"), role: .cancel) {}
+        } message: {
+            Text(
+                t(
+                    "Password-based authentication stores the password in Keychain, then keeps it in memory for the current app session after you unlock it once. This is less secure than SSH keys and should be used only when key-based authentication is not available.",
+                    "비밀번호 기반 인증은 비밀번호를 Keychain에 저장한 뒤, 한 번 해제하면 현재 앱 세션 동안 메모리에 유지합니다. 이는 SSH 키 기반 인증보다 덜 안전하므로 키 기반 인증을 사용할 수 없을 때만 권장됩니다."
+                )
+            )
         }
     }
 
@@ -690,6 +717,30 @@ struct SettingsView: View {
 
     private func applyPasswordSettingsImmediately() {
         store.applySettings(draft.normalized())
+    }
+
+    private func shouldPresentPasswordAuthWarning(for newValue: SSHAuthenticationMode) -> Bool {
+        guard !suppressPasswordAuthWarning else { return false }
+        guard newValue == .passwordBased else { return false }
+        guard store.shouldWarnBeforeEnablingPasswordAuth else { return false }
+        return true
+    }
+
+    private func presentPasswordAuthWarning() {
+        suppressPasswordAuthWarning = true
+        draft.sshAuthenticationMode = .keyBased
+        showPasswordAuthWarning = true
+        DispatchQueue.main.async {
+            suppressPasswordAuthWarning = false
+        }
+    }
+
+    private func enablePasswordAuthAfterWarning() {
+        suppressPasswordAuthWarning = true
+        draft.sshAuthenticationMode = .passwordBased
+        DispatchQueue.main.async {
+            suppressPasswordAuthWarning = false
+        }
     }
 
     @ViewBuilder

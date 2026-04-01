@@ -200,4 +200,5 @@ Recommended token scope:
 - SSH keys and `~/.ssh/config` are used directly from the local Mac.
 - In key-based mode, background polling does not read from Keychain.
 - In password-based mode, the password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.
+- The app shows a one-time warning before users switch into password-based mode because it is less secure than SSH key authentication.
 - If the remote shell has a limited `PATH`, set `Remote Command` to an absolute path.

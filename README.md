@@ -133,6 +133,7 @@ The interface can be set to:
 - GPUUsage uses your local SSH setup directly, including `~/.ssh/config`.
 - In key-based mode, background polling does not read from Keychain.
 - In password-based mode, the password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.
+- The first time you switch to password-based mode, GPUUsage shows a security warning because this mode is less secure than SSH keys.
 - If the remote non-interactive shell has a limited `PATH`, set `Remote Command` to an absolute path such as `/usr/bin/nvidia-smi`.
 - Public DMG downloads may still trigger a Gatekeeper warning unless the release is signed and notarized.
 - Short release notes are tracked in [CHANGELOG.md](/Users/leejaein/Documents/SideProjects/GPUUsage/CHANGELOG.md).

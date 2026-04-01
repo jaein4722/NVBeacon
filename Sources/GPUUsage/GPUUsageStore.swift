@@ -29,9 +29,11 @@ final class GPUUsageStore: ObservableObject {
     private let watchedIdleGPUsKey = "gpu_usage.gpu_idle_watches"
     private let notificationHistoryKey = "gpu_usage.notification_history"
     private let passwordStoredHintKey = "gpu_usage.password_saved_hint"
+    private let passwordAuthWarningAcknowledgedKey = "gpu_usage.password_auth_warning_acknowledged"
     private var pollingTask: Task<Void, Never>?
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPassword: String?
+    private var passwordAuthWarningAcknowledgedThisSession = false
 
     private var language: AppInterfaceLanguage {
         settings.resolvedLanguage
@@ -152,6 +154,10 @@ final class GPUUsageStore: ObservableObject {
         NotificationHistoryEntry.recentEntries(from: notificationHistory)
     }
 
+    var shouldWarnBeforeEnablingPasswordAuth: Bool {
+        !passwordAuthWarningAcknowledgedThisSession && !userDefaults.bool(forKey: passwordAuthWarningAcknowledgedKey)
+    }
+
     func applySettings(_ newSettings: AppSettings) {
         let normalized = newSettings.normalized()
         let connectionChanged = normalized.connectionFingerprint != settings.connectionFingerprint
@@ -230,6 +236,13 @@ final class GPUUsageStore: ObservableObject {
             noticeMessage = t("Removed the saved SSH password from Keychain.", "Keychain에서 저장된 SSH 비밀번호를 삭제했습니다.")
         } catch {
             lastErrorMessage = error.localizedDescription
+        }
+    }
+
+    func acknowledgePasswordAuthWarning(skipFutureWarnings: Bool) {
+        passwordAuthWarningAcknowledgedThisSession = true
+        if skipFutureWarnings {
+            userDefaults.set(true, forKey: passwordAuthWarningAcknowledgedKey)
         }
     }
 
