@@ -6,6 +6,7 @@ import UserNotifications
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = NVBeaconStore()
     let appUpdater = AppUpdater()
+    let launchAtLoginManager = LaunchAtLoginManager()
     private let settingsOpenBridge = SettingsOpenBridge()
     private var statusItemController: StatusItemController?
     private var cancellables = Set<AnyCancellable>()

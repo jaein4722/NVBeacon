@@ -6,7 +6,11 @@ struct NVBeaconApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView(store: appDelegate.store, appUpdater: appDelegate.appUpdater)
+            SettingsView(
+                store: appDelegate.store,
+                appUpdater: appDelegate.appUpdater,
+                launchAtLoginManager: appDelegate.launchAtLoginManager
+            )
         }
     }
 }

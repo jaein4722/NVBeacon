@@ -4,6 +4,7 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject var store: NVBeaconStore
     @ObservedObject var appUpdater: AppUpdater
+    @ObservedObject var launchAtLoginManager: LaunchAtLoginManager
     @State private var draft = AppSettings()
     @State private var draftPassword = ""
     @State private var sshConfigHosts = SSHConfigLoader.loadHosts()
@@ -320,6 +321,52 @@ struct SettingsView: View {
                 Text(t("Polling", "폴링"))
             } footer: {
                 Text(t("Changes are applied automatically, and polling restarts immediately.", "설정 변경은 자동으로 저장되고, polling 주기도 즉시 다시 시작됩니다."))
+            }
+
+            Section {
+                Toggle(
+                    t("Launch NVBeacon at login", "로그인 시 NVBeacon 자동 시작"),
+                    isOn: Binding(
+                        get: { launchAtLoginManager.isEnabled },
+                        set: { launchAtLoginManager.setEnabled($0) }
+                    )
+                )
+                .disabled(!launchAtLoginManager.canConfigure)
+
+                LabeledContent(t("Startup Status", "시작 상태")) {
+                    Text(launchAtLoginManager.state.title(in: language))
+                        .foregroundStyle(
+                            launchAtLoginManager.state == .enabled
+                            ? .green
+                            : launchAtLoginManager.state == .requiresApproval
+                            ? .orange
+                            : .secondary
+                        )
+                }
+
+                Text(launchAtLoginManager.state.detailText(in: language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                if let lastErrorMessage = launchAtLoginManager.lastErrorMessage {
+                    Text(lastErrorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                }
+
+                Button(t("Refresh Startup Status", "시작 상태 새로고침")) {
+                    launchAtLoginManager.refreshStatus()
+                }
+                .disabled(!launchAtLoginManager.canConfigure)
+            } header: {
+                Text(t("Startup", "시작"))
+            } footer: {
+                Text(
+                    t(
+                        "This uses the standard macOS login item mechanism. A packaged app bundle is required, and macOS may ask for approval the first time.",
+                        "이 기능은 macOS 표준 로그인 항목 메커니즘을 사용합니다. 패키징된 앱 번들이 필요하며, 처음에는 macOS 승인 절차가 필요할 수 있습니다."
+                    )
+                )
             }
 
             Section {

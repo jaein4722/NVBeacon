@@ -58,6 +58,7 @@ It connects over `ssh`, runs `nvidia-smi` on the target server, and turns the re
 - GPU idle notifications with configurable idle duration and memory threshold
 - Configurable busy GPU detection based on active processes, memory usage, or utilization
 - Built-in update checks using Sparkle, the standard macOS update framework
+- Optional launch at login using the standard macOS login item mechanism
 - Import from local `~/.ssh/config`
 - SSH key authentication and password-based authentication
 - English / Korean UI with a `System` language option
@@ -115,7 +116,7 @@ You can manage notification permission, active watches, and recent notification 
 
 NVBeacon uses a native macOS-style settings window with these sections:
 
-- `General`: server connection, authentication, polling, busy GPU detection, update preferences
+- `General`: server connection, authentication, polling, startup, busy GPU detection, update preferences
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
 - `Appearance`: theme, language, Dock icon, menu bar summary, popover behavior
 - `Advanced`: remote command override
@@ -139,6 +140,7 @@ The interface can be set to:
 - The first time you switch to password-based mode, NVBeacon shows a security warning because this mode is less secure than SSH keys.
 - If the remote non-interactive shell has a limited `PATH`, set `Remote Command` to an absolute path such as `/usr/bin/nvidia-smi`.
 - Public DMG downloads may still trigger a Gatekeeper warning unless the release is signed and notarized.
+- Launch at login is only available from a packaged app bundle, not `swift run`.
 - Short release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## For Developers

@@ -57,6 +57,12 @@ swift run
 
 `swift run` is useful for quick iteration, but bundle-only behaviors may differ from the test app path.
 
+Bundle-only behaviors include:
+
+- Notification Center permission and delivery
+- Sparkle update checks
+- Launch at login registration
+
 ## Packaging
 
 The canonical packaging entrypoint is:
