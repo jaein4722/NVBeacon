@@ -97,43 +97,6 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    func fetchProcessOwnership(
-        settings: AppSettings,
-        processes: [GPUProcessReading],
-        password: String? = nil
-    ) async throws -> [GPUProcessReading] {
-        let normalized = settings.normalized()
-        guard normalized.isConfigured else {
-            throw FetchError.missingTarget
-        }
-
-        let uniquePIDs = Array(Set(processes.map(\.pid))).sorted()
-        guard !uniquePIDs.isEmpty else {
-            return processes
-        }
-
-        let output = try await runSSHCommand(
-            settings: normalized,
-            remoteCommand: Self.buildProcOwnershipLookupCommand(pids: uniquePIDs),
-            password: password,
-            allowEmptyOutput: true
-        )
-        let ownershipDetails = try Self.parsePSOwnershipSection(output)
-        let ownershipByPID = Dictionary(uniqueKeysWithValues: ownershipDetails.map { ($0.pid, $0.userID) })
-
-        return processes.map { process in
-            GPUProcessReading(
-                gpuUUID: process.gpuUUID,
-                pid: process.pid,
-                processName: process.processName,
-                usedGPUMemoryMB: process.usedGPUMemoryMB,
-                userID: ownershipByPID[process.pid] ?? process.userID,
-                user: process.user,
-                commandLine: process.commandLine
-            )
-        }
-    }
-
     func fetchRemoteUserID(
         settings: AppSettings,
         username: String,
@@ -203,6 +166,7 @@ struct SSHMetricsFetcher: Sendable {
                 pid: process.pid,
                 processName: process.processName,
                 usedGPUMemoryMB: process.usedGPUMemoryMB,
+                userID: process.userID,
                 user: details?.user,
                 commandLine: details?.commandLine
             )
@@ -276,19 +240,6 @@ struct SSHMetricsFetcher: Sendable {
             .map { String($0) }
 
         return try lines.map(parseDetailedPSLine(_:))
-    }
-
-    private static func parsePSOwnershipSection(_ output: String) throws -> [RemoteProcessOwnershipStatus] {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return []
-        }
-
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parsePSOwnershipLine(_:))
     }
 
     private func runSSHCommand(
@@ -476,11 +427,13 @@ struct SSHMetricsFetcher: Sendable {
             throw FetchError.invalidProcessOutput(line)
         }
 
+        let hasUIDColumn = columns.count >= 5
         return GPUProcessReading(
             gpuUUID: columns[0],
             pid: pid,
-            processName: columns[2],
-            usedGPUMemoryMB: Int(columns[3]) ?? 0,
+            processName: hasUIDColumn ? columns[3] : columns[2],
+            usedGPUMemoryMB: Int(hasUIDColumn ? columns[4] : columns[3]) ?? 0,
+            userID: hasUIDColumn ? Int(columns[2]) : nil,
             user: nil,
             commandLine: nil
         )
@@ -490,8 +443,23 @@ struct SSHMetricsFetcher: Sendable {
         """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
-        process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
-        printf '%s\\n' "$process_output"
+        while IFS=, read -r gpu_uuid pid pname used_mem; do
+          gpu_uuid="${gpu_uuid#"${gpu_uuid%%[![:space:]]*}"}"
+          gpu_uuid="${gpu_uuid%"${gpu_uuid##*[![:space:]]}"}"
+          pid="${pid// /}"
+          [ -r "/proc/$pid/status" ] || continue
+          real_uid=""
+          while IFS=' \t' read -r key a _; do
+            if [ "$key" = "Uid:" ] && [ -n "$a" ]; then
+              real_uid="$a"
+              break
+            fi
+          done < "/proc/$pid/status"
+          [ -n "$real_uid" ] || continue
+          printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
+        done < <(
+          \(processDetailsCommand) 2>/dev/null || true
+        )
         """
     }
 
@@ -506,22 +474,6 @@ struct SSHMetricsFetcher: Sendable {
         let pidList = pids.map(String.init).joined(separator: ",")
         return """
         ps -o pid= -o uid= -o user= -o args= -p "\(pidList)" 2>/dev/null || true
-        """
-    }
-
-    private static func buildProcOwnershipLookupCommand(pids: [Int]) -> String {
-        let pidList = pids.map(String.init).joined(separator: " ")
-        return """
-        for pid in \(pidList); do
-          status_path="/proc/$pid/status"
-          [ -r "$status_path" ] || continue
-          while IFS=' \t' read -r label real_uid _; do
-            if [ "$label" = "Uid:" ] && [ -n "$real_uid" ]; then
-              printf '%s %s\\n' "$pid" "$real_uid"
-              break
-            fi
-          done < "$status_path"
-        done
         """
     }
 
@@ -613,20 +565,4 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func parsePSOwnershipLine(_ line: String) throws -> RemoteProcessOwnershipStatus {
-        let columns = line
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(maxSplits: 1, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
-
-        guard columns.count == 2, let pid = Int(columns[0]), let userID = Int(columns[1]) else {
-            throw FetchError.invalidPSOutput(line)
-        }
-
-        return RemoteProcessOwnershipStatus(pid: pid, userID: userID)
-    }
-}
-
-private struct RemoteProcessOwnershipStatus: Equatable, Sendable {
-    let pid: Int
-    let userID: Int
 }

@@ -44,7 +44,7 @@ import Testing
     let output = """
     0, NVIDIA RTX 6000 Ada Generation, GPU-111, 73, 12048, 49140, 65
     __GPUUSAGE_PROCESS_SECTION__
-    GPU-111, 1001, python, 8192
+    GPU-111, 1001, 501, python, 8192
     """
 
     let gpus = try SSHMetricsFetcher.parseSnapshot(output)
@@ -52,6 +52,7 @@ import Testing
     #expect(gpus.count == 1)
     #expect(gpus[0].processes.count == 1)
     #expect(gpus[0].processes[0].processName == "python")
+    #expect(gpus[0].processes[0].userID == 501)
     #expect(gpus[0].processes[0].user == nil)
     #expect(gpus[0].processes[0].commandLine == nil)
 }

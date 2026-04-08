@@ -455,23 +455,14 @@ final class NVBeaconStore: ObservableObject {
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             )
-            var mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
+            let mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
 
             if let _ = await resolveDetectedSSHUserIDIfNeeded(
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
-            ),
-               mergedSnapshot.totalProcessCount > 0 {
-                do {
-                    let ownershipProcesses = try await fetcher.fetchProcessOwnership(
-                        settings: currentSettings,
-                        processes: mergedSnapshot.gpus.flatMap(\.processes),
-                        password: password.isEmpty ? nil : password
-                    )
-                    mergedSnapshot = mergedSnapshot.applyingResolvedProcessMetadata(ownershipProcesses)
-                } catch {
-                    // Keep the summary snapshot even if lightweight ownership refresh fails.
-                }
+            ) {
+                // Summary polling already resolves process ownership via /proc,
+                // so we only need the remote UID cache for "my process" checks.
             }
 
             self.snapshot = mergedSnapshot
