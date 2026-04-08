@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 - 2026-04-08
+
+- Added automatic "my process" detection based on the active SSH username, with highlighting for matching remote processes and the GPUs they occupy.
+- Reloaded GPU process details every time a row is expanded so VRAM usage and process metadata stay current instead of reusing stale cached values.
+- Added CI-ready Developer ID signing and notarization support to the release workflow for signed DMG releases and notarized Sparkle updates.
+
 ## 0.3.5 - 2026-04-08
 
 - Added an optional launch-at-login setting using the standard macOS login item mechanism.
