@@ -73,11 +73,11 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildPSLookupCommand(pids: uniquePIDs),
+            remoteCommand: Self.buildDetailedPSLookupCommand(pids: uniquePIDs),
             password: password,
             allowEmptyOutput: true
         )
-        let processDetails = try Self.parsePSSection(output)
+        let processDetails = try Self.parseDetailedPSSection(output)
         let processDetailsByPID = Dictionary(uniqueKeysWithValues: processDetails.map { ($0.pid, $0) })
 
         return processes.map { process in
@@ -90,10 +90,71 @@ struct SSHMetricsFetcher: Sendable {
                 pid: process.pid,
                 processName: process.processName,
                 usedGPUMemoryMB: process.usedGPUMemoryMB,
+                userID: details.userID,
                 user: details.user,
                 commandLine: details.commandLine
             )
         }
+    }
+
+    func fetchProcessOwnership(
+        settings: AppSettings,
+        processes: [GPUProcessReading],
+        password: String? = nil
+    ) async throws -> [GPUProcessReading] {
+        let normalized = settings.normalized()
+        guard normalized.isConfigured else {
+            throw FetchError.missingTarget
+        }
+
+        let uniquePIDs = Array(Set(processes.map(\.pid))).sorted()
+        guard !uniquePIDs.isEmpty else {
+            return processes
+        }
+
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: Self.buildPSOwnershipLookupCommand(pids: uniquePIDs),
+            password: password,
+            allowEmptyOutput: true
+        )
+        let ownershipDetails = try Self.parsePSOwnershipSection(output)
+        let ownershipByPID = Dictionary(uniqueKeysWithValues: ownershipDetails.map { ($0.pid, $0.userID) })
+
+        return processes.map { process in
+            GPUProcessReading(
+                gpuUUID: process.gpuUUID,
+                pid: process.pid,
+                processName: process.processName,
+                usedGPUMemoryMB: process.usedGPUMemoryMB,
+                userID: ownershipByPID[process.pid] ?? process.userID,
+                user: process.user,
+                commandLine: process.commandLine
+            )
+        }
+    }
+
+    func fetchRemoteUserID(
+        settings: AppSettings,
+        username: String,
+        password: String? = nil
+    ) async throws -> Int {
+        let normalized = settings.normalized()
+        guard normalized.isConfigured else {
+            throw FetchError.missingTarget
+        }
+
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: Self.buildRemoteUIDLookupCommand(username: username),
+            password: password
+        )
+
+        guard let uid = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+            throw FetchError.invalidPSOutput(output)
+        }
+
+        return uid
     }
 
     func fetchProcessStatuses(
@@ -202,6 +263,32 @@ struct SSHMetricsFetcher: Sendable {
             .map { String($0) }
 
         return try lines.map(parsePSLine(_:))
+    }
+
+    private static func parseDetailedPSSection(_ output: String) throws -> [RemoteProcessStatus] {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return []
+        }
+
+        let lines = trimmed
+            .split(whereSeparator: \.isNewline)
+            .map { String($0) }
+
+        return try lines.map(parseDetailedPSLine(_:))
+    }
+
+    private static func parsePSOwnershipSection(_ output: String) throws -> [RemoteProcessOwnershipStatus] {
+        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return []
+        }
+
+        let lines = trimmed
+            .split(whereSeparator: \.isNewline)
+            .map { String($0) }
+
+        return try lines.map(parsePSOwnershipLine(_:))
     }
 
     private func runSSHCommand(
@@ -415,6 +502,24 @@ struct SSHMetricsFetcher: Sendable {
         """
     }
 
+    private static func buildDetailedPSLookupCommand(pids: [Int]) -> String {
+        let pidList = pids.map(String.init).joined(separator: ",")
+        return """
+        ps -o pid= -o uid= -o user= -o args= -p "\(pidList)" 2>/dev/null || true
+        """
+    }
+
+    private static func buildPSOwnershipLookupCommand(pids: [Int]) -> String {
+        let pidList = pids.map(String.init).joined(separator: ",")
+        return """
+        ps -o pid= -o uid= -p "\(pidList)" 2>/dev/null || true
+        """
+    }
+
+    private static func buildRemoteUIDLookupCommand(username: String) -> String {
+        "id -u -- \(shellQuoted(username))"
+    }
+
     private static func shellQuoted(_ string: String) -> String {
         "'\(string.replacingOccurrences(of: "'", with: "'\\''"))'"
     }
@@ -475,8 +580,44 @@ struct SSHMetricsFetcher: Sendable {
         let commandLine = columns.count == 3 ? String(columns[2]) : nil
         return RemoteProcessStatus(
             pid: pid,
+            userID: nil,
             user: String(columns[1]),
             commandLine: commandLine
         )
     }
+
+    private static func parseDetailedPSLine(_ line: String) throws -> RemoteProcessStatus {
+        let columns = line
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(maxSplits: 3, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+
+        guard columns.count >= 3, let pid = Int(columns[0]) else {
+            throw FetchError.invalidPSOutput(line)
+        }
+
+        let commandLine = columns.count == 4 ? String(columns[3]) : nil
+        return RemoteProcessStatus(
+            pid: pid,
+            userID: Int(columns[1]),
+            user: String(columns[2]),
+            commandLine: commandLine
+        )
+    }
+
+    private static func parsePSOwnershipLine(_ line: String) throws -> RemoteProcessOwnershipStatus {
+        let columns = line
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(maxSplits: 1, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+
+        guard columns.count == 2, let pid = Int(columns[0]), let userID = Int(columns[1]) else {
+            throw FetchError.invalidPSOutput(line)
+        }
+
+        return RemoteProcessOwnershipStatus(pid: pid, userID: userID)
+    }
+}
+
+private struct RemoteProcessOwnershipStatus: Equatable, Sendable {
+    let pid: Int
+    let userID: Int
 }

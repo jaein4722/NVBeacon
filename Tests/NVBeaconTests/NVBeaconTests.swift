@@ -115,6 +115,53 @@ import Testing
     #expect(process.commandLine == "python train.py")
 }
 
+@Test func applyingResolvedProcessMetadataUpdatesOwnershipWithoutChangingSnapshotTime() throws {
+    let takenAt = Date(timeIntervalSince1970: 1_700_000_000)
+    let snapshot = GPUSnapshot(
+        takenAt: takenAt,
+        gpus: [
+            GPUReading(
+                index: 0,
+                name: "NVIDIA RTX 6000 Ada Generation",
+                uuid: "GPU-111",
+                utilization: 12,
+                memoryUsedMB: 8192,
+                memoryTotalMB: 49140,
+                temperatureCelsius: 50,
+                processes: [
+                    GPUProcessReading(
+                        gpuUUID: "GPU-111",
+                        pid: 1001,
+                        processName: "python",
+                        usedGPUMemoryMB: 8192,
+                        user: nil,
+                        commandLine: nil
+                    )
+                ]
+            )
+        ]
+    )
+
+    let refreshedProcesses = [
+        GPUProcessReading(
+            gpuUUID: "GPU-111",
+            pid: 1001,
+            processName: "python",
+            usedGPUMemoryMB: 8192,
+            userID: 501,
+            user: nil,
+            commandLine: nil
+        )
+    ]
+
+    let updated = snapshot.applyingResolvedProcessMetadata(refreshedProcesses)
+    let process = try #require(updated.gpus.first?.processes.first)
+
+    #expect(updated.takenAt == takenAt)
+    #expect(process.userID == 501)
+    #expect(process.user == nil)
+}
+
 @Test func malformedOutputThrows() {
     #expect(throws: SSHMetricsFetcher.FetchError.self) {
         try SSHMetricsFetcher.parse("unexpected output")

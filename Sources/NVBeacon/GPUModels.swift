@@ -554,6 +554,34 @@ struct GPUSnapshot: Equatable, Sendable {
 
         return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs)
     }
+
+    func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
+        guard !processes.isEmpty else { return self }
+
+        let processesByID = Dictionary(uniqueKeysWithValues: processes.map { ($0.id, $0) })
+        let updatedGPUs = gpus.map { gpu in
+            let updatedProcesses = gpu.processes.map { process in
+                guard let refreshedProcess = processesByID[process.id] else {
+                    return process
+                }
+
+                return refreshedProcess.mergingResolvedMetadata(from: process)
+            }
+
+            return GPUReading(
+                index: gpu.index,
+                name: gpu.name,
+                uuid: gpu.uuid,
+                utilization: gpu.utilization,
+                memoryUsedMB: gpu.memoryUsedMB,
+                memoryTotalMB: gpu.memoryTotalMB,
+                temperatureCelsius: gpu.temperatureCelsius,
+                processes: updatedProcesses
+            )
+        }
+
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs)
+    }
 }
 
 struct GPUProcessReading: Identifiable, Equatable, Sendable {
@@ -561,15 +589,34 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
     let pid: Int
     let processName: String
     let usedGPUMemoryMB: Int
+    let userID: Int?
     let user: String?
     let commandLine: String?
+
+    init(
+        gpuUUID: String,
+        pid: Int,
+        processName: String,
+        usedGPUMemoryMB: Int,
+        userID: Int? = nil,
+        user: String?,
+        commandLine: String?
+    ) {
+        self.gpuUUID = gpuUUID
+        self.pid = pid
+        self.processName = processName
+        self.usedGPUMemoryMB = usedGPUMemoryMB
+        self.userID = userID
+        self.user = user
+        self.commandLine = commandLine
+    }
 
     var id: String {
         "\(gpuUUID):\(pid):\(processName)"
     }
 
     var hasResolvedMetadata: Bool {
-        user != nil || commandLine != nil
+        userID != nil || user != nil || commandLine != nil
     }
 
     var memorySummary: String {
@@ -608,6 +655,7 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
             pid: pid,
             processName: processName,
             usedGPUMemoryMB: usedGPUMemoryMB,
+            userID: userID ?? previous?.userID,
             user: user ?? previous?.user,
             commandLine: commandLine ?? previous?.commandLine
         )
@@ -616,8 +664,16 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
 
 struct RemoteProcessStatus: Equatable, Sendable {
     let pid: Int
+    let userID: Int?
     let user: String
     let commandLine: String?
+
+    init(pid: Int, userID: Int? = nil, user: String, commandLine: String?) {
+        self.pid = pid
+        self.userID = userID
+        self.user = user
+        self.commandLine = commandLine
+    }
 }
 
 struct ProcessExitWatch: Codable, Identifiable, Equatable, Sendable {

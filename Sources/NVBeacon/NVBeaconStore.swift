@@ -35,6 +35,7 @@ final class NVBeaconStore: ObservableObject {
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPassword: String?
     private var passwordAuthWarningAcknowledgedThisSession = false
+    private var detectedSSHUserID: Int?
 
     private var language: AppInterfaceLanguage {
         settings.resolvedLanguage
@@ -163,10 +164,14 @@ final class NVBeaconStore: ObservableObject {
     func applySettings(_ newSettings: AppSettings) {
         let normalized = newSettings.normalized()
         let connectionChanged = normalized.connectionFingerprint != settings.connectionFingerprint
+        let previousDetectedSSHUsername = detectedSSHUsername
         guard normalized != settings else { return }
 
         settings = normalized
         detectedSSHUsername = Self.detectedSSHUsername(for: normalized)
+        if connectionChanged || detectedSSHUsername != previousDetectedSSHUsername {
+            detectedSSHUserID = nil
+        }
         persistSettings()
         noticeMessage = nil
         synchronizePasswordSessionStateAfterSettingsChange()
@@ -260,6 +265,7 @@ final class NVBeaconStore: ObservableObject {
 
         settings = AppSettings()
         detectedSSHUsername = nil
+        detectedSSHUserID = nil
         unlockedSSHPassword = nil
         passwordSessionState = .notRequired
         snapshot = nil
@@ -300,6 +306,10 @@ final class NVBeaconStore: ObservableObject {
     }
 
     func isCurrentUserProcess(_ process: GPUProcessReading) -> Bool {
+        if let detectedSSHUserID, let processUserID = process.userID {
+            return processUserID == detectedSSHUserID
+        }
+
         guard let detectedSSHUsername else { return false }
         return process.user?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == detectedSSHUsername
     }
@@ -445,7 +455,25 @@ final class NVBeaconStore: ObservableObject {
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             )
-            let mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
+            var mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
+
+            if let _ = await resolveDetectedSSHUserIDIfNeeded(
+                settings: currentSettings,
+                password: password.isEmpty ? nil : password
+            ),
+               mergedSnapshot.totalProcessCount > 0 {
+                do {
+                    let ownershipProcesses = try await fetcher.fetchProcessOwnership(
+                        settings: currentSettings,
+                        processes: mergedSnapshot.gpus.flatMap(\.processes),
+                        password: password.isEmpty ? nil : password
+                    )
+                    mergedSnapshot = mergedSnapshot.applyingResolvedProcessMetadata(ownershipProcesses)
+                } catch {
+                    // Keep the summary snapshot even if lightweight ownership refresh fails.
+                }
+            }
+
             self.snapshot = mergedSnapshot
             await evaluateWatchedProcesses(using: mergedSnapshot, settings: currentSettings, password: password.isEmpty ? nil : password)
             await evaluateWatchedIdleGPUs(using: mergedSnapshot, settings: currentSettings)
@@ -570,25 +598,22 @@ final class NVBeaconStore: ObservableObject {
 
         do {
             let password = currentSessionPassword()
-            let refreshedSnapshot = try await fetcher.fetchSummary(
-                settings: currentSettings,
-                password: password.isEmpty ? nil : password
-            ).mergingResolvedProcessMetadata(from: self.snapshot)
-
-            self.snapshot = refreshedSnapshot
-
-            guard let refreshedGPU = refreshedSnapshot.gpus.first(where: { $0.id == gpuID }) else {
+            guard let currentSnapshot = snapshot else {
                 lastErrorMessage = nil
                 return
             }
-            guard !refreshedGPU.processes.isEmpty else {
+            guard let currentGPU = currentSnapshot.gpus.first(where: { $0.id == gpuID }) else {
+                lastErrorMessage = nil
+                return
+            }
+            guard !currentGPU.processes.isEmpty else {
                 lastErrorMessage = nil
                 return
             }
 
             let enrichedProcesses = try await fetcher.fetchProcessDetails(
                 settings: currentSettings,
-                processes: refreshedGPU.processes,
+                processes: currentGPU.processes,
                 password: password.isEmpty ? nil : password
             )
             applyProcessDetails(enrichedProcesses, toGPUWithID: gpuID)
@@ -619,6 +644,26 @@ final class NVBeaconStore: ObservableObject {
         }
 
         self.snapshot = GPUSnapshot(takenAt: snapshot.takenAt, gpus: updatedGPUs)
+    }
+
+    private func resolveDetectedSSHUserIDIfNeeded(settings: AppSettings, password: String?) async -> Int? {
+        if let detectedSSHUserID {
+            return detectedSSHUserID
+        }
+
+        guard let detectedSSHUsername else { return nil }
+
+        do {
+            let remoteUserID = try await fetcher.fetchRemoteUserID(
+                settings: settings,
+                username: detectedSSHUsername,
+                password: password
+            )
+            detectedSSHUserID = remoteUserID
+            return remoteUserID
+        } catch {
+            return nil
+        }
     }
 
     private func toggleExitWatchTask(for process: GPUProcessReading, on gpu: GPUReading) async {
