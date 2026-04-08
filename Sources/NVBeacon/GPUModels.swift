@@ -416,6 +416,37 @@ struct AppSettings: Codable, Equatable, Sendable {
             sshAuthenticationMode.rawValue,
         ].joined(separator: "|")
     }
+
+    func detectedSSHUsername(
+        using sshConfigHosts: [SSHConfigHost] = SSHConfigLoader.loadHosts(),
+        fallbackLocalUsername: String? = NSUserName()
+    ) -> String? {
+        if let explicitUsername = Self.normalizedUsername(from: sshTarget.components(separatedBy: "@").first, requiresAtSymbolIn: sshTarget) {
+            return explicitUsername
+        }
+
+        if let configuredUsername = sshConfigHosts
+            .first(where: { $0.alias == sshTarget })?
+            .user
+            .flatMap({ Self.normalizedUsername(from: $0) }) {
+            return configuredUsername
+        }
+
+        guard isConfigured else { return nil }
+        return Self.normalizedUsername(from: fallbackLocalUsername)
+    }
+
+    private static func normalizedUsername(from value: String?, requiresAtSymbolIn source: String? = nil) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+
+        if let source, !source.contains("@") {
+            return nil
+        }
+
+        return trimmed.lowercased()
+    }
 }
 
 struct GPUReading: Identifiable, Equatable, Sendable {

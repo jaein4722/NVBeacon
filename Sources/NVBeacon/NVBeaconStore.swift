@@ -19,6 +19,7 @@ final class NVBeaconStore: ObservableObject {
     @Published private(set) var watchedProcesses = [ProcessExitWatch]()
     @Published private(set) var watchedIdleGPUs = [GPUIdleWatch]()
     @Published private(set) var notificationHistory = [NotificationHistoryEntry]()
+    @Published private(set) var detectedSSHUsername: String?
 
     private let fetcher: SSHMetricsFetcher
     private let notificationManager: ProcessExitNotificationManager
@@ -55,6 +56,7 @@ final class NVBeaconStore: ObservableObject {
         self.userDefaults = userDefaults
         self.passwordStore = passwordStore
         self.settings = settings
+        self.detectedSSHUsername = Self.detectedSSHUsername(for: settings)
         self.passwordSessionState = Self.initialPasswordSessionState(
             settings: settings,
             passwordStore: passwordStore,
@@ -164,6 +166,7 @@ final class NVBeaconStore: ObservableObject {
         guard normalized != settings else { return }
 
         settings = normalized
+        detectedSSHUsername = Self.detectedSSHUsername(for: normalized)
         persistSettings()
         noticeMessage = nil
         synchronizePasswordSessionStateAfterSettingsChange()
@@ -256,6 +259,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         settings = AppSettings()
+        detectedSSHUsername = nil
         unlockedSSHPassword = nil
         passwordSessionState = .notRequired
         snapshot = nil
@@ -293,6 +297,15 @@ final class NVBeaconStore: ObservableObject {
 
     func isWatchingExit(for process: GPUProcessReading) -> Bool {
         watchedProcesses.contains { $0.matches(process) && $0.connectionFingerprint == settings.connectionFingerprint }
+    }
+
+    func isCurrentUserProcess(_ process: GPUProcessReading) -> Bool {
+        guard let detectedSSHUsername else { return false }
+        return process.user?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == detectedSSHUsername
+    }
+
+    func hasCurrentUserProcess(on gpu: GPUReading) -> Bool {
+        gpu.processes.contains(where: isCurrentUserProcess)
     }
 
     func isWatchingIdle(for gpu: GPUReading) -> Bool {
@@ -819,6 +832,10 @@ final class NVBeaconStore: ObservableObject {
         }
 
         return settings.normalized()
+    }
+
+    private static func detectedSSHUsername(for settings: AppSettings) -> String? {
+        settings.detectedSSHUsername()
     }
 
     private static func loadWatchedProcesses(from userDefaults: UserDefaults) -> [ProcessExitWatch] {

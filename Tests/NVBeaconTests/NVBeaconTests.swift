@@ -169,6 +169,33 @@ import Testing
     #expect(backfilled.sshIdentityFilePath == "/Users/test/.ssh/id_gpu")
 }
 
+@Test func detectsSSHUsernameFromExplicitTarget() {
+    let settings = AppSettings(sshTarget: "alice@10.0.0.10")
+
+    #expect(settings.detectedSSHUsername(using: [], fallbackLocalUsername: "local") == "alice")
+}
+
+@Test func detectsSSHUsernameFromSSHConfigAlias() {
+    let settings = AppSettings(sshTarget: "gpu-prod")
+    let hosts = [
+        SSHConfigHost(
+            alias: "gpu-prod",
+            hostName: "10.0.0.10",
+            user: "ubuntu",
+            port: "2222",
+            identityFilePath: "/Users/test/.ssh/id_gpu"
+        )
+    ]
+
+    #expect(settings.detectedSSHUsername(using: hosts, fallbackLocalUsername: "local") == "ubuntu")
+}
+
+@Test func detectsSSHUsernameFallsBackToLocalUser() {
+    let settings = AppSettings(sshTarget: "gpu-prod")
+
+    #expect(settings.detectedSSHUsername(using: [], fallbackLocalUsername: "lee") == "lee")
+}
+
 @Test func decodesLegacySettingsWithoutMenuBarMode() throws {
     let json = """
     {

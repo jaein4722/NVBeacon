@@ -54,6 +54,7 @@ It connects over `ssh`, runs `nvidia-smi` on the target server, and turns the re
 - Remote NVIDIA GPU monitoring over `ssh` using `nvidia-smi`
 - Per-GPU utilization, memory, temperature, and process count
 - On-demand process details with user, PID, memory, and command preview
+- Automatic detection and highlighting of your own remote SSH user processes and GPUs
 - Job completion alerts through macOS Notification Center when watched GPU processes exit
 - GPU idle notifications with configurable idle duration and memory threshold
 - Configurable busy GPU detection based on active processes, memory usage, or utilization

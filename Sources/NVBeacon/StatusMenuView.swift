@@ -119,6 +119,15 @@ struct StatusMenuView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
+            if let detectedSSHUsername = store.detectedSSHUsername {
+                Label(
+                    t("My processes: \(detectedSSHUsername)", "내 프로세스: \(detectedSSHUsername)"),
+                    systemImage: "person.crop.circle.badge.checkmark"
+                )
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(.green)
+            }
+
             if store.watchedNotificationCount > 0 {
                 Label(
                     watchSummaryText,
@@ -145,9 +154,13 @@ struct StatusMenuView: View {
                     gpu: gpu,
                     isExpanded: isExpanded,
                     isLoadingDetails: isLoadingDetails,
+                    hasCurrentUserProcess: store.hasCurrentUserProcess(on: gpu),
                     isWatchingIdle: store.isWatchingIdle(for: gpu),
                     isWatchingProcessExit: { process in
                         store.isWatchingExit(for: process)
+                    },
+                    isCurrentUserProcess: { process in
+                        store.isCurrentUserProcess(process)
                     },
                     toggleIdleWatch: {
                         store.toggleIdleWatch(for: gpu)
@@ -205,8 +218,10 @@ private struct GPUListRow: View {
     let gpu: GPUReading
     let isExpanded: Bool
     let isLoadingDetails: Bool
+    let hasCurrentUserProcess: Bool
     let isWatchingIdle: Bool
     let isWatchingProcessExit: (GPUProcessReading) -> Bool
+    let isCurrentUserProcess: (GPUProcessReading) -> Bool
     let toggleIdleWatch: () -> Void
     let toggleProcessExitWatch: (GPUProcessReading) -> Void
     let toggleExpansion: () -> Void
@@ -247,6 +262,18 @@ private struct GPUListRow: View {
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.primary)
                                 .monospacedDigit()
+
+                            if hasCurrentUserProcess {
+                                Text(t("Mine", "내 프로세스"))
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(.green)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(
+                                        Capsule(style: .continuous)
+                                            .fill(Color.green.opacity(0.12))
+                                    )
+                            }
 
                             Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
                                 .font(.system(size: 15, weight: .semibold))
@@ -315,6 +342,7 @@ private struct GPUListRow: View {
                         ForEach(gpu.processes) { process in
                             ProcessRow(
                                 process: process,
+                                isCurrentUserProcess: isCurrentUserProcess(process),
                                 isWatched: isWatchingProcessExit(process),
                                 toggleWatch: {
                                     toggleProcessExitWatch(process)
@@ -331,12 +359,12 @@ private struct GPUListRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
+                .fill((hasCurrentUserProcess ? Color.green : Color(nsColor: .controlBackgroundColor)).opacity(hasCurrentUserProcess ? 0.08 : 1))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .strokeBorder(
-                    isExpanded ? Color.orange.opacity(0.42) : Color.primary.opacity(0.05),
+                    isExpanded ? Color.orange.opacity(0.42) : (hasCurrentUserProcess ? Color.green.opacity(0.26) : Color.primary.opacity(0.05)),
                     lineWidth: 1
                 )
         )
@@ -440,6 +468,7 @@ private struct ThinMetricBar: View {
 
 private struct ProcessRow: View {
     let process: GPUProcessReading
+    let isCurrentUserProcess: Bool
     let isWatched: Bool
     let toggleWatch: () -> Void
     private let userColumnWidth: CGFloat = 52
@@ -450,15 +479,29 @@ private struct ProcessRow: View {
             HStack(alignment: .top, spacing: 10) {
                 Text(process.userSummary)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(isCurrentUserProcess ? .green : .secondary)
                     .lineLimit(1)
                     .frame(width: userColumnWidth, alignment: .leading)
 
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(process.displayProcessName)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text(process.displayProcessName)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+
+                        if isCurrentUserProcess {
+                            Text(language.text("Mine", "내 프로세스"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(.green)
+                                .padding(.horizontal, 5)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .fill(Color.green.opacity(0.12))
+                                )
+                        }
+                    }
 
                     Text("PID \(process.pid)")
                         .font(.caption2.monospacedDigit())
@@ -515,7 +558,11 @@ private struct ProcessRow: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 11, style: .continuous)
-                .fill(Color(nsColor: .windowBackgroundColor))
+                .fill((isCurrentUserProcess ? Color.green : Color(nsColor: .windowBackgroundColor)).opacity(isCurrentUserProcess ? 0.08 : 1))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 11, style: .continuous)
+                .strokeBorder(isCurrentUserProcess ? Color.green.opacity(0.22) : .clear, lineWidth: 1)
         )
     }
 }
