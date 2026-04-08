@@ -443,23 +443,21 @@ struct SSHMetricsFetcher: Sendable {
         """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
-        while IFS=, read -r gpu_uuid pid pname used_mem; do
-          gpu_uuid="${gpu_uuid#"${gpu_uuid%%[![:space:]]*}"}"
-          gpu_uuid="${gpu_uuid%"${gpu_uuid##*[![:space:]]}"}"
-          pid="${pid// /}"
+        process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
+        printf '%s\\n' "$process_output" | while IFS=, read -r gpu_uuid pid pname used_mem; do
+          gpu_uuid="$(printf '%s' "$gpu_uuid" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          pid="$(printf '%s' "$pid" | tr -d '[:space:]')"
+          pname="$(printf '%s' "$pname" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          used_mem="$(printf '%s' "$used_mem" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+          [ -n "$pid" ] || continue
           [ -r "/proc/$pid/status" ] || continue
-          real_uid=""
-          while IFS=' \t' read -r key a _; do
-            if [ "$key" = "Uid:" ] && [ -n "$a" ]; then
-              real_uid="$a"
-              break
-            fi
-          done < "/proc/$pid/status"
+          uid_line="$(grep '^Uid:' "/proc/$pid/status" 2>/dev/null || true)"
+          [ -n "$uid_line" ] || continue
+          set -- $uid_line
+          real_uid="$2"
           [ -n "$real_uid" ] || continue
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
-        done < <(
-          \(processDetailsCommand) 2>/dev/null || true
-        )
+        done
         """
     }
 
