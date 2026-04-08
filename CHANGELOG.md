@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.5 - 2026-04-08
+
+- Added an optional launch-at-login setting using the standard macOS login item mechanism.
+- Added automatic polling recovery after system wake and made manual refresh restart polling when needed.
+- Added a lightweight GitHub Pages landing site for product and SEO visibility.
+
 ## 0.3.4 - 2026-04-01
 
 - Rebranded the app from GPUUsage to NVBeacon across the app UI, packaging output, release metadata, and repository URLs.

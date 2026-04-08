@@ -49,7 +49,7 @@ struct SettingsView: View {
         case let (shortVersion?, _):
             return shortVersion
         default:
-            return "0.3.4"
+            return "0.3.5"
         }
     }
 
