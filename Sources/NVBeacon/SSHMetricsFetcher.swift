@@ -114,7 +114,7 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildPSOwnershipLookupCommand(pids: uniquePIDs),
+            remoteCommand: Self.buildProcOwnershipLookupCommand(pids: uniquePIDs),
             password: password,
             allowEmptyOutput: true
         )
@@ -509,10 +509,19 @@ struct SSHMetricsFetcher: Sendable {
         """
     }
 
-    private static func buildPSOwnershipLookupCommand(pids: [Int]) -> String {
-        let pidList = pids.map(String.init).joined(separator: ",")
+    private static func buildProcOwnershipLookupCommand(pids: [Int]) -> String {
+        let pidList = pids.map(String.init).joined(separator: " ")
         return """
-        ps -o pid= -o uid= -p "\(pidList)" 2>/dev/null || true
+        for pid in \(pidList); do
+          status_path="/proc/$pid/status"
+          [ -r "$status_path" ] || continue
+          while IFS=' \t' read -r label real_uid _; do
+            if [ "$label" = "Uid:" ] && [ -n "$real_uid" ]; then
+              printf '%s %s\\n' "$pid" "$real_uid"
+              break
+            fi
+          done < "$status_path"
+        done
         """
     }
 

@@ -537,7 +537,16 @@ struct GPUSnapshot: Equatable, Sendable {
 
         let mergedGPUs = gpus.map { gpu in
             let mergedProcesses = gpu.processes.map { process in
-                process.mergingResolvedMetadata(from: previousProcessesByID[process.id])
+                let previousProcess = previousProcessesByID[process.id]
+                return GPUProcessReading(
+                    gpuUUID: process.gpuUUID,
+                    pid: process.pid,
+                    processName: process.processName,
+                    usedGPUMemoryMB: process.usedGPUMemoryMB,
+                    userID: process.userID,
+                    user: process.user ?? previousProcess?.user,
+                    commandLine: process.commandLine ?? previousProcess?.commandLine
+                )
             }
 
             return GPUReading(
