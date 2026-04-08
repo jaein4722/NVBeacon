@@ -3,21 +3,21 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.3.5</title>
-            <pubDate>Wed, 08 Apr 2026 01:51:25 +0000</pubDate>
+            <title>0.4.0</title>
+            <pubDate>Wed, 08 Apr 2026 05:00:08 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.3.5</sparkle:fullReleaseNotesLink>
-            <sparkle:version>16</sparkle:version>
-            <sparkle:shortVersionString>0.3.5</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>20</sparkle:version>
+            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added an optional launch-at-login setting using the standard macOS login item mechanism.
-- Added automatic polling recovery after system wake and made manual refresh restart polling when needed.
-- Added a lightweight GitHub Pages landing site for product and SEO visibility.
+- Added automatic "my process" detection based on the active SSH username, with highlighting for matching remote processes and the GPUs they occupy.
+- Reloaded GPU process details every time a row is expanded so VRAM usage and process metadata stay current instead of reusing stale cached values.
+- Added CI-ready Developer ID signing and notarization support to the release workflow for signed DMG releases and notarized Sparkle updates.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.3.5/NVBeacon-0.3.5.dmg" length="3928788" type="application/octet-stream" sparkle:edSignature="2oy1Yd3/cTUY8tAGnii4G/lmmSmvmHZcmi83SIqYoIAmKNrIe9xPeqkNih/R+//cX8LG0Bipih7G600t2vqRDg=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.0/NVBeacon-0.4.0.dmg" length="3896351" type="application/octet-stream" sparkle:edSignature="Qr+ZPBGN60uFU3/KAu4isrNQ+TkGpbCM/PLomMuyFgfkFueAd8gFbc9em7/RfkTsSBvJMcn37OYUWP08cOrDCg=="/>
         </item>
     </channel>
 </rss>
