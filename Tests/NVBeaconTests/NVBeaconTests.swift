@@ -56,6 +56,65 @@ import Testing
     #expect(gpus[0].processes[0].commandLine == nil)
 }
 
+@Test func mergingResolvedProcessMetadataKeepsFreshVRAM() throws {
+    let previous = GPUSnapshot(
+        takenAt: .distantPast,
+        gpus: [
+            GPUReading(
+                index: 0,
+                name: "NVIDIA RTX 6000 Ada Generation",
+                uuid: "GPU-111",
+                utilization: 12,
+                memoryUsedMB: 8192,
+                memoryTotalMB: 49140,
+                temperatureCelsius: 50,
+                processes: [
+                    GPUProcessReading(
+                        gpuUUID: "GPU-111",
+                        pid: 1001,
+                        processName: "python",
+                        usedGPUMemoryMB: 8192,
+                        user: "alice",
+                        commandLine: "python train.py"
+                    )
+                ]
+            )
+        ]
+    )
+
+    let latest = GPUSnapshot(
+        takenAt: .now,
+        gpus: [
+            GPUReading(
+                index: 0,
+                name: "NVIDIA RTX 6000 Ada Generation",
+                uuid: "GPU-111",
+                utilization: 0,
+                memoryUsedMB: 4096,
+                memoryTotalMB: 49140,
+                temperatureCelsius: 42,
+                processes: [
+                    GPUProcessReading(
+                        gpuUUID: "GPU-111",
+                        pid: 1001,
+                        processName: "python",
+                        usedGPUMemoryMB: 4096,
+                        user: nil,
+                        commandLine: nil
+                    )
+                ]
+            )
+        ]
+    )
+
+    let merged = latest.mergingResolvedProcessMetadata(from: previous)
+    let process = try #require(merged.gpus.first?.processes.first)
+
+    #expect(process.usedGPUMemoryMB == 4096)
+    #expect(process.user == "alice")
+    #expect(process.commandLine == "python train.py")
+}
+
 @Test func malformedOutputThrows() {
     #expect(throws: SSHMetricsFetcher.FetchError.self) {
         try SSHMetricsFetcher.parse("unexpected output")

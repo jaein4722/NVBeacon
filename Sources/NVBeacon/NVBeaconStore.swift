@@ -432,7 +432,7 @@ final class NVBeaconStore: ObservableObject {
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             )
-            let mergedSnapshot = mergeProcessDetails(from: self.snapshot, into: fetchedSnapshot)
+            let mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
             self.snapshot = mergedSnapshot
             await evaluateWatchedProcesses(using: mergedSnapshot, settings: currentSettings, password: password.isEmpty ? nil : password)
             await evaluateWatchedIdleGPUs(using: mergedSnapshot, settings: currentSettings)
@@ -542,9 +542,6 @@ final class NVBeaconStore: ObservableObject {
     private func refreshProcessDetails(for gpuID: Int) async {
         guard settings.isConfigured else { return }
         guard !loadingProcessDetailGPUIds.contains(gpuID) else { return }
-        guard let snapshot, let gpu = snapshot.gpus.first(where: { $0.id == gpuID }) else { return }
-        guard !gpu.processes.isEmpty else { return }
-        guard gpu.processes.contains(where: { !$0.hasResolvedMetadata }) else { return }
 
         loadingProcessDetailGPUIds.insert(gpuID)
         let currentSettings = settings
@@ -560,9 +557,25 @@ final class NVBeaconStore: ObservableObject {
 
         do {
             let password = currentSessionPassword()
+            let refreshedSnapshot = try await fetcher.fetchSummary(
+                settings: currentSettings,
+                password: password.isEmpty ? nil : password
+            ).mergingResolvedProcessMetadata(from: self.snapshot)
+
+            self.snapshot = refreshedSnapshot
+
+            guard let refreshedGPU = refreshedSnapshot.gpus.first(where: { $0.id == gpuID }) else {
+                lastErrorMessage = nil
+                return
+            }
+            guard !refreshedGPU.processes.isEmpty else {
+                lastErrorMessage = nil
+                return
+            }
+
             let enrichedProcesses = try await fetcher.fetchProcessDetails(
                 settings: currentSettings,
-                processes: gpu.processes,
+                processes: refreshedGPU.processes,
                 password: password.isEmpty ? nil : password
             )
             applyProcessDetails(enrichedProcesses, toGPUWithID: gpuID)
@@ -593,36 +606,6 @@ final class NVBeaconStore: ObservableObject {
         }
 
         self.snapshot = GPUSnapshot(takenAt: snapshot.takenAt, gpus: updatedGPUs)
-    }
-
-    private func mergeProcessDetails(from previous: GPUSnapshot?, into latest: GPUSnapshot) -> GPUSnapshot {
-        guard let previous else { return latest }
-
-        let previousProcessesByID = Dictionary(
-            uniqueKeysWithValues: previous.gpus
-                .flatMap(\.processes)
-                .filter(\.hasResolvedMetadata)
-                .map { ($0.id, $0) }
-        )
-
-        let mergedGPUs = latest.gpus.map { gpu in
-            let mergedProcesses = gpu.processes.map { process in
-                previousProcessesByID[process.id] ?? process
-            }
-
-            return GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: mergedProcesses
-            )
-        }
-
-        return GPUSnapshot(takenAt: latest.takenAt, gpus: mergedGPUs)
     }
 
     private func toggleExitWatchTask(for process: GPUProcessReading, on gpu: GPUReading) async {

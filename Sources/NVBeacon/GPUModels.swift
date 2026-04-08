@@ -493,6 +493,36 @@ struct GPUSnapshot: Equatable, Sendable {
     var totalProcessCount: Int {
         gpus.reduce(0) { $0 + $1.processes.count }
     }
+
+    func mergingResolvedProcessMetadata(from previous: GPUSnapshot?) -> GPUSnapshot {
+        guard let previous else { return self }
+
+        let previousProcessesByID = Dictionary(
+            uniqueKeysWithValues: previous.gpus
+                .flatMap(\.processes)
+                .filter(\.hasResolvedMetadata)
+                .map { ($0.id, $0) }
+        )
+
+        let mergedGPUs = gpus.map { gpu in
+            let mergedProcesses = gpu.processes.map { process in
+                process.mergingResolvedMetadata(from: previousProcessesByID[process.id])
+            }
+
+            return GPUReading(
+                index: gpu.index,
+                name: gpu.name,
+                uuid: gpu.uuid,
+                utilization: gpu.utilization,
+                memoryUsedMB: gpu.memoryUsedMB,
+                memoryTotalMB: gpu.memoryTotalMB,
+                temperatureCelsius: gpu.temperatureCelsius,
+                processes: mergedProcesses
+            )
+        }
+
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs)
+    }
 }
 
 struct GPUProcessReading: Identifiable, Equatable, Sendable {
@@ -539,6 +569,17 @@ struct GPUProcessReading: Identifiable, Equatable, Sendable {
         let normalizedProcessName = processName.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalizedCommand = commandSummary.trimmingCharacters(in: .whitespacesAndNewlines)
         return !normalizedCommand.isEmpty && normalizedProcessName != normalizedCommand
+    }
+
+    func mergingResolvedMetadata(from previous: GPUProcessReading?) -> GPUProcessReading {
+        GPUProcessReading(
+            gpuUUID: gpuUUID,
+            pid: pid,
+            processName: processName,
+            usedGPUMemoryMB: usedGPUMemoryMB,
+            user: user ?? previous?.user,
+            commandLine: commandLine ?? previous?.commandLine
+        )
     }
 }
 
