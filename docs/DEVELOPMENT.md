@@ -139,7 +139,7 @@ git push origin v0.4.0
 The release workflow:
 
 - builds the DMG on a macOS runner
-- imports a Developer ID certificate into a temporary CI keychain
+- imports the Developer ID certificate with `apple-actions/import-codesign-certs`
 - notarizes the app bundle and DMG with `notarytool`
 - publishes the GitHub Release
 - sets an SEO-friendly release title for remote NVIDIA GPU monitoring on macOS
@@ -216,7 +216,9 @@ The release workflow now fails if these secrets are missing, because NVBeacon tr
 
 ### CI Developer ID Certificate
 
-GitHub Actions imports a `.p12` certificate bundle from repository secrets.
+GitHub Actions uses the standard Apple-maintained `apple-actions/import-codesign-certs`
+action to import a `.p12` certificate bundle from repository secrets, then resolves the
+`Developer ID Application` identity from the runner keychain search list.
 
 Recommended flow:
 
