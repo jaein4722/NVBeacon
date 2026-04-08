@@ -43,6 +43,26 @@ cleanup() {
 
 trap cleanup EXIT
 
+assess_gatekeeper_app() {
+  spctl --assess --type exec -vv "$1"
+}
+
+assess_gatekeeper_dmg() {
+  spctl --assess --type open --context context:primary-signature -vv "$1"
+}
+
+assess_distribution_ready() {
+  local path="$1"
+
+  if command -v syspolicy_check >/dev/null 2>&1; then
+    syspolicy_check distribution "$path" --verbose
+  elif [[ "$path" == *.app ]]; then
+    assess_gatekeeper_app "$path"
+  else
+    assess_gatekeeper_dmg "$path"
+  fi
+}
+
 generate_app_icon() {
   if [[ ! -f "$ICON_SOURCE_PATH" ]]; then
     return
@@ -152,7 +172,7 @@ codesign --verify --deep --strict --verbose=2 "$APP_PATH"
 plutil -lint "$INFO_PLIST_PATH"
 
 echo "Assessing app with Gatekeeper..."
-if spctl --assess --type exec -vv "$APP_PATH"; then
+if assess_gatekeeper_app "$APP_PATH"; then
   echo "Gatekeeper assessment: accepted."
 else
   if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
@@ -192,8 +212,8 @@ if [[ "$NOTARIZE" == "1" ]]; then
   xcrun stapler staple "$APP_PATH"
   xcrun stapler validate "$APP_PATH"
 
-  echo "Re-assessing notarized app with Gatekeeper..."
-  spctl --assess --type exec -vv "$APP_PATH"
+  echo "Verifying notarized app is ready for distribution..."
+  assess_distribution_ready "$APP_PATH"
 fi
 
 echo "App bundle: $APP_PATH"
@@ -216,7 +236,7 @@ if [[ "$CODESIGN_IDENTITY" != "-" ]]; then
 fi
 
 echo "Assessing DMG with Gatekeeper..."
-if spctl --assess --type open -vv "$DMG_PATH"; then
+if assess_gatekeeper_dmg "$DMG_PATH"; then
   echo "Gatekeeper assessment: accepted."
 else
   if [[ "$CODESIGN_IDENTITY" == "-" ]]; then
@@ -247,8 +267,8 @@ if [[ "$NOTARIZE" == "1" ]]; then
   xcrun stapler staple "$DMG_PATH"
   xcrun stapler validate "$DMG_PATH"
 
-  echo "Re-assessing notarized DMG with Gatekeeper..."
-  spctl --assess --type open -vv "$DMG_PATH"
+  echo "Verifying notarized DMG is ready for distribution..."
+  assess_distribution_ready "$DMG_PATH"
 fi
 
 echo "DMG archive: $DMG_PATH"
