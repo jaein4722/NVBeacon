@@ -38,8 +38,8 @@ enum LaunchAtLoginState: Equatable, Sendable {
             )
         case .disabled:
             return language.text(
-                "NVBeacon will not start automatically when you log in.",
-                "로그인할 때 NVBeacon이 자동으로 시작되지 않습니다."
+                "NVBeacon is not currently registered to start automatically when you log in.",
+                "현재 NVBeacon은 로그인 시 자동 시작으로 등록되어 있지 않습니다."
             )
         case .enabled:
             return language.text(
@@ -86,7 +86,11 @@ final class LaunchAtLoginManager: ObservableObject {
         case .requiresApproval:
             state = .requiresApproval
         case .notFound:
-            state = .unavailable
+            // `notFound` is still a configurable state for a packaged app.
+            // In practice it often means macOS has not registered the app in
+            // Login Items yet, so treat it like "Off" instead of disabling
+            // the controls entirely.
+            state = .disabled
         @unknown default:
             state = .unavailable
         }
