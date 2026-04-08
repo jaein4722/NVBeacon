@@ -547,6 +547,14 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Toggle(t("Highlight my processes", "내 프로세스 강조"), isOn: $draft.highlightsMyProcesses)
+
+                Text(draft.highlightsMyProcesses
+                     ? t("Detect the SSH user's processes and highlight matching GPUs and process rows.", "SSH 사용자 프로세스를 감지해 해당 GPU와 프로세스 행을 강조합니다.")
+                     : t("Turn off per-user process highlighting and skip the extra ownership checks during polling.", "사용자별 프로세스 강조를 끄고 polling 중 추가 ownership 확인도 생략합니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent(t("Display", "표시")) {
                     Picker(t("Display", "표시"), selection: $draft.menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in

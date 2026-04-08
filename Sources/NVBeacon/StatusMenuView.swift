@@ -119,7 +119,7 @@ struct StatusMenuView: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-            if let detectedSSHUsername = store.detectedSSHUsername {
+            if store.shouldHighlightMyProcesses, let detectedSSHUsername = store.detectedSSHUsername {
                 Label(
                     t("My processes: \(detectedSSHUsername)", "내 프로세스: \(detectedSSHUsername)"),
                     systemImage: "person.crop.circle.badge.checkmark"

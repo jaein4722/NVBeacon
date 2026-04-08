@@ -141,6 +141,10 @@ final class NVBeaconStore: ObservableObject {
         return formatter.localizedString(for: snapshot.takenAt, relativeTo: Date())
     }
 
+    var shouldHighlightMyProcesses: Bool {
+        settings.highlightsMyProcesses
+    }
+
     var watchedProcessCount: Int {
         watchedProcesses.count
     }
@@ -306,6 +310,8 @@ final class NVBeaconStore: ObservableObject {
     }
 
     func isCurrentUserProcess(_ process: GPUProcessReading) -> Bool {
+        guard settings.highlightsMyProcesses else { return false }
+
         if let detectedSSHUserID, let processUserID = process.userID {
             return processUserID == detectedSSHUserID
         }
@@ -457,12 +463,15 @@ final class NVBeaconStore: ObservableObject {
             )
             let mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: self.snapshot)
 
-            if let _ = await resolveDetectedSSHUserIDIfNeeded(
+            if currentSettings.highlightsMyProcesses,
+               let _ = await resolveDetectedSSHUserIDIfNeeded(
                 settings: currentSettings,
                 password: password.isEmpty ? nil : password
             ) {
                 // Summary polling already resolves process ownership via /proc,
                 // so we only need the remote UID cache for "my process" checks.
+            } else if !currentSettings.highlightsMyProcesses {
+                detectedSSHUserID = nil
             }
 
             self.snapshot = mergedSnapshot
