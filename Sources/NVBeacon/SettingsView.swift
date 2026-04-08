@@ -13,6 +13,7 @@ struct SettingsView: View {
     @State private var suppressAutoApply = true
     @State private var suppressPasswordAuthWarning = false
     @State private var showPasswordAuthWarning = false
+    @State private var showConnectionReuseHelp = false
 
     private var selectedSSHConfigHost: SSHConfigHost? {
         sshConfigHosts.first { $0.alias == selectedSSHConfigAlias }
@@ -281,6 +282,43 @@ struct SettingsView: View {
                         fieldWidth: 72
                     )
                 }
+
+                LabeledContent {
+                    HStack(spacing: 8) {
+                        Picker(t("SSH Connection", "SSH 연결"), selection: $draft.sshConnectionReuseMode) {
+                            ForEach(SSHConnectionReuseMode.allCases) { mode in
+                                Text(mode.title(in: language)).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+
+                        Button {
+                            showConnectionReuseHelp.toggle()
+                        } label: {
+                            Image(systemName: "questionmark.circle")
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .popover(isPresented: $showConnectionReuseHelp, arrowEdge: .top) {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text(t("About SSH connection reuse", "SSH 연결 재사용 안내"))
+                                    .font(.headline)
+                                Text(draft.sshConnectionReuseMode.helpText(in: language))
+                                    .font(.callout)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(14)
+                            .frame(width: 320, alignment: .leading)
+                        }
+                    }
+                } label: {
+                    Text(t("SSH Connection", "SSH 연결"))
+                }
+
+                Text(draft.sshConnectionReuseMode.detailText(in: language))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
                 LabeledContent(t("Busy Detection", "Busy 판정")) {
                     Picker(t("Busy Detection", "Busy 판정"), selection: $draft.busyDetectionMode) {

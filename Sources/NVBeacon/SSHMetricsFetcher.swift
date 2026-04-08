@@ -4,6 +4,7 @@ struct SSHMetricsFetcher: Sendable {
     static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
     private static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
     private static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
+    private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
 
     enum FetchError: LocalizedError, Equatable {
         case commandFailed(Int32, String)
@@ -250,64 +251,94 @@ struct SSHMetricsFetcher: Sendable {
     ) async throws -> String {
         try await Task.detached(priority: .utility) {
             let trimmedPassword = password?.trimmingCharacters(in: .newlines)
-            let askPassScriptURL: URL?
-
-            if let trimmedPassword, !trimmedPassword.isEmpty {
-                askPassScriptURL = try Self.createAskPassScript()
-            } else {
-                askPassScriptURL = nil
-            }
-
-            defer {
-                if let askPassScriptURL {
-                    try? FileManager.default.removeItem(at: askPassScriptURL)
+            do {
+                return try Self.executeSSHCommand(
+                    settings: settings,
+                    remoteCommand: remoteCommand,
+                    trimmedPassword: trimmedPassword,
+                    allowEmptyOutput: allowEmptyOutput
+                )
+            } catch let error as FetchError {
+                guard settings.sshConnectionReuseMode == .reuseWhenPossible,
+                      Self.shouldRetryWithoutConnectionReuse(after: error) else {
+                    throw error
                 }
-            }
 
-            let process = Process()
-            process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-            process.arguments = Self.buildSSHArguments(
-                settings: settings,
-                prefersPasswordAuth: !(trimmedPassword?.isEmpty ?? true),
-                remoteCommand: remoteCommand
-            )
-
-            let stdoutPipe = Pipe()
-            let stderrPipe = Pipe()
-            process.standardOutput = stdoutPipe
-            process.standardError = stderrPipe
-            process.standardInput = FileHandle.nullDevice
-
-            if let askPassScriptURL, let trimmedPassword {
-                process.environment = ProcessInfo.processInfo.environment.merging(
-                    [
-                        "SSH_ASKPASS": askPassScriptURL.path,
-                        "SSH_ASKPASS_REQUIRE": "force",
-                        "GPUUSAGE_SSH_PASSWORD": trimmedPassword,
-                        "DISPLAY": "nvbeacon:0",
-                    ],
-                    uniquingKeysWith: { _, newValue in newValue }
+                var fallbackSettings = settings
+                fallbackSettings.sshConnectionReuseMode = .newConnectionEachRefresh
+                return try Self.executeSSHCommand(
+                    settings: fallbackSettings,
+                    remoteCommand: remoteCommand,
+                    trimmedPassword: trimmedPassword,
+                    allowEmptyOutput: allowEmptyOutput
                 )
             }
-
-            try process.run()
-            try Self.waitForProcessToExit(process, timeoutSeconds: 15)
-
-            let stdout = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-            let stderr = String(decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-
-            guard process.terminationStatus == 0 else {
-                throw FetchError.commandFailed(process.terminationStatus, stderr.isEmpty ? stdout : stderr)
-            }
-
-            guard allowEmptyOutput || !stdout.isEmpty else {
-                throw FetchError.emptyResponse
-            }
-
-            return stdout
         }.value
+    }
+
+    private static func executeSSHCommand(
+        settings: AppSettings,
+        remoteCommand: String,
+        trimmedPassword: String?,
+        allowEmptyOutput: Bool
+    ) throws -> String {
+        let askPassScriptURL: URL?
+
+        if let trimmedPassword, !trimmedPassword.isEmpty {
+            askPassScriptURL = try createAskPassScript()
+        } else {
+            askPassScriptURL = nil
+        }
+
+        defer {
+            if let askPassScriptURL {
+                try? FileManager.default.removeItem(at: askPassScriptURL)
+            }
+        }
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
+        process.arguments = buildSSHArguments(
+            settings: settings,
+            prefersPasswordAuth: !(trimmedPassword?.isEmpty ?? true),
+            remoteCommand: remoteCommand
+        )
+
+        let stdoutPipe = Pipe()
+        let stderrPipe = Pipe()
+        process.standardOutput = stdoutPipe
+        process.standardError = stderrPipe
+        process.standardInput = FileHandle.nullDevice
+
+        if let askPassScriptURL, let trimmedPassword {
+            process.environment = ProcessInfo.processInfo.environment.merging(
+                [
+                    "SSH_ASKPASS": askPassScriptURL.path,
+                    "SSH_ASKPASS_REQUIRE": "force",
+                    "GPUUSAGE_SSH_PASSWORD": trimmedPassword,
+                    "DISPLAY": "nvbeacon:0",
+                ],
+                uniquingKeysWith: { _, newValue in newValue }
+            )
+        }
+
+        try process.run()
+        try waitForProcessToExit(process, timeoutSeconds: 15)
+
+        let stdout = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let stderr = String(decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard process.terminationStatus == 0 else {
+            throw FetchError.commandFailed(process.terminationStatus, stderr.isEmpty ? stdout : stderr)
+        }
+
+        guard allowEmptyOutput || !stdout.isEmpty else {
+            throw FetchError.emptyResponse
+        }
+
+        return stdout
     }
 
     private static func buildSSHArguments(
@@ -321,6 +352,15 @@ struct SSHMetricsFetcher: Sendable {
             "-o", "ServerAliveCountMax=1",
             "-o", "TCPKeepAlive=yes",
         ]
+
+        if settings.sshConnectionReuseMode == .reuseWhenPossible {
+            arguments.append(contentsOf: [
+                "-o", "ControlMaster=auto",
+                "-o", "ControlPersist=45",
+                "-o", "ControlPath=\(controlSocketPath)",
+                "-o", "StreamLocalBindUnlink=yes",
+            ])
+        }
 
         if prefersPasswordAuth {
             arguments.append(contentsOf: [
@@ -353,6 +393,22 @@ struct SSHMetricsFetcher: Sendable {
         ])
 
         return arguments
+    }
+
+    private static func shouldRetryWithoutConnectionReuse(after error: FetchError) -> Bool {
+        switch error {
+        case .commandFailed(_, let message):
+            let normalized = message.lowercased()
+            return normalized.contains("control socket")
+                || normalized.contains("mux_client")
+                || normalized.contains("master is dead")
+                || normalized.contains("session open refused by peer")
+                || normalized.contains("broken pipe")
+        case .commandTimedOut:
+            return true
+        default:
+            return false
+        }
     }
 
     private static func waitForProcessToExit(_ process: Process, timeoutSeconds: Int) throws {

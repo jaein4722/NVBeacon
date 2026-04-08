@@ -265,6 +265,7 @@ import Testing
     #expect(settings.showsDockIcon == false)
     #expect(settings.closesPopoverOnOutsideClick == true)
     #expect(settings.highlightsMyProcesses == true)
+    #expect(settings.sshConnectionReuseMode == .reuseWhenPossible)
     #expect(settings.busyDetectionMode == .activeProcess)
     #expect(settings.busyMemoryThresholdMB == 50)
     #expect(settings.busyUtilizationThresholdPercent == 10)

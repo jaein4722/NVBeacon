@@ -132,6 +132,52 @@ enum SSHAuthenticationMode: String, Codable, CaseIterable, Equatable, Hashable, 
     }
 }
 
+enum SSHConnectionReuseMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case reuseWhenPossible
+    case newConnectionEachRefresh
+
+    var id: String { rawValue }
+
+    func title(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .reuseWhenPossible:
+            return language.text("Reuse connection (Recommended)", "연결 재사용 (권장)")
+        case .newConnectionEachRefresh:
+            return language.text("New connection every refresh", "매 새로고침마다 새 연결")
+        }
+    }
+
+    func detailText(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .reuseWhenPossible:
+            return language.text(
+                "Keep one SSH connection open briefly and reuse it for repeated refreshes. This is usually faster and can reduce repeated login overhead.",
+                "SSH 연결을 잠시 유지하고 반복 새로고침에 재사용합니다. 보통 더 빠르고 반복 로그인 부담도 줄어듭니다."
+            )
+        case .newConnectionEachRefresh:
+            return language.text(
+                "Open a brand-new SSH connection for every refresh. This is slower, but useful for unusual SSH servers.",
+                "새로고침마다 완전히 새 SSH 연결을 엽니다. 더 느리지만 특이한 SSH 서버와는 더 잘 맞을 수 있습니다."
+            )
+        }
+    }
+
+    func helpText(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .reuseWhenPossible:
+            return language.text(
+                "NVBeacon can reuse the SSH connection for a short time instead of logging in again for every poll. No extra software is required on the server. If your server behaves strangely, switch to the fresh-connection mode.",
+                "NVBeacon은 polling마다 다시 로그인하지 않고 SSH 연결을 잠시 재사용할 수 있습니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요."
+            )
+        case .newConnectionEachRefresh:
+            return language.text(
+                "This disables SSH connection reuse and starts a fresh session on every poll.",
+                "SSH 연결 재사용을 끄고 polling마다 새 세션을 시작합니다."
+            )
+        }
+    }
+}
+
 enum SSHPasswordSessionState: Equatable, Sendable {
     case notRequired
     case missing
@@ -286,6 +332,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var sshIdentityFilePath: String = ""
     var sshAuthenticationMode: SSHAuthenticationMode = .keyBased
     var pollIntervalSeconds: Int = 10
+    var sshConnectionReuseMode: SSHConnectionReuseMode = .reuseWhenPossible
     var busyDetectionMode: BusyDetectionMode = .activeProcess
     var busyMemoryThresholdMB: Int = 50
     var busyUtilizationThresholdPercent: Int = 10
@@ -305,6 +352,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         sshIdentityFilePath: String = "",
         sshAuthenticationMode: SSHAuthenticationMode = .keyBased,
         pollIntervalSeconds: Int = 10,
+        sshConnectionReuseMode: SSHConnectionReuseMode = .reuseWhenPossible,
         busyDetectionMode: BusyDetectionMode = .activeProcess,
         busyMemoryThresholdMB: Int = 50,
         busyUtilizationThresholdPercent: Int = 10,
@@ -323,6 +371,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.sshIdentityFilePath = sshIdentityFilePath
         self.sshAuthenticationMode = sshAuthenticationMode
         self.pollIntervalSeconds = pollIntervalSeconds
+        self.sshConnectionReuseMode = sshConnectionReuseMode
         self.busyDetectionMode = busyDetectionMode
         self.busyMemoryThresholdMB = busyMemoryThresholdMB
         self.busyUtilizationThresholdPercent = busyUtilizationThresholdPercent
@@ -343,6 +392,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case sshIdentityFilePath
         case sshAuthenticationMode
         case pollIntervalSeconds
+        case sshConnectionReuseMode
         case busyDetectionMode
         case busyMemoryThresholdMB
         case busyUtilizationThresholdPercent
@@ -365,6 +415,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             sshIdentityFilePath: try container.decodeIfPresent(String.self, forKey: .sshIdentityFilePath) ?? "",
             sshAuthenticationMode: try container.decodeIfPresent(SSHAuthenticationMode.self, forKey: .sshAuthenticationMode) ?? .keyBased,
             pollIntervalSeconds: try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? 10,
+            sshConnectionReuseMode: try container.decodeIfPresent(SSHConnectionReuseMode.self, forKey: .sshConnectionReuseMode) ?? .reuseWhenPossible,
             busyDetectionMode: try container.decodeIfPresent(BusyDetectionMode.self, forKey: .busyDetectionMode) ?? .activeProcess,
             busyMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .busyMemoryThresholdMB) ?? 50,
             busyUtilizationThresholdPercent: try container.decodeIfPresent(Int.self, forKey: .busyUtilizationThresholdPercent) ?? 10,
