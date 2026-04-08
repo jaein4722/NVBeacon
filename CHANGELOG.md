@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.1 - 2026-04-08
+
+- Added a toggle to disable per-user process highlighting from the Appearance tab when users want the lightest possible polling behavior.
+- Optimized process ownership detection so summary polling resolves GPU data and process UIDs in a single SSH call, while expanded process details refresh independently without resetting the main snapshot timer.
+- Added a user-friendly SSH connection reuse setting with optional SSH multiplexing for faster polling, plus automatic fallback to fresh sessions when reuse is not supported cleanly.
+
 ## 0.4.0 - 2026-04-08
 
 - Added automatic "my process" detection based on the active SSH username, with highlighting for matching remote processes and the GPUs they occupy.

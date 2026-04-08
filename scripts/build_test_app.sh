@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
-VERSION="${VERSION:-0.4.0}"
+VERSION="${VERSION:-0.4.1}"
 SHORT_SHA="$(git -C "$ROOT_DIR" rev-parse --short HEAD | tr '[:upper:]' '[:lower:]')"
 APP_NAME="NVBeacon-${VERSION}-test-${SHORT_SHA}"
 APP_PATH="$ROOT_DIR/dist/${APP_NAME}.app"
