@@ -121,35 +121,6 @@ let applicationsHaloPath = NSBezierPath(ovalIn: applicationsHaloRect)
 color(74, 163, 92, 0.08).setFill()
 applicationsHaloPath.fill()
 
-let destinationFolderRect = NSRect(x: 476, y: 162, width: 114, height: 86)
-let destinationTabRect = NSRect(x: 486, y: 224, width: 34, height: 16)
-let destinationFolder = NSBezierPath(roundedRect: destinationFolderRect, xRadius: 18, yRadius: 18)
-let destinationTab = NSBezierPath(roundedRect: destinationTabRect, xRadius: 8, yRadius: 8)
-color(231, 247, 233, 0.95).setFill()
-destinationFolder.fill()
-color(215, 239, 219, 0.98).setFill()
-destinationTab.fill()
-color(114, 176, 124, 0.75).setStroke()
-destinationFolder.lineWidth = 3
-destinationFolder.stroke()
-destinationTab.lineWidth = 3
-destinationTab.stroke()
-
-let glyphColor = color(82, 136, 92, 0.92)
-for row in 0..<2 {
-    for column in 0..<2 {
-        let dotRect = NSRect(
-            x: 505 + CGFloat(column) * 28,
-            y: 181 + CGFloat(row) * 28,
-            width: 15,
-            height: 15
-        )
-        let dotPath = NSBezierPath(roundedRect: dotRect, xRadius: 4, yRadius: 4)
-        glyphColor.setFill()
-        dotPath.fill()
-    }
-}
-
 let arrow = NSBezierPath()
 arrow.move(to: NSPoint(x: 268, y: 216))
 arrow.curve(
@@ -172,17 +143,10 @@ arrowHead.lineCapStyle = .round
 arrowHead.stroke()
 
 drawText(
-    "Install \(arguments.appName)",
-    font: .systemFont(ofSize: 34, weight: .bold),
+    "Drag the app into Applications",
+    font: .systemFont(ofSize: 28, weight: .semibold),
     color: color(35, 46, 37),
-    in: NSRect(x: 120, y: 314, width: 480, height: 44)
-)
-
-drawText(
-    "Drag \(arguments.appName) to Applications to finish setup.",
-    font: .systemFont(ofSize: 18, weight: .medium),
-    color: color(82, 96, 84),
-    in: NSRect(x: 102, y: 278, width: 516, height: 28)
+    in: NSRect(x: 120, y: 308, width: 480, height: 36)
 )
 
 let footnote = "Menu bar monitoring for remote NVIDIA GPUs over SSH"
@@ -190,7 +154,7 @@ drawText(
     footnote,
     font: .systemFont(ofSize: 14, weight: .regular),
     color: color(114, 128, 116),
-    in: NSRect(x: 120, y: 56, width: 480, height: 20)
+    in: NSRect(x: 120, y: 62, width: 480, height: 20)
 )
 
 NSGraphicsContext.restoreGraphicsState()
