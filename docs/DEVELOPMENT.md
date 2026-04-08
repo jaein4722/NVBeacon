@@ -97,6 +97,9 @@ Supported environment variables:
 - `APPLE_ID`
 - `APPLE_TEAM_ID`
 - `APPLE_APP_PASSWORD`
+- `APP_STORE_CONNECT_API_KEY_PATH`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
 
 If `icon.png` exists at the repository root, the packaging script automatically converts it into an `.icns` asset and embeds it in the app bundle.
 
@@ -117,6 +120,9 @@ NOTARIZE=1 \
 KEYCHAIN_PROFILE="NVBeaconNotary" \
 ./scripts/package_app.sh
 ```
+
+For CI, App Store Connect API key authentication is generally more robust than
+Apple ID + app-specific password. The package script supports both.
 
 ## Release Flow
 
@@ -208,6 +214,9 @@ Repository secrets expected by the release workflow:
 - `SPARKLE_PRIVATE_ED_KEY`
 - `DEVELOPER_ID_P12_BASE64`
 - `DEVELOPER_ID_P12_PASSWORD`
+- `APP_STORE_CONNECT_API_KEY_BASE64`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
 - `APPLE_ID`
 - `APPLE_TEAM_ID`
 - `APPLE_APP_PASSWORD`
@@ -241,6 +250,24 @@ xcrun notarytool store-credentials "NVBeaconNotary" \
   --team-id "TEAMID" \
   --password "app-specific-password"
 ```
+
+### Recommended CI Notarization Authentication
+
+For GitHub Actions, prefer an App Store Connect API key over Apple ID credentials.
+
+Recommended secrets:
+
+- `APP_STORE_CONNECT_API_KEY_BASE64`
+- `APP_STORE_CONNECT_API_KEY_ID`
+- `APP_STORE_CONNECT_API_ISSUER_ID`
+
+Fallback secrets, if you do not use an API key:
+
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_PASSWORD`
+
+The release workflow prefers the API key path when those three secrets are present.
 
 ## Homebrew Tap Sync
 

@@ -67,20 +67,43 @@ jobs:
 
       - name: Store notarization credentials
         env:
+          APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
+          APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
+          APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
         run: |
+          if [[ -n "${APP_STORE_CONNECT_API_KEY_BASE64:-}" ]]; then
+            if [[ -z "${APP_STORE_CONNECT_API_KEY_ID:-}" ]]; then
+              echo "APP_STORE_CONNECT_API_KEY_ID secret is required with APP_STORE_CONNECT_API_KEY_BASE64." >&2
+              exit 1
+            fi
+            if [[ -z "${APP_STORE_CONNECT_API_ISSUER_ID:-}" ]]; then
+              echo "APP_STORE_CONNECT_API_ISSUER_ID secret is required with APP_STORE_CONNECT_API_KEY_BASE64." >&2
+              exit 1
+            fi
+
+            API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
+            printf '%s' "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
+
+            xcrun notarytool store-credentials "NVBeaconNotary" \
+              --key "$API_KEY_PATH" \
+              --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+              --issuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+            exit 0
+          fi
+
           if [[ -z "${APPLE_ID:-}" ]]; then
-            echo "APPLE_ID secret is required for notarization." >&2
+            echo "APPLE_ID secret is required for notarization when API key secrets are not configured." >&2
             exit 1
           fi
           if [[ -z "${APPLE_TEAM_ID:-}" ]]; then
-            echo "APPLE_TEAM_ID secret is required for notarization." >&2
+            echo "APPLE_TEAM_ID secret is required for notarization when API key secrets are not configured." >&2
             exit 1
           fi
           if [[ -z "${APPLE_APP_PASSWORD:-}" ]]; then
-            echo "APPLE_APP_PASSWORD secret is required for notarization." >&2
+            echo "APPLE_APP_PASSWORD secret is required for notarization when API key secrets are not configured." >&2
             exit 1
           fi
 

@@ -20,6 +20,9 @@ KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 APPLE_APP_PASSWORD="${APPLE_APP_PASSWORD:-}"
+APP_STORE_CONNECT_API_KEY_PATH="${APP_STORE_CONNECT_API_KEY_PATH:-}"
+APP_STORE_CONNECT_API_KEY_ID="${APP_STORE_CONNECT_API_KEY_ID:-}"
+APP_STORE_CONNECT_API_ISSUER_ID="${APP_STORE_CONNECT_API_ISSUER_ID:-}"
 
 DIST_DIR="$ROOT_DIR/dist"
 APP_PATH="$DIST_DIR/${APP_NAME}.app"
@@ -61,6 +64,37 @@ assess_distribution_ready() {
   else
     assess_gatekeeper_dmg "$path"
   fi
+}
+
+submit_for_notarization() {
+  local artifact_path="$1"
+
+  if [[ -n "$KEYCHAIN_PROFILE" ]]; then
+    xcrun notarytool submit "$artifact_path" --keychain-profile "$KEYCHAIN_PROFILE" --wait
+    return
+  fi
+
+  if [[ -n "$APP_STORE_CONNECT_API_KEY_PATH" ]]; then
+    : "${APP_STORE_CONNECT_API_KEY_ID:?Set APP_STORE_CONNECT_API_KEY_ID to notarize.}"
+    : "${APP_STORE_CONNECT_API_ISSUER_ID:?Set APP_STORE_CONNECT_API_ISSUER_ID to notarize.}"
+
+    xcrun notarytool submit "$artifact_path" \
+      --key "$APP_STORE_CONNECT_API_KEY_PATH" \
+      --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+      --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
+      --wait
+    return
+  fi
+
+  : "${APPLE_ID:?Set APPLE_ID to notarize.}"
+  : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID to notarize.}"
+  : "${APPLE_APP_PASSWORD:?Set APPLE_APP_PASSWORD to notarize.}"
+
+  xcrun notarytool submit "$artifact_path" \
+    --apple-id "$APPLE_ID" \
+    --team-id "$APPLE_TEAM_ID" \
+    --password "$APPLE_APP_PASSWORD" \
+    --wait
 }
 
 generate_app_icon() {
@@ -194,19 +228,7 @@ if [[ "$NOTARIZE" == "1" ]]; then
   ditto -c -k --keepParent "$APP_PATH" "$NOTARIZE_ZIP_PATH"
 
   echo "Submitting app bundle archive for notarization..."
-  if [[ -n "$KEYCHAIN_PROFILE" ]]; then
-    xcrun notarytool submit "$NOTARIZE_ZIP_PATH" --keychain-profile "$KEYCHAIN_PROFILE" --wait
-  else
-    : "${APPLE_ID:?Set APPLE_ID to notarize.}"
-    : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID to notarize.}"
-    : "${APPLE_APP_PASSWORD:?Set APPLE_APP_PASSWORD to notarize.}"
-
-    xcrun notarytool submit "$NOTARIZE_ZIP_PATH" \
-      --apple-id "$APPLE_ID" \
-      --team-id "$APPLE_TEAM_ID" \
-      --password "$APPLE_APP_PASSWORD" \
-      --wait
-  fi
+  submit_for_notarization "$NOTARIZE_ZIP_PATH"
 
   echo "Stapling ticket..."
   xcrun stapler staple "$APP_PATH"
@@ -249,19 +271,7 @@ fi
 
 if [[ "$NOTARIZE" == "1" ]]; then
   echo "Submitting DMG for notarization..."
-  if [[ -n "$KEYCHAIN_PROFILE" ]]; then
-    xcrun notarytool submit "$DMG_PATH" --keychain-profile "$KEYCHAIN_PROFILE" --wait
-  else
-    : "${APPLE_ID:?Set APPLE_ID to notarize.}"
-    : "${APPLE_TEAM_ID:?Set APPLE_TEAM_ID to notarize.}"
-    : "${APPLE_APP_PASSWORD:?Set APPLE_APP_PASSWORD to notarize.}"
-
-    xcrun notarytool submit "$DMG_PATH" \
-      --apple-id "$APPLE_ID" \
-      --team-id "$APPLE_TEAM_ID" \
-      --password "$APPLE_APP_PASSWORD" \
-      --wait
-  fi
+  submit_for_notarization "$DMG_PATH"
 
   echo "Stapling DMG..."
   xcrun stapler staple "$DMG_PATH"
