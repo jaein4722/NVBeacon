@@ -3,21 +3,21 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.4.0</title>
-            <pubDate>Wed, 08 Apr 2026 05:00:08 +0000</pubDate>
+            <title>0.4.1</title>
+            <pubDate>Wed, 08 Apr 2026 06:46:15 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.0</sparkle:fullReleaseNotesLink>
-            <sparkle:version>20</sparkle:version>
-            <sparkle:shortVersionString>0.4.0</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.1</sparkle:fullReleaseNotesLink>
+            <sparkle:version>21</sparkle:version>
+            <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added automatic "my process" detection based on the active SSH username, with highlighting for matching remote processes and the GPUs they occupy.
-- Reloaded GPU process details every time a row is expanded so VRAM usage and process metadata stay current instead of reusing stale cached values.
-- Added CI-ready Developer ID signing and notarization support to the release workflow for signed DMG releases and notarized Sparkle updates.
+- Added a toggle to disable per-user process highlighting from the Appearance tab when users want the lightest possible polling behavior.
+- Optimized process ownership detection so summary polling resolves GPU data and process UIDs in a single SSH call, while expanded process details refresh independently without resetting the main snapshot timer.
+- Added a user-friendly SSH connection reuse setting with optional SSH multiplexing for faster polling, plus automatic fallback to fresh sessions when reuse is not supported cleanly.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.0/NVBeacon-0.4.0.dmg" length="3896351" type="application/octet-stream" sparkle:edSignature="Qr+ZPBGN60uFU3/KAu4isrNQ+TkGpbCM/PLomMuyFgfkFueAd8gFbc9em7/RfkTsSBvJMcn37OYUWP08cOrDCg=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.1/NVBeacon-0.4.1.dmg" length="3919590" type="application/octet-stream" sparkle:edSignature="wAq52iOjdjPz35qzXCws5xVdPLqml3arSZ0qSfzBrKqD1vvmJUSHDDlfOv6fMSWm0z4Hf4SFevxQjmyY8U7mDQ=="/>
         </item>
     </channel>
 </rss>
