@@ -139,6 +139,8 @@ git push origin v0.3.5
 The release workflow:
 
 - builds the DMG on a macOS runner
+- imports a Developer ID certificate into a temporary CI keychain
+- notarizes the app bundle and DMG with `notarytool`
 - publishes the GitHub Release
 - sets an SEO-friendly release title for remote NVIDIA GPU monitoring on macOS
 - prepends a keyword-rich product summary before the version-specific notes
@@ -204,8 +206,39 @@ Repository secrets expected by the release workflow:
 
 - `SPARKLE_PUBLIC_ED_KEY`
 - `SPARKLE_PRIVATE_ED_KEY`
+- `DEVELOPER_ID_P12_BASE64`
+- `DEVELOPER_ID_P12_PASSWORD`
+- `APPLE_ID`
+- `APPLE_TEAM_ID`
+- `APPLE_APP_PASSWORD`
 
 The release workflow now fails if these secrets are missing, because NVBeacon treats unsigned update feeds as not ready for production use.
+
+### CI Developer ID Certificate
+
+GitHub Actions imports a `.p12` certificate bundle from repository secrets.
+
+Recommended flow:
+
+1. Export the `Developer ID Application` certificate and private key from Keychain Access as a `.p12` file.
+2. Protect the export with a strong temporary password.
+3. Base64-encode the file and store it in `DEVELOPER_ID_P12_BASE64`.
+4. Store the export password in `DEVELOPER_ID_P12_PASSWORD`.
+
+Example:
+
+```bash
+base64 < developer-id-application.p12 | pbcopy
+```
+
+The notarization secrets should match the credentials you can use locally with:
+
+```bash
+xcrun notarytool store-credentials "NVBeaconNotary" \
+  --apple-id "you@example.com" \
+  --team-id "TEAMID" \
+  --password "app-specific-password"
+```
 
 ## Homebrew Tap Sync
 
