@@ -91,9 +91,8 @@ struct StatusMenuView: View {
                             .font(.system(size: 12, weight: .semibold))
                     }
                     .buttonStyle(.plain)
-                    .disabled(store.isRefreshing)
-                    .foregroundStyle(store.isRefreshing ? .secondary : .primary)
-                    .help(t("Refresh now", "지금 새로고침"))
+                    .foregroundStyle(.primary)
+                    .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침"))
                 }
 
                 if store.isRefreshing {

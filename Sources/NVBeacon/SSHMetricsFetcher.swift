@@ -7,6 +7,7 @@ struct SSHMetricsFetcher: Sendable {
 
     enum FetchError: LocalizedError, Equatable {
         case commandFailed(Int32, String)
+        case commandTimedOut(Int)
         case emptyResponse
         case invalidOutput(String)
         case invalidProcessOutput(String)
@@ -19,6 +20,11 @@ struct SSHMetricsFetcher: Sendable {
             switch self {
             case .commandFailed(_, let message):
                 return message.isEmpty ? language.text("ssh command failed.", "ssh 명령이 실패했습니다.") : message
+            case .commandTimedOut(let seconds):
+                return language.text(
+                    "ssh command timed out after \(seconds) seconds.",
+                    "ssh 명령이 \(seconds)초 뒤 시간 초과되었습니다."
+                )
             case .emptyResponse:
                 return language.text("nvidia-smi output was empty.", "nvidia-smi 출력이 비어 있습니다.")
             case .invalidOutput(let line):
@@ -247,7 +253,7 @@ struct SSHMetricsFetcher: Sendable {
             }
 
             try process.run()
-            process.waitUntilExit()
+            try Self.waitForProcessToExit(process, timeoutSeconds: 15)
 
             let stdout = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -273,6 +279,9 @@ struct SSHMetricsFetcher: Sendable {
     ) -> [String] {
         var arguments = [
             "-o", "ConnectTimeout=5",
+            "-o", "ServerAliveInterval=5",
+            "-o", "ServerAliveCountMax=1",
+            "-o", "TCPKeepAlive=yes",
         ]
 
         if prefersPasswordAuth {
@@ -306,6 +315,31 @@ struct SSHMetricsFetcher: Sendable {
         ])
 
         return arguments
+    }
+
+    private static func waitForProcessToExit(_ process: Process, timeoutSeconds: Int) throws {
+        let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
+
+        while process.isRunning {
+            try Task.checkCancellation()
+
+            if Date() >= deadline {
+                process.terminate()
+
+                let forceKillDeadline = Date().addingTimeInterval(1)
+                while process.isRunning, Date() < forceKillDeadline {
+                    Thread.sleep(forTimeInterval: 0.05)
+                }
+
+                if process.isRunning {
+                    process.interrupt()
+                }
+
+                throw FetchError.commandTimedOut(timeoutSeconds)
+            }
+
+            Thread.sleep(forTimeInterval: 0.05)
+        }
     }
 
     private static func parseLine(_ line: String) throws -> GPUReading {

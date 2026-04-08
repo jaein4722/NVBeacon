@@ -274,9 +274,11 @@ final class NVBeaconStore: ObservableObject {
     }
 
     func refreshNow() {
-        Task {
-            await refresh()
-        }
+        restartPollingAndRefresh(resetErrorState: false)
+    }
+
+    func handleSystemWake() {
+        restartPollingAndRefresh(resetErrorState: false)
     }
 
     func loadProcessDetails(for gpuID: Int) {
@@ -389,6 +391,11 @@ final class NVBeaconStore: ObservableObject {
         pollingTask = Task { [weak self] in
             await self?.pollLoop()
         }
+    }
+
+    private func restartPollingAndRefresh(resetErrorState: Bool) {
+        isRefreshing = false
+        configurePolling(resetState: resetErrorState)
     }
 
     private func pollLoop() async {

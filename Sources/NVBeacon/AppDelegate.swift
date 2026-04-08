@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         applyActivationPolicy(showsDockIcon: store.settings.showsDockIcon)
         bindAppearance()
         bindActivationPolicy()
+        bindSystemWakeNotifications()
         applyAppearance(for: store.settings.appearanceMode)
         configureNotificationPresentation()
         appUpdater.startIfPossible()
@@ -53,6 +54,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             .receive(on: RunLoop.main)
             .sink { [weak self] showsDockIcon in
                 self?.applyActivationPolicy(showsDockIcon: showsDockIcon)
+            }
+            .store(in: &cancellables)
+    }
+
+    private func bindSystemWakeNotifications() {
+        let notificationCenter = NSWorkspace.shared.notificationCenter
+
+        notificationCenter.publisher(for: NSWorkspace.didWakeNotification)
+            .merge(with: notificationCenter.publisher(for: NSWorkspace.screensDidWakeNotification))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.store.handleSystemWake()
             }
             .store(in: &cancellables)
     }
