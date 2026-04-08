@@ -76,6 +76,9 @@ By default this produces:
 - `dist/NVBeacon.app`
 - `dist/NVBeacon-<version>.dmg`
 
+Release DMGs are generated as styled installer images with a custom background and
+Applications shortcut using `dmgbuild`.
+
 Useful examples:
 
 ```bash

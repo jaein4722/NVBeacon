@@ -17,6 +17,7 @@ NOTARIZE="${NOTARIZE:-0}"
 SPARKLE_FEED_URL="${SPARKLE_FEED_URL:-https://raw.githubusercontent.com/jaein4722/NVBeacon/appcast/appcast.xml}"
 SPARKLE_PUBLIC_ED_KEY="${SPARKLE_PUBLIC_ED_KEY:-}"
 KEYCHAIN_PROFILE="${KEYCHAIN_PROFILE:-}"
+DMGBUILD_VERSION="${DMGBUILD_VERSION:-1.6.7}"
 APPLE_ID="${APPLE_ID:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 APPLE_APP_PASSWORD="${APPLE_APP_PASSWORD:-}"
@@ -29,11 +30,14 @@ APP_PATH="$DIST_DIR/${APP_NAME}.app"
 DMG_PATH="$DIST_DIR/${APP_NAME}-${VERSION}.dmg"
 NOTARIZE_ZIP_PATH="$DIST_DIR/${APP_NAME}-${VERSION}-notarize.zip"
 DMG_STAGING_DIR="$DIST_DIR/.dmg-staging"
+DMG_BACKGROUND_PATH="$DIST_DIR/.dmg-background.png"
 ICON_SOURCE_PATH="${ICON_SOURCE_PATH:-$ROOT_DIR/icon.png}"
 ICON_NAME="AppIcon"
 ICONSET_DIR="$DIST_DIR/.${ICON_NAME}.iconset"
 ICON_NORMALIZED_PATH="$DIST_DIR/.${ICON_NAME}-1024.png"
 ICON_RESOURCE_PATH="$APP_PATH/Contents/Resources/${ICON_NAME}.icns"
+DMGBUILD_SITE_DIR="$ROOT_DIR/.build/packaging-tools/dmgbuild-$DMGBUILD_VERSION"
+DMG_VERIFY_MOUNT_PATH="$DIST_DIR/.distribution-check-mount"
 BIN_PATH="$(swift build -c "$BUILD_CONFIGURATION" --show-bin-path)"
 EXECUTABLE_PATH="$BIN_PATH/$PRODUCT_NAME"
 INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
@@ -41,7 +45,10 @@ FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
 SPARKLE_FRAMEWORK_SOURCE_PATH="$BIN_PATH/Sparkle.framework"
 
 cleanup() {
-  rm -rf "$DMG_STAGING_DIR" "$NOTARIZE_ZIP_PATH" "$ICONSET_DIR" "$ICON_NORMALIZED_PATH"
+  if mount | grep -q "on $DMG_VERIFY_MOUNT_PATH "; then
+    hdiutil detach "$DMG_VERIFY_MOUNT_PATH" -quiet || true
+  fi
+  rm -rf "$DMG_STAGING_DIR" "$NOTARIZE_ZIP_PATH" "$ICONSET_DIR" "$ICON_NORMALIZED_PATH" "$DMG_BACKGROUND_PATH" "$DMG_VERIFY_MOUNT_PATH"
 }
 
 trap cleanup EXIT
@@ -64,6 +71,64 @@ assess_distribution_ready() {
   else
     assess_gatekeeper_dmg "$path"
   fi
+}
+
+ensure_dmgbuild() {
+  if PYTHONPATH="$DMGBUILD_SITE_DIR${PYTHONPATH:+:$PYTHONPATH}" python3 -c "import dmgbuild" >/dev/null 2>&1; then
+    return
+  fi
+
+  echo "Installing dmgbuild $DMGBUILD_VERSION for styled DMG packaging..."
+  mkdir -p "$DMGBUILD_SITE_DIR"
+  python3 -m pip install --disable-pip-version-check --target "$DMGBUILD_SITE_DIR" "dmgbuild==$DMGBUILD_VERSION"
+}
+
+generate_dmg_background() {
+  echo "Generating DMG background..."
+  swift "$ROOT_DIR/scripts/generate_dmg_background.swift" \
+    --output "$DMG_BACKGROUND_PATH" \
+    --app-name "$APP_NAME"
+}
+
+create_styled_dmg() {
+  ensure_dmgbuild
+  generate_dmg_background
+
+  echo "Creating styled DMG archive..."
+  PYTHONPATH="$DMGBUILD_SITE_DIR${PYTHONPATH:+:$PYTHONPATH}" \
+    python3 -m dmgbuild \
+      -s "$ROOT_DIR/scripts/dmgbuild_settings.py" \
+      -D app="$APP_PATH" \
+      -D background="$DMG_BACKGROUND_PATH" \
+      -D volume_name="$VOLUME_NAME" \
+      "$VOLUME_NAME" \
+      "$DMG_PATH"
+}
+
+verify_dmg_distribution() {
+  local dmg_path="$1"
+  local mounted_app_path="$DMG_VERIFY_MOUNT_PATH/${APP_NAME}.app"
+
+  echo "Checking notarized DMG signature and Gatekeeper policy..."
+  codesign --verify -R="notarized" --check-notarization "$dmg_path"
+  assess_gatekeeper_dmg "$dmg_path"
+
+  rm -rf "$DMG_VERIFY_MOUNT_PATH"
+  mkdir -p "$DMG_VERIFY_MOUNT_PATH"
+
+  echo "Mounting DMG for distribution checks..."
+  hdiutil attach "$dmg_path" -mountpoint "$DMG_VERIFY_MOUNT_PATH" -nobrowse -readonly -quiet
+
+  if [[ ! -d "$mounted_app_path" ]]; then
+    echo "Expected mounted app not found at $mounted_app_path" >&2
+    exit 1
+  fi
+
+  echo "Verifying mounted app bundle is ready for distribution..."
+  assess_distribution_ready "$mounted_app_path"
+
+  hdiutil detach "$DMG_VERIFY_MOUNT_PATH" -quiet
+  rm -rf "$DMG_VERIFY_MOUNT_PATH"
 }
 
 submit_for_notarization() {
@@ -120,7 +185,7 @@ generate_app_icon() {
   iconutil --convert icns --output "$ICON_RESOURCE_PATH" "$ICONSET_DIR"
 }
 
-rm -rf "$APP_PATH" "$DMG_PATH" "$NOTARIZE_ZIP_PATH" "$DMG_STAGING_DIR"
+rm -rf "$APP_PATH" "$DMG_PATH" "$NOTARIZE_ZIP_PATH" "$DMG_STAGING_DIR" "$DMG_BACKGROUND_PATH" "$DMG_VERIFY_MOUNT_PATH"
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$FRAMEWORKS_DIR"
 
 echo "Building $BUILD_CONFIGURATION binary..."
@@ -245,11 +310,7 @@ if [[ "$SKIP_DMG" == "1" ]]; then
   exit 0
 fi
 
-echo "Creating DMG archive..."
-mkdir -p "$DMG_STAGING_DIR"
-cp -R "$APP_PATH" "$DMG_STAGING_DIR/"
-ln -s /Applications "$DMG_STAGING_DIR/Applications"
-hdiutil create -volname "$VOLUME_NAME" -srcfolder "$DMG_STAGING_DIR" -ov -format UDZO "$DMG_PATH"
+create_styled_dmg
 
 if [[ "$CODESIGN_IDENTITY" != "-" ]]; then
   echo "Signing DMG..."
@@ -278,7 +339,7 @@ if [[ "$NOTARIZE" == "1" ]]; then
   xcrun stapler validate "$DMG_PATH"
 
   echo "Verifying notarized DMG is ready for distribution..."
-  assess_distribution_ready "$DMG_PATH"
+  verify_dmg_distribution "$DMG_PATH"
 fi
 
 echo "DMG archive: $DMG_PATH"
