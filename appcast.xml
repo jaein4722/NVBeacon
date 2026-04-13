@@ -3,21 +3,20 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.4.1</title>
-            <pubDate>Wed, 08 Apr 2026 06:46:15 +0000</pubDate>
+            <title>0.4.2</title>
+            <pubDate>Mon, 13 Apr 2026 06:37:29 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.1</sparkle:fullReleaseNotesLink>
-            <sparkle:version>21</sparkle:version>
-            <sparkle:shortVersionString>0.4.1</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.2</sparkle:fullReleaseNotesLink>
+            <sparkle:version>22</sparkle:version>
+            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added a toggle to disable per-user process highlighting from the Appearance tab when users want the lightest possible polling behavior.
-- Optimized process ownership detection so summary polling resolves GPU data and process UIDs in a single SSH call, while expanded process details refresh independently without resetting the main snapshot timer.
-- Added a user-friendly SSH connection reuse setting with optional SSH multiplexing for faster polling, plus automatic fallback to fresh sessions when reuse is not supported cleanly.
+- Fixed the launch-at-login setting so packaged builds show a configurable `Off` state instead of incorrectly appearing unavailable.
+- Simplified Settings copy by removing overly technical helper text and leaving only the most useful user-facing guidance.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.1/NVBeacon-0.4.1.dmg" length="3919590" type="application/octet-stream" sparkle:edSignature="wAq52iOjdjPz35qzXCws5xVdPLqml3arSZ0qSfzBrKqD1vvmJUSHDDlfOv6fMSWm0z4Hf4SFevxQjmyY8U7mDQ=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.2/NVBeacon-0.4.2.dmg" length="3909947" type="application/octet-stream" sparkle:edSignature="gy+/h4I8MdVuxMX5B5zSmfoUZK8dWVceq70uyOtqmSgZwEoGV/rDoJFX+JOPAc7kyqiMQQCwMrkY2nl4cJDpBw=="/>
         </item>
     </channel>
 </rss>
