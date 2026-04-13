@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.4.2 - 2026-04-13
+
+- Fixed the launch-at-login setting so packaged builds show a configurable `Off` state instead of incorrectly appearing unavailable.
+- Simplified Settings copy by removing overly technical helper text and leaving only the most useful user-facing guidance.
+
 ## 0.4.1 - 2026-04-08
 
 - Added a toggle to disable per-user process highlighting from the Appearance tab when users want the lightest possible polling behavior.
