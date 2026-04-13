@@ -205,10 +205,6 @@ struct SettingsView: View {
                     .fixedSize()
                 }
 
-                Text(draft.sshAuthenticationMode.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 LabeledContent(t("Identity File", "Identity 파일")) {
                     TextField("", text: $draft.sshIdentityFilePath, prompt: Text(t("Optional", "선택 사항")))
                         .labelsHidden()
@@ -222,10 +218,6 @@ struct SettingsView: View {
                         Text(store.passwordSessionState.title(in: language))
                             .foregroundStyle(passwordSessionTint)
                     }
-
-                    Text(store.passwordSessionState.detailText(in: language))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
 
                     LabeledContent(t("SSH Password", "SSH 비밀번호")) {
                         SecureField("", text: $draftPassword, prompt: Text(t("Optional", "선택 사항")))
@@ -265,12 +257,6 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(t("Connection", "연결"))
-            } footer: {
-                Text(
-                    draft.sshAuthenticationMode == .passwordBased
-                    ? t("SSH passwords are stored in the macOS Keychain. To avoid repeated Keychain prompts, save the password once and unlock it once per app launch.", "SSH 비밀번호는 macOS Keychain에 저장됩니다. 반복되는 Keychain prompt를 피하려면 비밀번호를 저장한 뒤 앱 실행마다 한 번만 해제하세요.")
-                    : t("Key-based mode uses SSH keys and ssh-agent, and does not read Keychain during background polling.", "Key-based 모드에서는 SSH 키와 ssh-agent를 사용하며, background polling 중 Keychain을 읽지 않습니다.")
-                )
             }
 
             Section {
@@ -316,10 +302,6 @@ struct SettingsView: View {
                     Text(t("SSH Connection", "SSH 연결"))
                 }
 
-                Text(draft.sshConnectionReuseMode.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 LabeledContent(t("Busy Detection", "Busy 판정")) {
                     Picker(t("Busy Detection", "Busy 판정"), selection: $draft.busyDetectionMode) {
                         ForEach(BusyDetectionMode.allCases) { mode in
@@ -329,10 +311,6 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-
-                Text(draft.busyDetectionMode.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 if draft.busyDetectionMode == .memoryThreshold || draft.busyDetectionMode == .activeProcessOrMemoryThreshold {
                     LabeledContent(t("Busy Memory Threshold", "Busy 메모리 임계치")) {
@@ -357,8 +335,6 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(t("Polling", "폴링"))
-            } footer: {
-                Text(t("Changes are applied automatically, and polling restarts immediately.", "설정 변경은 자동으로 저장되고, polling 주기도 즉시 다시 시작됩니다."))
             }
 
             Section {
@@ -382,10 +358,6 @@ struct SettingsView: View {
                         )
                 }
 
-                Text(launchAtLoginManager.state.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 if let lastErrorMessage = launchAtLoginManager.lastErrorMessage {
                     Text(lastErrorMessage)
                         .font(.caption)
@@ -398,13 +370,6 @@ struct SettingsView: View {
                 .disabled(!launchAtLoginManager.canConfigure)
             } header: {
                 Text(t("Startup", "시작"))
-            } footer: {
-                Text(
-                    t(
-                        "This uses the standard macOS login item mechanism. A packaged app bundle is required, and macOS may ask for approval the first time.",
-                        "이 기능은 macOS 표준 로그인 항목 메커니즘을 사용합니다. 패키징된 앱 번들이 필요하며, 처음에는 macOS 승인 절차가 필요할 수 있습니다."
-                    )
-                )
             }
 
             Section {
@@ -417,12 +382,6 @@ struct SettingsView: View {
                 )
                 .disabled(!appUpdater.availability.isAvailable)
 
-                Text(appUpdater.automaticallyChecksForUpdates
-                     ? t("NVBeacon will periodically look for new releases in the background.", "NVBeacon이 백그라운드에서 주기적으로 새 릴리즈를 확인합니다.")
-                     : t("Automatic update checks are off. You can still check manually from About.", "자동 업데이트 확인이 꺼져 있습니다. About에서 수동 확인은 계속 가능합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 Toggle(
                     t("Automatically download updates", "업데이트 자동 다운로드"),
                     isOn: Binding(
@@ -431,16 +390,8 @@ struct SettingsView: View {
                     )
                 )
                 .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
-
-                Text(appUpdater.automaticallyDownloadsUpdates
-                     ? t("When a new release is found, the updater may download it in the background and prepare installation.", "새 릴리즈를 찾으면 updater가 백그라운드에서 다운로드하고 설치를 준비할 수 있습니다.")
-                     : t("Updates will be offered interactively instead of downloading in the background.", "업데이트는 백그라운드 자동 다운로드 대신 대화형으로 안내됩니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } header: {
                 Text(t("Updates", "업데이트"))
-            } footer: {
-                Text(appUpdater.availability.detail(in: language))
             }
         }
         .formStyle(.grouped)
@@ -453,10 +404,6 @@ struct SettingsView: View {
                     Text(store.notificationPermissionState.title(in: language))
                         .foregroundStyle(store.notificationPermissionState == .authorized ? .green : .secondary)
                 }
-
-                Text(store.notificationPermissionState.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 HStack(spacing: 8) {
                     Button(store.notificationPermissionState == .authorized ? t("Re-check Permission", "권한 다시 확인") : t("Enable Notifications", "알림 권한 허용")) {
@@ -477,8 +424,6 @@ struct SettingsView: View {
                 }
             } header: {
                 Text(t("Permission", "권한"))
-            } footer: {
-                Text(t("This permission is used for both process exit alerts and GPU idle alerts.", "이 권한은 프로세스 종료 알림과 GPU idle 알림에 함께 사용됩니다."))
             }
 
             Section {
@@ -502,7 +447,7 @@ struct SettingsView: View {
             } header: {
                 Text(t("GPU Idle Alert", "GPU Idle 알림"))
             } footer: {
-                Text(t("Starred GPUs send an alert when `util = 0%` and memory stays below the threshold for the configured duration.", "별표된 GPU는 `util = 0%` 이고 memory가 임계치 이하인 상태가 지정 시간 이상 유지되면 알림을 보냅니다."))
+                Text(t("Starred GPUs send an alert when they stay idle.", "별표된 GPU가 오랫동안 쉬고 있으면 알림을 보냅니다."))
             }
 
             Section {
@@ -551,10 +496,6 @@ struct SettingsView: View {
                     .fixedSize()
                 }
 
-                Text(draft.languagePreference.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 LabeledContent(t("Theme", "테마")) {
                     Picker(t("Theme", "테마"), selection: $draft.appearanceMode) {
                         ForEach(AppAppearanceMode.allCases) { mode in
@@ -565,33 +506,11 @@ struct SettingsView: View {
                     .fixedSize()
                 }
 
-                Text(draft.appearanceMode.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 Toggle(t("Show Dock icon", "Dock 아이콘 표시"), isOn: $draft.showsDockIcon)
-
-                Text(draft.showsDockIcon
-                     ? t("Show the NVBeacon icon in the Dock and App Switcher.", "Dock과 App Switcher에 NVBeacon 아이콘을 표시합니다.")
-                     : t("Run as a menu bar app and hide the Dock icon.", "메뉴바 전용 앱처럼 동작하며 Dock 아이콘을 숨깁니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 Toggle(t("Close popover on outside click", "바깥 클릭 시 팝오버 닫기"), isOn: $draft.closesPopoverOnOutsideClick)
 
-                Text(draft.closesPopoverOnOutsideClick
-                     ? t("Automatically close the popover when you click outside it or switch to another app.", "팝오버 바깥 영역이나 다른 앱을 클릭하면 팝오버를 자동으로 닫습니다.")
-                     : t("Keep the popover open until you explicitly toggle it again.", "팝오버를 직접 다시 클릭할 때까지 유지합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 Toggle(t("Highlight my processes", "내 프로세스 강조"), isOn: $draft.highlightsMyProcesses)
-
-                Text(draft.highlightsMyProcesses
-                     ? t("Detect the SSH user's processes and highlight matching GPUs and process rows.", "SSH 사용자 프로세스를 감지해 해당 GPU와 프로세스 행을 강조합니다.")
-                     : t("Turn off per-user process highlighting and skip the extra ownership checks during polling.", "사용자별 프로세스 강조를 끄고 polling 중 추가 ownership 확인도 생략합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
 
                 LabeledContent(t("Display", "표시")) {
                     Picker(t("Display", "표시"), selection: $draft.menuBarDisplayMode) {
@@ -602,10 +521,6 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
-
-                Text(draft.menuBarDisplayMode.detailText(in: language))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } header: {
                 Text(t("Menu Bar", "메뉴바"))
             }
@@ -623,7 +538,7 @@ struct SettingsView: View {
             } header: {
                 Text(t("Remote Command", "원격 명령"))
             } footer: {
-                Text(t("If `SSH Target` is an alias, the app uses the matching port and user from local `~/.ssh/config`. If PATH is different in a non-interactive shell, use the full path to `nvidia-smi`.", "`SSH Target`에 alias를 넣으면 로컬 `~/.ssh/config`의 포트와 유저가 적용됩니다. PATH 문제가 있으면 `nvidia-smi` 대신 전체 경로를 넣으세요."))
+                Text(t("Only change this if you need a custom command.", "커스텀 명령이 필요할 때만 변경하세요."))
             }
 
             Section {
@@ -638,7 +553,7 @@ struct SettingsView: View {
             } header: {
                 Text(t("Saved State", "저장 상태"))
             } footer: {
-                Text(t("`Clear Saved Settings` removes saved settings from UserDefaults and the SSH password from Keychain.", "`Clear Saved Settings`는 UserDefaults에 저장된 설정과 Keychain의 SSH 비밀번호를 함께 지웁니다."))
+                Text(t("Clears saved app settings.", "저장된 앱 설정을 지웁니다."))
             }
         }
         .formStyle(.grouped)
