@@ -3,20 +3,23 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.4.2</title>
-            <pubDate>Mon, 13 Apr 2026 06:37:29 +0000</pubDate>
+            <title>0.5.0</title>
+            <pubDate>Fri, 15 May 2026 05:51:18 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.4.2</sparkle:fullReleaseNotesLink>
-            <sparkle:version>22</sparkle:version>
-            <sparkle:shortVersionString>0.4.2</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.5.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>23</sparkle:version>
+            <sparkle:shortVersionString>0.5.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Fixed the launch-at-login setting so packaged builds show a configurable `Off` state instead of incorrectly appearing unavailable.
-- Simplified Settings copy by removing overly technical helper text and leaving only the most useful user-facing guidance.
+- Added multi-server GPU monitoring with per-server SSH target, authentication, connection reuse, enable/disable state, and remote command settings.
+- Updated the menu bar popover to show all configured servers in order with per-server refresh, status, GPU rows, and adaptive height.
+- Redesigned Settings server management with server ordering, saved host import, and selected-server editing.
+- Stored password-based SSH credentials per server in Keychain while preserving legacy single-server migration behavior.
+- Thanks @Liskie for contributing the multi-server monitoring implementation in #3.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.4.2/NVBeacon-0.4.2.dmg" length="3909947" type="application/octet-stream" sparkle:edSignature="gy+/h4I8MdVuxMX5B5zSmfoUZK8dWVceq70uyOtqmSgZwEoGV/rDoJFX+JOPAc7kyqiMQQCwMrkY2nl4cJDpBw=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.5.0/NVBeacon-0.5.0.dmg" length="4016593" type="application/octet-stream" sparkle:edSignature="66W4Z/PQvZ2osXYHTSqZ0e4HmvUxEQpB64EgN/qB8EOPQuR3b5xxURgstDY++TR0PHkp14j8bZRqi3OXHO61CQ=="/>
         </item>
     </channel>
 </rss>
