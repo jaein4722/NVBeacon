@@ -4,6 +4,8 @@ struct SSHMetricsFetcher: Sendable {
     static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
     private static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
     private static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
+    private static let pmonSectionSeparator = "__GPUUSAGE_PMON_SECTION__"
+    private static let pmonPSSectionSeparator = "__GPUUSAGE_PMON_PS_SECTION__"
     private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
 
     enum FetchError: LocalizedError, Equatable {
@@ -50,11 +52,12 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand),
+            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand, includesUserUtilization: normalized.recordsGPUHistory),
             password: password
         )
         let gpus = try Self.parseSnapshot(output)
-        return GPUSnapshot(takenAt: Date(), gpus: gpus)
+        let userUtilization = Self.parseUserUtilizationSnapshot(output, gpuIndices: Set(gpus.map(\.index)))
+        return GPUSnapshot(takenAt: Date(), gpus: gpus, userUtilization: userUtilization)
     }
 
     func fetchProcessDetails(
@@ -190,6 +193,14 @@ struct SSHMetricsFetcher: Sendable {
                 processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
             )
         }
+    }
+
+    /// Parses the optional pmon sample independently so malformed or unsupported pmon
+    /// output can never invalidate the primary GPU snapshot.
+    static func parseUserUtilizationSnapshot(_ output: String, gpuIndices: Set<Int>) -> [GPUUserUtilizationReading] {
+        let pmonSection = section(named: pmonSectionSeparator, from: output)
+        let ownersSection = section(named: pmonPSSectionSeparator, from: output)
+        return parsePmonSection(pmonSection, owners: parsePmonOwners(ownersSection), gpuIndices: gpuIndices)
     }
 
     private static func parseGPUSection(_ output: String) throws -> [GPUReading] {
@@ -495,8 +506,8 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func buildSummaryRemoteCommand(summaryCommand: String) -> String {
-        """
+    static func buildSummaryRemoteCommand(summaryCommand: String, includesUserUtilization: Bool = false) -> String {
+        let summary = """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
         process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
@@ -514,6 +525,17 @@ struct SSHMetricsFetcher: Sendable {
           [ -n "$real_uid" ] || continue
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
+        """
+        guard includesUserUtilization else { return summary }
+        return summary + "\n" + """
+        printf '\\n\(pmonSectionSeparator)\\n'
+        pmon_output="$(nvidia-smi pmon -s u -c 1 2>/dev/null || true)"
+        printf '%s\\n' "$pmon_output"
+        printf '\\n\(pmonPSSectionSeparator)\\n'
+        pmon_pids="$(printf '%s\\n' "$pmon_output" | awk '$1 !~ /^#/ && $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ { print $2 }' | sort -u | paste -sd, -)"
+        if [ -n "$pmon_pids" ]; then
+          ps -o pid= -o user:256= -p "$pmon_pids" 2>/dev/null || true
+        fi
         """
     }
 
@@ -556,7 +578,7 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator]
+        let separators = [processSectionSeparator, psSectionSeparator, pmonSectionSeparator, pmonPSSectionSeparator]
 
         if let name {
             guard let startRange = output.range(of: name) else {
@@ -581,6 +603,77 @@ struct SSHMetricsFetcher: Sendable {
 
         let endIndex = firstSeparatorRange?.lowerBound ?? output.endIndex
         return String(output[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private static func parsePmonOwners(_ output: String) -> [Int: String] {
+        var owners: [Int: String] = [:]
+        for line in output.split(whereSeparator: \.isNewline) {
+            let columns = line.split(maxSplits: 1, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+            guard columns.count == 2, let pid = Int(columns[0]) else { continue }
+            let user = String(columns[1]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !user.isEmpty { owners[pid] = user }
+        }
+        return owners
+    }
+
+    private static func parsePmonSection(
+        _ output: String,
+        owners: [Int: String],
+        gpuIndices: Set<Int>
+    ) -> [GPUUserUtilizationReading] {
+        let lines = output.split(whereSeparator: \.isNewline).map(String.init)
+        // pmon prints this header on a successful sample, including an idle GPU.
+        guard lines.contains(where: { $0.lowercased().contains("gpu") && $0.lowercased().contains("pid") && $0.lowercased().contains("sm") }) else {
+            return []
+        }
+
+        struct Key: Hashable { let gpuIndex: Int; let user: String }
+        var sums: [Key: Double] = [:]
+        var unavailable: Set<Key> = []
+        var processGPUIndices: Set<Int> = []
+        var idleGPUIndices: Set<Int> = []
+
+        for line in lines where !line.trimmingCharacters(in: .whitespaces).hasPrefix("#") {
+            let columns = line.split(whereSeparator: \.isWhitespace).map(String.init)
+            guard columns.count >= 5, let gpuIndex = Int(columns[0]) else {
+                // Ignore malformed rows; optional telemetry must not fail GPU monitoring.
+                continue
+            }
+            guard gpuIndices.contains(gpuIndex) else { continue }
+            // pmon emits a dash-filled row for an idle device on some driver versions.
+            if columns[1] == "-" {
+                idleGPUIndices.insert(gpuIndex)
+                continue
+            }
+            guard let pid = Int(columns[1]) else {
+                continue
+            }
+            processGPUIndices.insert(gpuIndex)
+            let user = owners[pid] ?? "(unknown user)"
+            let key = Key(gpuIndex: gpuIndex, user: user)
+            if columns[3] == "-" {
+                unavailable.insert(key)
+            } else if let value = Double(columns[3]), value.isFinite, (0...100).contains(value) {
+                sums[key, default: 0] += value
+            } else {
+                unavailable.insert(key)
+            }
+        }
+
+        let keys = Set(sums.keys).union(unavailable)
+        let readings = keys.map { key in
+            GPUUserUtilizationReading(
+                gpuIndex: key.gpuIndex,
+                user: key.user,
+                utilization: unavailable.contains(key) ? nil : sums[key]
+            )
+        }
+        let idleReadings = idleGPUIndices.subtracting(processGPUIndices).sorted().map {
+            GPUUserUtilizationReading(gpuIndex: $0, user: "(idle)", utilization: 0)
+        }
+        return (readings + idleReadings).sorted { lhs, rhs in
+            lhs.gpuIndex == rhs.gpuIndex ? lhs.user < rhs.user : lhs.gpuIndex < rhs.gpuIndex
+        }
     }
 
     private static func parsePSLine(_ line: String) throws -> RemoteProcessStatus {

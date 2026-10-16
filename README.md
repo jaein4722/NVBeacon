@@ -54,6 +54,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Remote NVIDIA GPU monitoring over `ssh` using `nvidia-smi`
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
+- Opt-in per-user GPU history with stacked area charts for the last 1h, 5h, 12h, and 24h
 - On-demand process details with user, PID, memory, and command preview
 - Automatic detection and highlighting of your own remote SSH user processes and GPUs
 - Job completion alerts through macOS Notification Center when watched GPU processes exit
@@ -121,9 +122,41 @@ NVBeacon uses a native macOS-style settings window with these sections:
 
 - `General`: server list, per-server connection/authentication, polling, startup, busy GPU detection, update preferences
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
+- `History`: per-server, per-GPU user utilization charts and recent local samples
 - `Appearance`: theme, language, Dock icon, menu bar summary, popover behavior
 - `Advanced`: remote command override
 - `About`: version, links, runtime summary, and current configuration
+
+## GPU History
+
+Enable **Record GPU history** in `General` settings, then expand **GPU history by
+user** under a server in the menu bar popover or open the `History` settings tab.
+Choose a GPU and a 1h, 5h, 12h, or 24h window; click or drag the chart to inspect a
+sample. The legend shows each user's sampled value above the stacked areas, with a
+thin solid line for total GPU utilization.
+
+Recording is off by default. Enabling it adds one `nvidia-smi pmon -s u -c 1` query
+and a PID owner lookup to each SSH refresh; no remote installation or privileged
+command is required. The remote shell must be able to find `nvidia-smi` for process
+sampling. Minute averages are retained locally for 24 hours under
+`~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/`, with private file
+permissions, and survive app restarts. Turning recording off preserves existing
+history without adding new samples. Earlier history cannot be reconstructed.
+
+The 1h view retains minute detail; 5h, 12h, and 24h use 3-, 6-, and 12-minute
+means. Incomplete intervals retain minute detail. Hover values match the plotted
+averages and update without rebuilding chart geometry. Time-range changes use a
+short eased transition and respect Reduce Motion. During continuous refreshes,
+measured points up to three minutes apart may connect across short per-user
+sampling dropouts; missing readings still show as unavailable. Offline and longer
+gaps stay open.
+
+Each colored layer sums measured process SM utilization for a remote UNIX user.
+These process measurements and the GPU total use different sampling windows and
+are not exact shares of the total; sums can exceed 100% for overlapping processes.
+Unsupported values are unavailable, not estimates based on memory. Offline and
+unsupported sampling intervals remain gaps. Only users with measured values have
+colored areas.
 
 ## Language Support
 

@@ -105,6 +105,11 @@ struct SettingsView: View {
                     Label(t("Notifications", "알림"), systemImage: "bell.badge")
                 }
 
+            historyPane
+                .tabItem {
+                    Label(t("History", "기록"), systemImage: "chart.xyaxis.line")
+                }
+
             appearancePane
                 .tabItem {
                     Label(t("Appearance", "표시"), systemImage: "menubar.rectangle")
@@ -160,6 +165,29 @@ struct SettingsView: View {
         }
     }
 
+    private var historyPane: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(store.serverStates) { state in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(state.server.displayName, systemImage: "server.rack").font(.headline)
+                        GPUHistoryView(store: store, state: state)
+                    }
+                    .padding(10)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color(nsColor: .controlBackgroundColor))
+                    )
+                }
+                if store.serverStates.isEmpty {
+                    Text(t("Configure a server to begin recording GPU history.", "GPU 기록을 시작하려면 서버를 설정하세요."))
+                }
+            }
+            .padding(20)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
     private var generalPane: some View {
         Form {
             Section {
@@ -180,6 +208,14 @@ struct SettingsView: View {
                 selectedServerEditor
             } header: {
                 Text(t("Selected Server", "선택된 서버"))
+            }
+
+            Section {
+                Toggle(t("Record GPU history", "GPU 기록 저장"), isOn: $draft.recordsGPUHistory)
+            } header: {
+                Text(t("GPU History", "GPU 기록"))
+            } footer: {
+                Text(t("Keep 24 hours of per-user GPU samples on this Mac. Adds a process utilization query to each refresh.", "이 Mac에 최근 24시간의 사용자별 GPU 기록을 저장합니다. 새로고침마다 프로세스 사용률을 조회합니다."))
             }
 
             Section {

@@ -226,6 +226,7 @@ struct StatusMenuView: View {
                     UpdatedPill(date: snapshot.takenAt, language: language)
                 }
 
+                GPUHistoryView(store: store, state: state)
                 gpuList(state, snapshot: snapshot)
             } else if state.server.isEnabled {
                 Text(state.lastErrorMessage ?? t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다."))

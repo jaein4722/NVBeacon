@@ -522,6 +522,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var showsDockIcon: Bool = false
     var closesPopoverOnOutsideClick: Bool = true
     var highlightsMyProcesses: Bool = true
+    var recordsGPUHistory: Bool = false
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
 
@@ -543,6 +544,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         showsDockIcon: Bool = false,
         closesPopoverOnOutsideClick: Bool = true,
         highlightsMyProcesses: Bool = true,
+        recordsGPUHistory: Bool = false,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
     ) {
@@ -563,6 +565,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.showsDockIcon = showsDockIcon
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.recordsGPUHistory = recordsGPUHistory
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
     }
@@ -585,6 +588,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case showsDockIcon
         case closesPopoverOnOutsideClick
         case highlightsMyProcesses
+        case recordsGPUHistory
         case idleNotificationSeconds
         case idleMemoryThresholdMB
     }
@@ -609,6 +613,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
+            recordsGPUHistory: try container.decodeIfPresent(Bool.self, forKey: .recordsGPUHistory) ?? false,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
         )
@@ -797,6 +802,13 @@ struct GPUReading: Identifiable, Equatable, Sendable {
 struct GPUSnapshot: Equatable, Sendable {
     let takenAt: Date
     let gpus: [GPUReading]
+    let userUtilization: [GPUUserUtilizationReading]
+
+    init(takenAt: Date, gpus: [GPUReading], userUtilization: [GPUUserUtilizationReading] = []) {
+        self.takenAt = takenAt
+        self.gpus = gpus
+        self.userUtilization = userUtilization
+    }
 
     var averageUtilization: Int {
         guard !gpus.isEmpty else { return 0 }
@@ -847,7 +859,7 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, userUtilization: userUtilization)
     }
 
     func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
@@ -875,8 +887,16 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, userUtilization: userUtilization)
     }
+}
+
+struct GPUUserUtilizationReading: Equatable, Sendable {
+    let gpuIndex: Int
+    let user: String
+    /// Sum of the per-process SM values reported by one `nvidia-smi pmon` sample.
+    /// This is not an exact share of total GPU utilization.
+    let utilization: Double?
 }
 
 struct GPUProcessReading: Identifiable, Equatable, Sendable {
