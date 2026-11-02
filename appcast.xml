@@ -3,28 +3,24 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.6.0</title>
-            <pubDate>Mon, 02 Nov 2026 09:13:44 +0000</pubDate>
+            <title>0.6.1</title>
+            <pubDate>Mon, 02 Nov 2026 10:59:40 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.6.0</sparkle:fullReleaseNotesLink>
-            <sparkle:version>24</sparkle:version>
-            <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.6.1</sparkle:fullReleaseNotesLink>
+            <sparkle:version>25</sparkle:version>
+            <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added per-server Linux RAM used/total, available RAM, and Swap monitoring in the GPU popover, with high-usage color indicators.
-- Added a per-server memory query command in Advanced settings, alongside the GPU query command.
-- Added a saved popover width setting in Appearance, adjustable from 480 to 800 pt with a 500 pt default. The popover and its content now always use the same width.
-- Improved numeric settings so typing is not interrupted by range limits; values are validated on Return or when leaving the field.
-- Avoided restarting SSH polling for appearance changes, server renaming/reordering, and alert thresholds. Superseded settings updates and outdated collection results are ignored.
-- Added diagnostic information preview/copy from the current local state, excluding connection identifiers, custom commands, process details, and raw errors without running additional SSH queries.
-- Added versioned JSON server backup/export and reviewed import. Imports preserve existing settings and add disabled servers with fresh IDs, without restoring passwords or notification watches.
-- Restricted legacy shared-password recovery to the original migrated server so imported connections stay separate from existing credentials.
-- Fixed local app packaging to record the actual macOS SDK and preserve native settings styling.
-- Thanks @SAN-SHIa for contributing RAM/Swap monitoring and the popover width fix in #6.
+- Hardened SSH command execution by draining standard output and standard error while commands run, preventing full output pipes from blocking polling.
+- Improved cancellation and timeout cleanup so local SSH commands are terminated and reaped, including commands that ignore normal termination. Cancelled collection does not start a retry.
+- Limited captured command output to 8 MiB per command to keep unusually large responses from growing memory without a bound.
+- Prevented duplicate process metadata from causing a crash; the latest matching reading is retained.
+- Extracted platform-independent models, parsers, collection logic, and the existing server backup format into NVBeaconCore, while keeping macOS SSH execution and credential handling in the app.
+- Added process lifecycle regression tests, shared-core tests, and macOS/Linux CI checks.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.6.0/NVBeacon-0.6.0.dmg" length="4139124" type="application/octet-stream" sparkle:edSignature="ubHg0ZEqepnebrSHAn8RyOkCF5qw8/XOWHgmhUfNEAjY7w3xJRwCy++78Ol2daUOHofJYo7cJOcbJXsR86eEDg=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.6.1/NVBeacon-0.6.1.dmg" length="4173873" type="application/octet-stream" sparkle:edSignature="Vsc6AICwYTasE/OzDu7Y/ConFU8VyVTz6kYRp2vgmjJDq4qfn4qmL/mUDh1uL+3eWet4emkhgHo3rhC+RsB2DA=="/>
         </item>
     </channel>
 </rss>
