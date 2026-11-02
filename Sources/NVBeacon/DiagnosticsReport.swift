@@ -80,6 +80,7 @@ enum DiagnosticsReport {
     static func errorCategory(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return "None" }
         let text = message.lowercased()
+        if text.contains("output exceeded") || (text.contains("출력") && text.contains("제한")) { return "Output limit" }
         if text.contains("timed out") || text.contains("시간 초과") { return "Timeout" }
         if text.contains("host key") || text.contains("host identification") { return "Host key verification" }
         if text.contains("permission denied") || text.contains("authentication") || text.contains("password")

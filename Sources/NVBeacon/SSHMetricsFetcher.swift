@@ -10,6 +10,7 @@ struct SSHMetricsFetcher: Sendable {
     enum FetchError: LocalizedError, Equatable {
         case commandFailed(Int32, String)
         case commandTimedOut(Int)
+        case outputLimitExceeded(Int)
         case emptyResponse
         case invalidOutput(String)
         case invalidProcessOutput(String)
@@ -27,6 +28,8 @@ struct SSHMetricsFetcher: Sendable {
                     "ssh command timed out after \(seconds) seconds.",
                     "ssh 명령이 \(seconds)초 뒤 시간 초과되었습니다."
                 )
+            case .outputLimitExceeded(let limit):
+                return language.text("SSH output exceeded the \(limit / 1_048_576) MiB limit.", "SSH 출력이 \(limit / 1_048_576)MiB 제한을 초과했습니다.")
             case .emptyResponse:
                 return language.text("nvidia-smi output was empty.", "nvidia-smi 출력이 비어 있습니다.")
             case .invalidOutput(let line):
@@ -286,31 +289,24 @@ struct SSHMetricsFetcher: Sendable {
         password: String?,
         allowEmptyOutput: Bool = false
     ) async throws -> String {
-        try await Task.detached(priority: .utility) {
-            let trimmedPassword = password?.trimmingCharacters(in: .newlines)
-            do {
-                return try Self.executeSSHCommand(
-                    settings: settings,
-                    remoteCommand: remoteCommand,
-                    trimmedPassword: trimmedPassword,
-                    allowEmptyOutput: allowEmptyOutput
-                )
-            } catch let error as FetchError {
-                guard settings.sshConnectionReuseMode == .reuseWhenPossible,
-                      Self.shouldRetryWithoutConnectionReuse(after: error) else {
-                    throw error
-                }
-
-                var fallbackSettings = settings
-                fallbackSettings.sshConnectionReuseMode = .newConnectionEachRefresh
-                return try Self.executeSSHCommand(
-                    settings: fallbackSettings,
-                    remoteCommand: remoteCommand,
-                    trimmedPassword: trimmedPassword,
-                    allowEmptyOutput: allowEmptyOutput
-                )
-            }
-        }.value
+        try Task.checkCancellation()
+        let trimmedPassword = password?.trimmingCharacters(in: .newlines)
+        do {
+            return try await Self.executeSSHCommand(
+                settings: settings, remoteCommand: remoteCommand,
+                trimmedPassword: trimmedPassword, allowEmptyOutput: allowEmptyOutput
+            )
+        } catch let error as FetchError {
+            try Task.checkCancellation()
+            guard settings.sshConnectionReuseMode == .reuseWhenPossible,
+                  Self.shouldRetryWithoutConnectionReuse(after: error) else { throw error }
+            var fallbackSettings = settings
+            fallbackSettings.sshConnectionReuseMode = .newConnectionEachRefresh
+            return try await Self.executeSSHCommand(
+                settings: fallbackSettings, remoteCommand: remoteCommand,
+                trimmedPassword: trimmedPassword, allowEmptyOutput: allowEmptyOutput
+            )
+        }
     }
 
     private static func executeSSHCommand(
@@ -318,7 +314,7 @@ struct SSHMetricsFetcher: Sendable {
         remoteCommand: String,
         trimmedPassword: String?,
         allowEmptyOutput: Bool
-    ) throws -> String {
+    ) async throws -> String {
         let askPassScriptURL: URL?
 
         if let trimmedPassword, !trimmedPassword.isEmpty {
@@ -333,42 +329,37 @@ struct SSHMetricsFetcher: Sendable {
             }
         }
 
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/ssh")
-        process.arguments = buildSSHArguments(
+        let arguments = buildSSHArguments(
             settings: settings,
             prefersPasswordAuth: !(trimmedPassword?.isEmpty ?? true),
             remoteCommand: remoteCommand
         )
-
-        let stdoutPipe = Pipe()
-        let stderrPipe = Pipe()
-        process.standardOutput = stdoutPipe
-        process.standardError = stderrPipe
-        process.standardInput = FileHandle.nullDevice
-
+        var environment: [String: String]?
         if let askPassScriptURL, let trimmedPassword {
-            process.environment = ProcessInfo.processInfo.environment.merging(
-                [
-                    "SSH_ASKPASS": askPassScriptURL.path,
-                    "SSH_ASKPASS_REQUIRE": "force",
-                    "GPUUSAGE_SSH_PASSWORD": trimmedPassword,
-                    "DISPLAY": "nvbeacon:0",
-                ],
+            environment = ProcessInfo.processInfo.environment.merging(
+                ["SSH_ASKPASS": askPassScriptURL.path,
+                 "SSH_ASKPASS_REQUIRE": "force",
+                 "GPUUSAGE_SSH_PASSWORD": trimmedPassword,
+                 "DISPLAY": "nvbeacon:0"],
                 uniquingKeysWith: { _, newValue in newValue }
             )
         }
+        let result: ProcessCommandRunner.Output
+        do {
+            result = try await ProcessCommandRunner().run(
+                executable: URL(fileURLWithPath: "/usr/bin/ssh"),
+                arguments: arguments, environment: environment
+            )
+        } catch ProcessCommandRunner.RunError.timedOut {
+            throw FetchError.commandTimedOut(15)
+        } catch ProcessCommandRunner.RunError.outputLimitExceeded(let limit) {
+            throw FetchError.outputLimitExceeded(limit)
+        }
+        let stdout = result.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines)
+        let stderr = result.standardError.trimmingCharacters(in: .whitespacesAndNewlines)
 
-        try process.run()
-        try waitForProcessToExit(process, timeoutSeconds: 15)
-
-        let stdout = String(decoding: stdoutPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        let stderr = String(decoding: stderrPipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        guard process.terminationStatus == 0 else {
-            throw FetchError.commandFailed(process.terminationStatus, stderr.isEmpty ? stdout : stderr)
+        guard result.exitStatus == 0 else {
+            throw FetchError.commandFailed(result.exitStatus, stderr.isEmpty ? stdout : stderr)
         }
 
         guard allowEmptyOutput || !stdout.isEmpty else {
@@ -445,31 +436,6 @@ struct SSHMetricsFetcher: Sendable {
             return true
         default:
             return false
-        }
-    }
-
-    private static func waitForProcessToExit(_ process: Process, timeoutSeconds: Int) throws {
-        let deadline = Date().addingTimeInterval(TimeInterval(timeoutSeconds))
-
-        while process.isRunning {
-            try Task.checkCancellation()
-
-            if Date() >= deadline {
-                process.terminate()
-
-                let forceKillDeadline = Date().addingTimeInterval(1)
-                while process.isRunning, Date() < forceKillDeadline {
-                    Thread.sleep(forTimeInterval: 0.05)
-                }
-
-                if process.isRunning {
-                    process.interrupt()
-                }
-
-                throw FetchError.commandTimedOut(timeoutSeconds)
-            }
-
-            Thread.sleep(forTimeInterval: 0.05)
         }
     }
 

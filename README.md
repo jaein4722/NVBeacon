@@ -164,6 +164,7 @@ The interface can be set to:
 
 - NVBeacon uses your local SSH setup directly, including `~/.ssh/config`.
 - In key-based mode, background polling does not read from Keychain.
+- SSH command attempts have a 15-second timeout and an 8 MiB combined output limit. Output is drained while commands run, and cancellation terminates and reaps the owned SSH process.
 - In password-based mode, each server password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.
 - The first time you switch to password-based mode, NVBeacon shows a security warning because this mode is less secure than SSH keys.
 - If the remote non-interactive shell has a limited `PATH`, set `Remote Command` to an absolute path such as `/usr/bin/nvidia-smi`.
