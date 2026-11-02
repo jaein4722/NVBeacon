@@ -534,6 +534,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     static let legacyDefaultRemoteCommand = "nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
     static let defaultRemoteCommand = "nvidia-smi --query-gpu=index,name,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
     static let defaultMemoryCommand = "cat /proc/meminfo"
+    static let defaultPopoverWidth = 500
+    static let popoverWidthRange = 480...800
 
     var servers: [ServerConfig] = []
     var sshTarget: String = ""
@@ -552,6 +554,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var appearanceMode: AppAppearanceMode = .system
     var showsDockIcon: Bool = false
     var closesPopoverOnOutsideClick: Bool = true
+    var popoverWidth: Int = Self.defaultPopoverWidth
     var highlightsMyProcesses: Bool = true
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
@@ -574,6 +577,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         appearanceMode: AppAppearanceMode = .system,
         showsDockIcon: Bool = false,
         closesPopoverOnOutsideClick: Bool = true,
+        popoverWidth: Int = Self.defaultPopoverWidth,
         highlightsMyProcesses: Bool = true,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
@@ -595,6 +599,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.appearanceMode = appearanceMode
         self.showsDockIcon = showsDockIcon
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
+        self.popoverWidth = popoverWidth
         self.highlightsMyProcesses = highlightsMyProcesses
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
@@ -618,6 +623,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case appearanceMode
         case showsDockIcon
         case closesPopoverOnOutsideClick
+        case popoverWidth
         case highlightsMyProcesses
         case idleNotificationSeconds
         case idleMemoryThresholdMB
@@ -643,6 +649,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system,
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
+            popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
@@ -673,12 +680,17 @@ struct AppSettings: Codable, Equatable, Sendable {
         configuredServers.filter(\.isPollable)
     }
 
+    var resolvedPopoverWidth: Int {
+        min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
+    }
+
     func normalized() -> Self {
         var copy = self
         copy.sshTarget = sshTarget.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.sshPort = sshPort.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.sshIdentityFilePath = NSString(string: sshIdentityFilePath.trimmingCharacters(in: .whitespacesAndNewlines)).expandingTildeInPath
         copy.pollIntervalSeconds = min(max(pollIntervalSeconds, 1), 300)
+        copy.popoverWidth = resolvedPopoverWidth
         copy.busyMemoryThresholdMB = min(max(busyMemoryThresholdMB, 0), 10_240)
         copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
         copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 1), 3_600)

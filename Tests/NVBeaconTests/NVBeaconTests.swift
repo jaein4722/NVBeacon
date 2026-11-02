@@ -269,6 +269,7 @@ import Testing
     #expect(settings.appearanceMode == .system)
     #expect(settings.showsDockIcon == false)
     #expect(settings.closesPopoverOnOutsideClick == true)
+    #expect(settings.popoverWidth == 500)
     #expect(settings.highlightsMyProcesses == true)
     #expect(settings.sshConnectionReuseMode == .reuseWhenPossible)
     #expect(settings.busyDetectionMode == .activeProcess)
@@ -276,6 +277,20 @@ import Testing
     #expect(settings.busyUtilizationThresholdPercent == 10)
     #expect(settings.idleNotificationSeconds == 300)
     #expect(settings.idleMemoryThresholdMB == 50)
+}
+
+@Test func popoverWidthPersistsAndStaysWithinSupportedBounds() throws {
+    #expect(AppSettings().resolvedPopoverWidth == 500)
+    let configured = AppSettings(popoverWidth: 720)
+    let restored = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(configured))
+    #expect(restored.popoverWidth == 720)
+    #expect(restored.resolvedPopoverWidth == 720)
+
+    for (requested, expected) in [(-1, 480), (479, 480), (480, 480), (500, 500), (800, 800), (801, 800), (Int.max, 800)] {
+        let settings = AppSettings(popoverWidth: requested)
+        #expect(settings.resolvedPopoverWidth == expected)
+        #expect(settings.normalized().popoverWidth == expected)
+    }
 }
 
 @Test func normalizesLegacySettingsIntoSingleServerConfig() {

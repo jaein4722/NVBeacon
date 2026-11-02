@@ -10,8 +10,6 @@ private struct StatusMenuContentHeightKey: PreferenceKey {
 }
 
 struct StatusMenuView: View {
-    static let contentWidth: CGFloat = 500
-
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     @State private var expandedGPUIds: Set<String> = []
@@ -64,7 +62,7 @@ struct StatusMenuView: View {
             )
         }
         .scrollIndicators(.automatic)
-        .frame(width: Self.contentWidth, alignment: .top)
+        .frame(width: CGFloat(store.settings.resolvedPopoverWidth), alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
         .onChange(of: snapshotGPUIds) { _, newValue in

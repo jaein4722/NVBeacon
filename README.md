@@ -132,9 +132,11 @@ NVBeacon uses a native macOS-style settings window with these sections:
 
 - `General`: server list, per-server connection/authentication, polling, startup, busy GPU detection, update preferences
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
-- `Appearance`: theme, language, Dock icon, menu bar summary, popover behavior
+- `Appearance`: theme, language, Dock icon, menu bar summary, popover width and behavior
 - `Advanced`: remote command override
 - `About`: version, links, runtime summary, and current configuration
+
+`Appearance` → `Popover Width` adjusts the menu bar popover from 480 to 800 pt, with a default of 500 pt. The width is saved and applies automatically to both the popover and its content. Height continues to adapt to the content and available screen space.
 
 ## Language Support
 

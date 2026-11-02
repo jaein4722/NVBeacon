@@ -195,7 +195,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let maxHeight = maxPopoverHeight()
         let minHeight = min(CGFloat(320), maxHeight)
         let height = min(maxHeight, max(minHeight, contentHeight))
-        popover.contentSize = NSSize(width: StatusMenuView.contentWidth, height: height)
+        popover.contentSize = NSSize(width: CGFloat(store.settings.resolvedPopoverWidth), height: height)
     }
 
     private func maxPopoverHeight() -> CGFloat {

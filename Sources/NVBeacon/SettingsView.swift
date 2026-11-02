@@ -432,6 +432,23 @@ struct SettingsView: View {
 
                 Toggle(t("Show Dock icon", "Dock 아이콘 표시"), isOn: $draft.showsDockIcon)
 
+                LabeledContent {
+                    NumericStepperField(
+                        value: $draft.popoverWidth,
+                        range: AppSettings.popoverWidthRange,
+                        suffix: "pt",
+                        fieldWidth: 72,
+                        step: 20
+                    )
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Popover Width", "팝오버 너비"))
+                        Text(t("480–800 pt · Default 500 pt", "480–800pt · 기본값 500pt"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
                 Toggle(t("Close popover on outside click", "바깥 클릭 시 팝오버 닫기"), isOn: $draft.closesPopoverOnOutsideClick)
 
                 Text(draft.closesPopoverOnOutsideClick
@@ -1204,25 +1221,54 @@ private struct NumericStepperField: View {
     let range: ClosedRange<Int>
     let suffix: String
     let fieldWidth: CGFloat
+    var step: Int = 1
+    @State private var inputText = ""
+    @FocusState private var isInputFocused: Bool
+
+    private func bounded(_ number: Int) -> Int {
+        min(max(number, range.lowerBound), range.upperBound)
+    }
+
+    private func commitInput() {
+        let number = Int(inputText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? value
+        value = bounded(number)
+        inputText = String(value)
+    }
+
+    private var stepperValue: Binding<Int> {
+        Binding(
+            get: { bounded(Int(inputText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? value) },
+            set: { newValue in
+                value = bounded(newValue)
+                inputText = String(value)
+            }
+        )
+    }
 
     var body: some View {
         HStack(spacing: 8) {
-            Stepper("", value: $value, in: range)
+            Stepper("", value: stepperValue, in: range, step: step)
                 .labelsHidden()
 
-            TextField("", value: $value, format: .number.grouping(.never))
+            TextField("", text: $inputText)
                 .textFieldStyle(.roundedBorder)
                 .multilineTextAlignment(.trailing)
                 .frame(width: fieldWidth)
-                .onChange(of: value) { _, newValue in
-                    value = min(max(newValue, range.lowerBound), range.upperBound)
-                }
+                .focused($isInputFocused)
+                .onSubmit(commitInput)
 
             Text(suffix)
                 .font(.caption.monospacedDigit())
                 .foregroundStyle(.secondary)
         }
         .fixedSize()
+        .onAppear { inputText = String(value) }
+        .onChange(of: isInputFocused) { _, isFocused in
+            if !isFocused { commitInput() }
+        }
+        .onChange(of: value) { _, newValue in
+            if !isInputFocused { inputText = String(newValue) }
+        }
     }
 }
 
