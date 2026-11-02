@@ -51,7 +51,7 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand),
+            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand),
             password: password
         )
         let gpus = try Self.parseSnapshot(output)
@@ -532,7 +532,7 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func buildSummaryRemoteCommand(summaryCommand: String) -> String {
+    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand) -> String {
         """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
@@ -552,7 +552,9 @@ struct SSHMetricsFetcher: Sendable {
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
         printf '\\n\(memorySectionSeparator)\\n'
-        cat /proc/meminfo 2>/dev/null || true
+        (
+          \(memoryCommand)
+        ) 2>/dev/null || true
         """
     }
 

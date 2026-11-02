@@ -473,9 +473,21 @@ struct SettingsView: View {
                     .multilineTextAlignment(.leading)
                     .disabled(selectedServer == nil)
             } header: {
-                Text(t("Remote Command", "원격 명령"))
+                Text(t("GPU Query Command", "GPU 조회 명령"))
             } footer: {
                 Text(t("Applies to the selected server. Only change this if you need a custom command.", "선택된 서버에 적용됩니다. 커스텀 명령이 필요할 때만 변경하세요."))
+            }
+
+            Section {
+                TextField("", text: selectedServerStringBinding(\.memoryCommand, defaultValue: AppSettings.defaultMemoryCommand), prompt: Text(AppSettings.defaultMemoryCommand))
+                    .labelsHidden()
+                    .textFieldStyle(.roundedBorder)
+                    .multilineTextAlignment(.leading)
+                    .disabled(selectedServer == nil)
+            } header: {
+                Text(t("Memory Query Command", "메모리 조회 명령"))
+            } footer: {
+                Text(t("Applies to the selected server in the same SSH refresh. Output must use Linux /proc/meminfo format with kB units. Leave empty to restore the default command.", "선택된 서버의 같은 SSH 새로고침에서 실행됩니다. 출력은 kB 단위의 Linux /proc/meminfo 형식이어야 합니다. 비워두면 기본 명령으로 돌아갑니다."))
             }
 
             Section {
@@ -679,6 +691,7 @@ struct SettingsView: View {
             draft.sshPort = ""
             draft.sshIdentityFilePath = ""
             draft.remoteCommand = AppSettings.defaultRemoteCommand
+            draft.memoryCommand = AppSettings.defaultMemoryCommand
         }
     }
 

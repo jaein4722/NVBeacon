@@ -2,6 +2,72 @@ import Foundation
 import Testing
 @testable import NVBeacon
 
+@Test func memoryCommandUpgradePreservesExistingServerSettings() throws {
+    let original = AppSettings(servers: [ServerConfig(
+        id: "fixture", name: "Fixture server", sshTarget: "gpu.example.invalid",
+        remoteCommand: "/opt/nvidia/bin/nvidia-smi --query-gpu=custom"
+    )])
+    var json = try #require(JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as? [String: Any])
+    json.removeValue(forKey: "memoryCommand")
+    var servers = try #require(json["servers"] as? [[String: Any]])
+    servers[0].removeValue(forKey: "memoryCommand")
+    json["servers"] = servers
+
+    let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONSerialization.data(withJSONObject: json)).normalized()
+    #expect(decoded.servers.count == 1)
+    #expect(decoded.servers[0].id == original.servers[0].id)
+    #expect(decoded.servers[0].remoteCommand == original.servers[0].remoteCommand)
+    #expect(decoded.servers[0].memoryCommand == AppSettings.defaultMemoryCommand)
+}
+
+@Test func memoryCommandsPersistAndFollowTheSelectedServer() throws {
+    let first = ServerConfig(id: "first", sshTarget: "first.example.invalid", memoryCommand: "cat /host/proc/meminfo")
+    let second = ServerConfig(id: "second", sshTarget: "second.example.invalid", memoryCommand: " /opt/bin/memory-report ")
+    let original = AppSettings(servers: [first, second]).normalized()
+    let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(original))
+    #expect(decoded == original)
+    #expect(decoded.memoryCommand == first.memoryCommand)
+    let selected = decoded.servers[1].connectionSettings(from: decoded).normalized()
+    #expect(selected.sshTarget == second.sshTarget)
+    #expect(selected.memoryCommand == "/opt/bin/memory-report")
+    #expect(selected.remoteCommand == second.remoteCommand)
+    #expect(ServerConfig(memoryCommand: " \n ").normalized().memoryCommand == AppSettings.defaultMemoryCommand)
+    let legacy = AppSettings(sshTarget: "legacy.example.invalid", memoryCommand: "cat /host/proc/meminfo").normalized()
+    #expect(legacy.servers.first?.memoryCommand == "cat /host/proc/meminfo")
+}
+
+@Test func customMemoryCommandIsParsedAndFailureDoesNotFailGPUQuery() throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-command-tests-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: directory) }
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    let stub = directory.appendingPathComponent("nvidia-smi")
+    try "#!/bin/sh\nexit 0\n".write(to: stub, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stub.path)
+
+    for memoryCommand in ["printf 'MemTotal: 1000 kB\\nMemAvailable: 250 kB\\n'", "exit 13"] {
+        let command = SSHMetricsFetcher.buildSummaryRemoteCommand(
+            summaryCommand: "printf '0, Fixture GPU, GPU-fixture, 42, 100, 1000, 45\\n'",
+            memoryCommand: memoryCommand
+        )
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/bin/sh")
+        process.arguments = ["-c", command]
+        process.environment = ["PATH": directory.path + ":/usr/bin:/bin"]
+        let output = Pipe()
+        process.standardOutput = output
+        try process.run()
+        process.waitUntilExit()
+        let text = String(decoding: output.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        #expect(process.terminationStatus == 0)
+        #expect(try SSHMetricsFetcher.parseSnapshot(text).first?.utilization == 42)
+        if memoryCommand == "exit 13" {
+            #expect(SSHMetricsFetcher.parseHostMemory(text) == nil)
+        } else {
+            #expect(SSHMetricsFetcher.parseHostMemory(text)?.usagePercent == 75)
+        }
+    }
+}
+
 @Test func memorySectionDoesNotContaminateGPUOrProcessParsing() throws {
     let output = """
     0, NVIDIA Test GPU, GPU-111, 50, 24576, 32768, 60

@@ -113,6 +113,8 @@ Each server's popover shows RAM used / total, available RAM, and Swap used / tot
 
 RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
 
+In `Advanced` settings, `GPU Query Command` and `Memory Query Command` apply to the server selected in `General`. The memory command defaults to `cat /proc/meminfo`; a custom command must return the same field names and `kB` units (`MemTotal`, `MemAvailable`, and optionally `SwapTotal` / `SwapFree`). An empty command restores the default. The memory query runs once per server within the existing SSH refresh, not once per GPU or in an extra SSH connection. A failed memory command leaves GPU monitoring available.
+
 The existing polling interval defaults to 10 seconds and can be set to 1 second in Settings. Actual updates also depend on SSH command duration; brief allocation peaks can be missed. Host RAM totals do not show container, cgroup, or scheduler job memory limits, and free VRAM alone does not guarantee a CUDA allocation will succeed.
 
 ## Notifications

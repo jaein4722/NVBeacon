@@ -550,10 +550,6 @@ private struct HostMemoryView: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
-        .help(language.text(
-            "RAM uses Linux MemTotal − MemAvailable. Orange ≥85%, red ≥95%. Samples follow the polling interval and can miss brief peaks. Host totals do not reflect container or job memory limits; usage alone cannot confirm OOM.",
-            "RAM은 Linux MemTotal − MemAvailable 기준입니다. 주황 ≥85%, 빨강 ≥95%. Polling 사이의 순간 최대 사용량은 놓칠 수 있습니다. 호스트 합계는 컨테이너나 작업별 제한을 반영하지 않으며 사용량만으로 OOM을 확정할 수 없습니다."
-        ))
     }
 }
 
