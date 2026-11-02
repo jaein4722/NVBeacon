@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.1 - 2026-11-02
+
+- Hardened SSH command execution by draining standard output and standard error while commands run, preventing full output pipes from blocking polling.
+- Improved cancellation and timeout cleanup so local SSH commands are terminated and reaped, including commands that ignore normal termination. Cancelled collection does not start a retry.
+- Limited captured command output to 8 MiB per command to keep unusually large responses from growing memory without a bound.
+- Prevented duplicate process metadata from causing a crash; the latest matching reading is retained.
+- Extracted platform-independent models, parsers, collection logic, and the existing server backup format into NVBeaconCore, while keeping macOS SSH execution and credential handling in the app.
+- Added process lifecycle regression tests, shared-core tests, and macOS/Linux CI checks.
+
 ## 0.6.0 - 2026-11-02
 
 - Added per-server Linux RAM used/total, available RAM, and Swap monitoring in the GPU popover, with high-usage color indicators.

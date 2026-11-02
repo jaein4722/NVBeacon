@@ -106,7 +106,7 @@ Useful examples:
 ```bash
 SKIP_DMG=1 ./scripts/package_app.sh
 BUILD_CONFIGURATION=debug ./scripts/package_app.sh
-VERSION=0.6.0 BUILD_NUMBER=1 ./scripts/package_app.sh
+VERSION=0.6.1 BUILD_NUMBER=1 ./scripts/package_app.sh
 ```
 
 Supported environment variables:
@@ -163,8 +163,8 @@ Typical release sequence:
 Example:
 
 ```bash
-git tag v0.6.0
-git push origin v0.6.0
+git tag v0.6.1
+git push origin v0.6.1
 ```
 
 The release workflow:
