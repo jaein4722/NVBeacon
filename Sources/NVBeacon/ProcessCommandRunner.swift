@@ -3,11 +3,7 @@ import Foundation
 
 /// macOS process backend. No process/file-descriptor API belongs in NVBeaconCore.
 struct ProcessCommandRunner: Sendable {
-    struct Output: Sendable {
-        let standardOutput: String
-        let standardError: String
-        let exitStatus: Int32
-    }
+    typealias Output = RemoteCommandOutput
 
     enum RunError: Error, Equatable, Sendable {
         case timedOut
@@ -104,7 +100,7 @@ private final class Execution: @unchecked Sendable {
     }
 
     func start(_ continuation: CheckedContinuation<ProcessCommandRunner.Output, any Error>) {
-        queue.async {
+        queue.async { [self] in
             self.continuation = continuation
             if self.cancelled {
                 self.failure = CancellationError()

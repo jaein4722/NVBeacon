@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core-linux:
+    name: Shared core (Linux)
+    runs-on: ubuntu-24.04
+    container: swift:6.2
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test platform-independent core
+        run: swift test --package-path Shared/NVBeaconCore --build-system native
+
+  macos:
+    name: macOS integration
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26
+        shell: bash
+        run: |
+          shopt -s nullglob
+          candidates=(/Applications/Xcode_26*.app)
+          if [ ${#candidates[@]} -eq 0 ]; then
+            echo "Xcode 26 was not found." >&2
+            exit 1
+          fi
+          selected="$(printf '%s\n' "${candidates[@]}" | sort -V | tail -n 1)"
+          echo "DEVELOPER_DIR=$selected/Contents/Developer" >> "$GITHUB_ENV"
+      - name: Test app and process lifecycle
+        run: swift test --build-system native
+      - name: Test shared core
+        run: swift test --package-path Shared/NVBeaconCore --build-system native

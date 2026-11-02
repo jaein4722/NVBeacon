@@ -176,6 +176,8 @@ The interface can be set to:
 
 Development, packaging, test app, and release workflow notes live in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
+The platform-independent models, parser, query format and server archive schema live in [NVBeaconCore](Shared/NVBeaconCore/README.md). macOS SSH execution, credentials, UI and notifications remain in the app. PR checks run core tests on Linux and app/process-lifecycle tests on macOS; this groundwork does not add an iOS, Windows or Linux app yet.
+
 ## License
 
 Distributed under the MIT License. See [LICENSE](LICENSE) for details.

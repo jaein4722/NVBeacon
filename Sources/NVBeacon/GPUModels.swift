@@ -101,12 +101,7 @@ enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Iden
     }
 }
 
-enum SSHAuthenticationMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
-    case keyBased
-    case passwordBased
-
-    var id: String { rawValue }
-
+extension SSHAuthenticationMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .keyBased:
@@ -132,12 +127,7 @@ enum SSHAuthenticationMode: String, Codable, CaseIterable, Equatable, Hashable, 
     }
 }
 
-enum SSHConnectionReuseMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
-    case reuseWhenPossible
-    case newConnectionEachRefresh
-
-    var id: String { rawValue }
-
+extension SSHConnectionReuseMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .reuseWhenPossible:
@@ -536,9 +526,9 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
 }
 
 struct AppSettings: Codable, Equatable, Sendable {
-    static let legacyDefaultRemoteCommand = "nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
-    static let defaultRemoteCommand = "nvidia-smi --query-gpu=index,name,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
-    static let defaultMemoryCommand = "cat /proc/meminfo"
+    static let legacyDefaultRemoteCommand = RemoteMetricCommands.legacyGPUCommand
+    static let defaultRemoteCommand = RemoteMetricCommands.defaultGPUCommand
+    static let defaultMemoryCommand = RemoteMetricCommands.defaultMemoryCommand
     static let defaultPopoverWidth = 500
     static let popoverWidthRange = 480...800
 
@@ -786,268 +776,6 @@ struct AppSettings: Codable, Equatable, Sendable {
         }
 
         return trimmed.lowercased()
-    }
-}
-
-struct GPUReading: Identifiable, Equatable, Sendable {
-    let index: Int
-    let name: String
-    let uuid: String?
-    let utilization: Int
-    let memoryUsedMB: Int
-    let memoryTotalMB: Int
-    let temperatureCelsius: Int?
-    let processes: [GPUProcessReading]
-
-    var id: Int { index }
-
-    var utilizationRatio: Double {
-        Double(utilization) / 100.0
-    }
-
-    var memoryUsagePercent: Int {
-        guard memoryTotalMB > 0 else { return 0 }
-        return Int((Double(memoryUsedMB) / Double(memoryTotalMB) * 100.0).rounded())
-    }
-
-    var memoryUsageRatio: Double {
-        Double(memoryUsagePercent) / 100.0
-    }
-
-    var memorySummary: String {
-        "\(memoryUsedMB) / \(memoryTotalMB) MB"
-    }
-
-    var temperatureSummary: String {
-        if let temperatureCelsius {
-            return "\(temperatureCelsius) C"
-        }
-
-        return "--"
-    }
-
-    var processSummary: String {
-        processes.isEmpty ? "No active processes" : "\(processes.count) active process\(processes.count == 1 ? "" : "es")"
-    }
-
-    func isBusy(using settings: AppSettings) -> Bool {
-        switch settings.busyDetectionMode {
-        case .activeProcess:
-            return !processes.isEmpty
-        case .memoryThreshold:
-            return memoryUsedMB > settings.busyMemoryThresholdMB
-        case .activeProcessOrMemoryThreshold:
-            return !processes.isEmpty || memoryUsedMB > settings.busyMemoryThresholdMB
-        case .utilizationThreshold:
-            return utilization >= settings.busyUtilizationThresholdPercent
-        }
-    }
-
-    func isIdle(memoryThresholdMB: Int) -> Bool {
-        utilization == 0 && memoryUsedMB <= memoryThresholdMB
-    }
-}
-
-struct HostMemoryReading: Equatable, Sendable {
-    let totalKiB: Int
-    let availableKiB: Int
-    let swapTotalKiB: Int?
-    let swapFreeKiB: Int?
-
-    var usedKiB: Int { totalKiB - availableKiB }
-    var usageRatio: Double { Double(usedKiB) / Double(totalKiB) }
-    var usagePercent: Int { Int((usageRatio * 100).rounded()) }
-
-    var swapUsedKiB: Int? {
-        guard let swapTotalKiB, let swapFreeKiB else { return nil }
-        return swapTotalKiB - swapFreeKiB
-    }
-
-    var swapUsageRatio: Double? {
-        guard let swapTotalKiB, let swapUsedKiB else { return nil }
-        return swapTotalKiB > 0 ? Double(swapUsedKiB) / Double(swapTotalKiB) : 0
-    }
-
-    static func capacityText(kibibytes: Int) -> String {
-        String(format: "%.1f GiB", locale: Locale(identifier: "en_US_POSIX"), Double(kibibytes) / 1_048_576)
-    }
-}
-
-struct GPUSnapshot: Equatable, Sendable {
-    let takenAt: Date
-    let gpus: [GPUReading]
-    var hostMemory: HostMemoryReading? = nil
-
-    var averageUtilization: Int {
-        guard !gpus.isEmpty else { return 0 }
-        return gpus.map(\.utilization).reduce(0, +) / gpus.count
-    }
-
-    func busyCount(using settings: AppSettings) -> Int {
-        gpus.filter { $0.isBusy(using: settings) }.count
-    }
-
-    var totalProcessCount: Int {
-        gpus.reduce(0) { $0 + $1.processes.count }
-    }
-
-    func mergingResolvedProcessMetadata(from previous: GPUSnapshot?) -> GPUSnapshot {
-        guard let previous else { return self }
-
-        let previousProcessesByID = Dictionary(
-            uniqueKeysWithValues: previous.gpus
-                .flatMap(\.processes)
-                .filter(\.hasResolvedMetadata)
-                .map { ($0.id, $0) }
-        )
-
-        let mergedGPUs = gpus.map { gpu in
-            let mergedProcesses = gpu.processes.map { process in
-                let previousProcess = previousProcessesByID[process.id]
-                return GPUProcessReading(
-                    gpuUUID: process.gpuUUID,
-                    pid: process.pid,
-                    processName: process.processName,
-                    usedGPUMemoryMB: process.usedGPUMemoryMB,
-                    userID: process.userID,
-                    user: process.user ?? previousProcess?.user,
-                    commandLine: process.commandLine ?? previousProcess?.commandLine
-                )
-            }
-
-            return GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: mergedProcesses
-            )
-        }
-
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory)
-    }
-
-    func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
-        guard !processes.isEmpty else { return self }
-
-        let processesByID = Dictionary(uniqueKeysWithValues: processes.map { ($0.id, $0) })
-        let updatedGPUs = gpus.map { gpu in
-            let updatedProcesses = gpu.processes.map { process in
-                guard let refreshedProcess = processesByID[process.id] else {
-                    return process
-                }
-
-                return refreshedProcess.mergingResolvedMetadata(from: process)
-            }
-
-            return GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: updatedProcesses
-            )
-        }
-
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory)
-    }
-}
-
-struct GPUProcessReading: Identifiable, Equatable, Sendable {
-    let gpuUUID: String
-    let pid: Int
-    let processName: String
-    let usedGPUMemoryMB: Int
-    let userID: Int?
-    let user: String?
-    let commandLine: String?
-
-    init(
-        gpuUUID: String,
-        pid: Int,
-        processName: String,
-        usedGPUMemoryMB: Int,
-        userID: Int? = nil,
-        user: String?,
-        commandLine: String?
-    ) {
-        self.gpuUUID = gpuUUID
-        self.pid = pid
-        self.processName = processName
-        self.usedGPUMemoryMB = usedGPUMemoryMB
-        self.userID = userID
-        self.user = user
-        self.commandLine = commandLine
-    }
-
-    var id: String {
-        "\(gpuUUID):\(pid):\(processName)"
-    }
-
-    var hasResolvedMetadata: Bool {
-        userID != nil || user != nil || commandLine != nil
-    }
-
-    var memorySummary: String {
-        "\(usedGPUMemoryMB) MB"
-    }
-
-    var userSummary: String {
-        user ?? "--"
-    }
-
-    var commandSummary: String {
-        guard let commandLine, !commandLine.isEmpty else {
-            return processName
-        }
-
-        return commandLine
-    }
-
-    var displayProcessName: String {
-        if !processName.isEmpty {
-            return processName
-        }
-
-        return commandSummary
-    }
-
-    var showsSeparateCommandSummary: Bool {
-        let normalizedProcessName = processName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let normalizedCommand = commandSummary.trimmingCharacters(in: .whitespacesAndNewlines)
-        return !normalizedCommand.isEmpty && normalizedProcessName != normalizedCommand
-    }
-
-    func mergingResolvedMetadata(from previous: GPUProcessReading?) -> GPUProcessReading {
-        GPUProcessReading(
-            gpuUUID: gpuUUID,
-            pid: pid,
-            processName: processName,
-            usedGPUMemoryMB: usedGPUMemoryMB,
-            userID: userID ?? previous?.userID,
-            user: user ?? previous?.user,
-            commandLine: commandLine ?? previous?.commandLine
-        )
-    }
-}
-
-struct RemoteProcessStatus: Equatable, Sendable {
-    let pid: Int
-    let userID: Int?
-    let user: String
-    let commandLine: String?
-
-    init(pid: Int, userID: Int? = nil, user: String, commandLine: String?) {
-        self.pid = pid
-        self.userID = userID
-        self.user = user
-        self.commandLine = commandLine
     }
 }
 

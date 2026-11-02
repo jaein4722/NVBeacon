@@ -17,6 +17,26 @@ swift build
 swift test
 ```
 
+Test the platform-independent package without the macOS app or Sparkle:
+
+```bash
+swift test --package-path Shared/NVBeaconCore --build-system native
+```
+
+The `Tests` workflow runs this package on Linux and runs macOS app/process tests
+with Xcode 26, without signing secrets. SSH execution tests cover large concurrent
+stdout/stderr, cancellation, forced termination, timeout cleanup, inherited pipes,
+already-cancelled tasks and output limits. Platform transports own process/network
+resources; see [NVBeaconCore](../Shared/NVBeaconCore/README.md) for the shared API.
+
+An optional local SSH smoke check reads at most two enabled, key-authenticated
+servers from the installed macOS app's settings. It is disabled in normal tests
+and CI, does not read passwords or change configuration, and logs counts only:
+
+```bash
+NVBEACON_LIVE_SSH_SMOKE=1 swift test --build-system native --filter liveSSHCollectionWithTheSharedCore
+```
+
 ## Test App Workflow
 
 Some features, especially Notification Center behavior, should be tested from an actual `.app` bundle instead of `swift run`.

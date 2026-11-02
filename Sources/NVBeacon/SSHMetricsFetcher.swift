@@ -1,10 +1,7 @@
 import Foundation
 
 struct SSHMetricsFetcher: Sendable {
-    static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
-    private static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
-    private static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
-    private static let memorySectionSeparator = "__NVBEACON_MEMORY_SECTION__"
+    static let processDetailsCommand = RemoteMetricCommands.processDetailsCommand
     private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
 
     enum FetchError: LocalizedError, Equatable {
@@ -52,13 +49,12 @@ struct SSHMetricsFetcher: Sendable {
             throw FetchError.missingTarget
         }
 
-        let output = try await runSSHCommand(
-            settings: normalized,
-            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand),
-            password: password
-        )
-        let gpus = try Self.parseSnapshot(output)
-        return GPUSnapshot(takenAt: Date(), gpus: gpus, hostMemory: Self.parseHostMemory(output))
+        let collector = MetricsCollector(transport: Transport(settings: normalized, password: password))
+        do {
+            return try await collector.fetchSummary(gpuCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand)
+        } catch {
+            throw Self.localizedCollectionError(error)
+        }
     }
 
     func fetchProcessDetails(
@@ -83,7 +79,7 @@ struct SSHMetricsFetcher: Sendable {
             allowEmptyOutput: true
         )
         let processDetails = try Self.parseDetailedPSSection(output)
-        let processDetailsByPID = Dictionary(uniqueKeysWithValues: processDetails.map { ($0.pid, $0) })
+        let processDetailsByPID = Dictionary(processDetails.map { ($0.pid, $0) }, uniquingKeysWith: { _, last in last })
 
         return processes.map { process in
             guard let details = processDetailsByPID[process.pid] else {
@@ -151,136 +147,23 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     static func parse(_ output: String) throws -> [GPUReading] {
-        try parseGPUSection(output)
+        try parsing { try MetricsParser.parse(output) }
     }
 
     static func parseSnapshot(_ output: String) throws -> [GPUReading] {
-        let gpuSection = section(named: nil, from: output)
-        let processSection = section(named: processSectionSeparator, from: output)
-        let psSection = section(named: psSectionSeparator, from: output)
-
-        let gpus = try parseGPUSection(gpuSection)
-        let processes = try parseProcessSection(processSection)
-        let processDetails = try parsePSSection(psSection)
-
-        let processDetailsByPID = Dictionary(uniqueKeysWithValues: processDetails.map { ($0.pid, $0) })
-        let enrichedProcesses = processes.map { process in
-            let details = processDetailsByPID[process.pid]
-            return GPUProcessReading(
-                gpuUUID: process.gpuUUID,
-                pid: process.pid,
-                processName: process.processName,
-                usedGPUMemoryMB: process.usedGPUMemoryMB,
-                userID: process.userID,
-                user: details?.user,
-                commandLine: details?.commandLine
-            )
-        }
-
-        guard !enrichedProcesses.isEmpty else {
-            return gpus
-        }
-
-        let processesByGPU = Dictionary(grouping: enrichedProcesses, by: \.gpuUUID)
-        return gpus.map { gpu in
-            GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
-            )
-        }
+        try parsing { try MetricsParser.parseSnapshot(output) }
     }
 
     static func parseHostMemory(_ output: String) -> HostMemoryReading? {
-        let memorySection = section(named: memorySectionSeparator, from: output)
-        let keys: Set<String> = ["MemTotal", "MemAvailable", "SwapTotal", "SwapFree"]
-        var values = [String: Int]()
-        for line in memorySection.split(whereSeparator: \.isNewline) {
-            let fields = line.split(whereSeparator: \.isWhitespace)
-            guard fields.count == 3, fields[2] == "kB" else { continue }
-            let key = String(fields[0].dropLast())
-            guard fields[0].hasSuffix(":"), keys.contains(key) else { continue }
-            guard let value = Int(fields[1]), value >= 0 else {
-                if key == "MemTotal" || key == "MemAvailable" { return nil }
-                continue
-            }
-            guard values[key] == nil else { return nil }
-            values[key] = value
-        }
-
-        // MemFree alone excludes reclaimable cache and can exaggerate OOM risk.
-        guard let total = values["MemTotal"], total > 0,
-              let available = values["MemAvailable"], available <= total else { return nil }
-        let swapTotal = values["SwapTotal"]
-        let swapFree = values["SwapFree"]
-        let validSwap: Bool
-        if let swapTotal, let swapFree {
-            validSwap = swapFree <= swapTotal
-        } else {
-            validSwap = false
-        }
-        return HostMemoryReading(
-            totalKiB: total,
-            availableKiB: available,
-            swapTotalKiB: validSwap ? swapTotal : nil,
-            swapFreeKiB: validSwap ? swapFree : nil
-        )
-    }
-
-    private static func parseGPUSection(_ output: String) throws -> [GPUReading] {
-        let lines = output
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        guard !lines.isEmpty else {
-            throw FetchError.emptyResponse
-        }
-
-        return try lines.map(parseLine(_:)).sorted { $0.index < $1.index }
-    }
-
-    private static func parseProcessSection(_ output: String) throws -> [GPUProcessReading] {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return []
-        }
-
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parseProcessLine(_:))
+        MetricsParser.parseHostMemory(output)
     }
 
     private static func parsePSSection(_ output: String) throws -> [RemoteProcessStatus] {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return []
-        }
-
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parsePSLine(_:))
+        try parsing { try MetricsParser.parsePSSection(output) }
     }
 
     private static func parseDetailedPSSection(_ output: String) throws -> [RemoteProcessStatus] {
-        let trimmed = output.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else {
-            return []
-        }
-
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parseDetailedPSLine(_:))
+        try parsing { try MetricsParser.parseDetailedPSSection(output) }
     }
 
     private func runSSHCommand(
@@ -439,89 +322,8 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    private static func parseLine(_ line: String) throws -> GPUReading {
-        let columns = line
-            .split(separator: ",", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-        guard let index = Int(columns.first ?? "") else {
-            throw FetchError.invalidOutput(line)
-        }
-
-        if columns.count >= 7 {
-            return GPUReading(
-                index: index,
-                name: columns[1],
-                uuid: columns[2],
-                utilization: Int(columns[3]) ?? 0,
-                memoryUsedMB: Int(columns[4]) ?? 0,
-                memoryTotalMB: Int(columns[5]) ?? 0,
-                temperatureCelsius: columns[6] == "N/A" ? nil : Int(columns[6]),
-                processes: []
-            )
-        }
-
-        guard columns.count >= 6 else {
-            throw FetchError.invalidOutput(line)
-        }
-
-        return GPUReading(
-            index: index,
-            name: columns[1],
-            uuid: nil,
-            utilization: Int(columns[2]) ?? 0,
-            memoryUsedMB: Int(columns[3]) ?? 0,
-            memoryTotalMB: Int(columns[4]) ?? 0,
-            temperatureCelsius: columns[5] == "N/A" ? nil : Int(columns[5]),
-            processes: []
-        )
-    }
-
-    private static func parseProcessLine(_ line: String) throws -> GPUProcessReading {
-        let columns = line
-            .split(separator: ",", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-
-        guard columns.count >= 4, let pid = Int(columns[1]) else {
-            throw FetchError.invalidProcessOutput(line)
-        }
-
-        let hasUIDColumn = columns.count >= 5
-        return GPUProcessReading(
-            gpuUUID: columns[0],
-            pid: pid,
-            processName: hasUIDColumn ? columns[3] : columns[2],
-            usedGPUMemoryMB: Int(hasUIDColumn ? columns[4] : columns[3]) ?? 0,
-            userID: hasUIDColumn ? Int(columns[2]) : nil,
-            user: nil,
-            commandLine: nil
-        )
-    }
-
     static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand) -> String {
-        """
-        \(summaryCommand)
-        printf '\\n\(processSectionSeparator)\\n'
-        process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
-        printf '%s\\n' "$process_output" | while IFS=, read -r gpu_uuid pid pname used_mem; do
-          gpu_uuid="$(printf '%s' "$gpu_uuid" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-          pid="$(printf '%s' "$pid" | tr -d '[:space:]')"
-          pname="$(printf '%s' "$pname" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-          used_mem="$(printf '%s' "$used_mem" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-          [ -n "$pid" ] || continue
-          [ -r "/proc/$pid/status" ] || continue
-          uid_line="$(grep '^Uid:' "/proc/$pid/status" 2>/dev/null || true)"
-          [ -n "$uid_line" ] || continue
-          set -- $uid_line
-          real_uid="$2"
-          [ -n "$real_uid" ] || continue
-          printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
-        done
-        printf '\\n\(memorySectionSeparator)\\n'
-        (
-          \(memoryCommand)
-        ) 2>/dev/null || true
-        """
+        RemoteMetricCommands.summary(summaryCommand: summaryCommand, memoryCommand: memoryCommand)
     }
 
     private static func buildPSLookupCommand(pids: [Int]) -> String {
@@ -562,68 +364,35 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator]
+    private static func parsing<Value>(_ parse: () throws -> Value) throws -> Value {
+        do { return try parse() }
+        catch { throw localizedCollectionError(error) }
+    }
 
-        if let name {
-            guard let startRange = output.range(of: name) else {
-                return ""
+    private static func localizedCollectionError(_ error: any Error) -> any Error {
+        if let error = error as? MetricsParseError {
+            switch error {
+            case .emptyResponse: return FetchError.emptyResponse
+            case .invalidOutput(let line): return FetchError.invalidOutput(line)
+            case .invalidProcessOutput(let line): return FetchError.invalidProcessOutput(line)
+            case .invalidPSOutput(let line): return FetchError.invalidPSOutput(line)
             }
-
-            let contentStart = startRange.upperBound
-            let nextRange = separators
-                .filter { $0 != name }
-                .compactMap { separator -> Range<String.Index>? in
-                    output.range(of: separator, range: contentStart..<output.endIndex)
-                }
-                .min { $0.lowerBound < $1.lowerBound }
-
-            let sectionRange = contentStart..<(nextRange?.lowerBound ?? output.endIndex)
-            return String(output[sectionRange]).trimmingCharacters(in: .whitespacesAndNewlines)
         }
-
-        let firstSeparatorRange = separators
-            .compactMap { separator in output.range(of: separator) }
-            .min { $0.lowerBound < $1.lowerBound }
-
-        let endIndex = firstSeparatorRange?.lowerBound ?? output.endIndex
-        return String(output[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+        if case let MetricsCollectionError.commandFailed(status, message) = error {
+            return FetchError.commandFailed(status, message)
+        }
+        return error
     }
 
-    private static func parsePSLine(_ line: String) throws -> RemoteProcessStatus {
-        let columns = line
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(maxSplits: 2, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
+    private struct Transport: RemoteCommandExecuting {
+        let settings: AppSettings
+        let password: String?
 
-        guard columns.count >= 2, let pid = Int(columns[0]) else {
-            throw FetchError.invalidPSOutput(line)
+        func execute(_ command: String) async throws -> RemoteCommandOutput {
+            let text = try await SSHMetricsFetcher().runSSHCommand(
+                settings: settings, remoteCommand: command, password: password
+            )
+            return RemoteCommandOutput(standardOutput: text, standardError: "", exitStatus: 0)
         }
-
-        let commandLine = columns.count == 3 ? String(columns[2]) : nil
-        return RemoteProcessStatus(
-            pid: pid,
-            userID: nil,
-            user: String(columns[1]),
-            commandLine: commandLine
-        )
     }
-
-    private static func parseDetailedPSLine(_ line: String) throws -> RemoteProcessStatus {
-        let columns = line
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-            .split(maxSplits: 3, omittingEmptySubsequences: true, whereSeparator: \.isWhitespace)
-
-        guard columns.count >= 3, let pid = Int(columns[0]) else {
-            throw FetchError.invalidPSOutput(line)
-        }
-
-        let commandLine = columns.count == 4 ? String(columns[3]) : nil
-        return RemoteProcessStatus(
-            pid: pid,
-            userID: Int(columns[1]),
-            user: String(columns[2]),
-            commandLine: commandLine
-        )
-    }
-
 }

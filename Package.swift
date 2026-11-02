@@ -9,12 +9,14 @@ let package = Package(
         .macOS(.v14),
     ],
     dependencies: [
+        .package(path: "Shared/NVBeaconCore"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.3"),
     ],
     targets: [
         .executableTarget(
             name: "NVBeacon",
             dependencies: [
+                .product(name: "NVBeaconCore", package: "NVBeaconCore"),
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             linkerSettings: [

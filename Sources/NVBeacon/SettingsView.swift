@@ -740,6 +740,10 @@ struct SettingsView: View {
     }
 
     private func showUtilityError(_ error: Error) {
+        if let backupError = error as? ServerSettingsBackup.BackupError {
+            utilityError = backupError.message(in: language)
+            return
+        }
         let error = error as NSError
         guard error.domain != NSCocoaErrorDomain || error.code != NSUserCancelledError else { return }
         utilityError = error.localizedDescription
@@ -770,7 +774,7 @@ struct SettingsView: View {
             utilitySheet = nil
         } catch {
             utilitySheet = nil
-            utilityError = error.localizedDescription
+            showUtilityError(error)
         }
     }
 
