@@ -28,9 +28,11 @@ validation remains work for the Windows client/toolchain effort.
 
 The `NVBeacon.servers` v1 JSON schema is unchanged. SSH targets and identity paths
 are opaque data in core. A target may be an OpenSSH alias and a path may refer to
-another machine. A future iOS/Windows client must resolve/import suitable endpoint
+another machine. Non-macOS clients must resolve/import suitable endpoint
 information and register credentials locally; sharing this schema alone does not
 make every existing macOS SSH configuration portable.
 
 The macOS adapter retains import review, private-file handling, fresh local IDs,
-disabled initial imports, and separation from existing credentials.
+disabled initial imports, and separation from existing credentials. The
+[iOS preview](../../docs/IOS.md) implements its own reviewed import, endpoint
+validation, device-only credentials and host-key trust on top of this schema.

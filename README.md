@@ -176,7 +176,17 @@ The interface can be set to:
 
 Development, packaging, test app, and release workflow notes live in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
-The platform-independent models, parser, query format and server archive schema live in [NVBeaconCore](Shared/NVBeaconCore/README.md). macOS SSH execution, credentials, UI and notifications remain in the app. PR checks run core tests on Linux and app/process-lifecycle tests on macOS; this groundwork does not add an iOS, Windows or Linux app yet.
+The platform-independent models, parser, query format and server archive schema live in [NVBeaconCore](Shared/NVBeaconCore/README.md). macOS SSH execution, credentials, UI and notifications remain in the app. PR checks run core tests on Linux and app/process-lifecycle tests on macOS.
+
+### iOS Preview
+
+A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, host-key verification, GPU/process/RAM dashboards and reviewed server backup import. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
+
+```bash
+./scripts/build_ios.sh
+```
+
+The preview monitors while the app is in the foreground; macOS job alerts and continuous background monitoring have not been ported. See the [iOS development and porting guide](docs/IOS.md) for device setup, tests, architecture and remaining work.
 
 ## License
 

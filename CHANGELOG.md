@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added a native SwiftUI iOS preview for iPhone/iPad using NVBeaconCore, with foreground SSH monitoring, GPU/process/RAM dashboards, device-only Keychain credentials, explicit SSH host-key verification, and reviewed server backup import/export.
+- Added an iOS build entrypoint requiring SDK 27.1 or newer, mobile transport/lifecycle tests, and an iOS development guide documenting the remaining port work. Background job alerts are not included in the preview.
+
 ## 0.6.1 - 2026-11-02
 
 - Hardened SSH command execution by draining standard output and standard error while commands run, preventing full output pipes from blocking polling.

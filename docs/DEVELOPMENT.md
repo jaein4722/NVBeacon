@@ -2,6 +2,9 @@
 
 This document is for contributors and maintainers of NVBeacon.
 
+For the native iPhone/iPad client, see [iOS development](IOS.md). iOS builds require
+the latest Xcode with SDK 27.1 or newer and use `scripts/build_ios.sh`.
+
 ## Prerequisites
 
 - macOS 14 or later

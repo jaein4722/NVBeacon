@@ -1,0 +1,42 @@
+name: iOS
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select newest installed iOS SDK (27.1 minimum)
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import glob, os, pathlib, subprocess
+          candidates = []
+          for app in glob.glob('/Applications/Xcode*.app'):
+              developer_dir = str(pathlib.Path(app) / 'Contents/Developer')
+              env = dict(os.environ, DEVELOPER_DIR=developer_dir)
+              try:
+                  version = subprocess.check_output(['xcrun', '--sdk', 'iphoneos', '--show-sdk-version'], env=env, text=True).strip()
+                  numbers = tuple(int(part) for part in version.split('.'))
+                  candidates.append((numbers, developer_dir))
+              except (ValueError, subprocess.CalledProcessError):
+                  continue
+          if not candidates or max(candidates)[0] < (27, 1):
+              raise SystemExit('This runner needs Xcode with iOS SDK 27.1 or newer. No older SDK fallback is allowed.')
+          selected = max(candidates)[1]
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write(f'DEVELOPER_DIR={selected}\n')
+          print(f'Selected {selected}')
+          PY
+      - name: Test mobile client and transport
+        run: swift test --package-path Mobile/NVBeaconMobile --build-system native
+      - name: Build iOS Simulator app
+        run: ./scripts/build_ios.sh
+      - name: Build physical-device app without signing
+        run: SDK=iphoneos ./scripts/build_ios.sh
