@@ -12,6 +12,7 @@ BUNDLE_ID="${BUNDLE_ID:-com.leejaein.NVBeacon}"
 MIN_SYSTEM_VERSION="${MIN_SYSTEM_VERSION:-14.0}"
 CODESIGN_IDENTITY="${CODESIGN_IDENTITY:--}"
 BUILD_CONFIGURATION="${BUILD_CONFIGURATION:-release}"
+SWIFTPM_BUILD_SYSTEM="${SWIFTPM_BUILD_SYSTEM:-native}"
 SKIP_DMG="${SKIP_DMG:-0}"
 NOTARIZE="${NOTARIZE:-0}"
 SPARKLE_FEED_URL="${SPARKLE_FEED_URL:-https://raw.githubusercontent.com/jaein4722/NVBeacon/appcast/appcast.xml}"
@@ -38,7 +39,10 @@ ICON_NORMALIZED_PATH="$DIST_DIR/.${ICON_NAME}-1024.png"
 ICON_RESOURCE_PATH="$APP_PATH/Contents/Resources/${ICON_NAME}.icns"
 DMGBUILD_SITE_DIR="$ROOT_DIR/.build/packaging-tools/dmgbuild-$DMGBUILD_VERSION"
 DMG_VERIFY_MOUNT_PATH="$DIST_DIR/.distribution-check-mount"
-BIN_PATH="$(swift build -c "$BUILD_CONFIGURATION" --show-bin-path)"
+# Use the same backend for path resolution and linking. The Swift Build backend
+# in Xcode 27.2 records the deployment target as the SDK version, which makes
+# AppKit/SwiftUI use legacy appearances even when built against the current SDK.
+BIN_PATH="$(swift build --build-system "$SWIFTPM_BUILD_SYSTEM" -c "$BUILD_CONFIGURATION" --show-bin-path)"
 EXECUTABLE_PATH="$BIN_PATH/$PRODUCT_NAME"
 INFO_PLIST_PATH="$APP_PATH/Contents/Info.plist"
 FRAMEWORKS_DIR="$APP_PATH/Contents/Frameworks"
@@ -189,7 +193,7 @@ rm -rf "$APP_PATH" "$DMG_PATH" "$NOTARIZE_ZIP_PATH" "$DMG_STAGING_DIR" "$DMG_BAC
 mkdir -p "$APP_PATH/Contents/MacOS" "$APP_PATH/Contents/Resources" "$FRAMEWORKS_DIR"
 
 echo "Building $BUILD_CONFIGURATION binary..."
-swift build -c "$BUILD_CONFIGURATION" --product "$PRODUCT_NAME"
+swift build --build-system "$SWIFTPM_BUILD_SYSTEM" -c "$BUILD_CONFIGURATION" --product "$PRODUCT_NAME"
 
 if [[ ! -x "$EXECUTABLE_PATH" ]]; then
   echo "Expected executable not found at $EXECUTABLE_PATH" >&2

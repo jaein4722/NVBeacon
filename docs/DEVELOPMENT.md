@@ -21,6 +21,8 @@ swift test
 
 Some features, especially Notification Center behavior, should be tested from an actual `.app` bundle instead of `swift run`.
 
+Packaged builds use SwiftPM's `native` build system for both the executable and its output path. With Xcode 27.2, the default `swiftbuild` backend was observed to record SDK 14.0 in the executable despite compiling with the current SDK, causing settings to use legacy AppKit/SwiftUI styling. The native backend records the actual SDK version while preserving the macOS 14.0 minimum deployment target. `SWIFTPM_BUILD_SYSTEM` can override this backend after verifying the resulting app's SDK metadata and appearance.
+
 Build and open a fresh local test app:
 
 ```bash
