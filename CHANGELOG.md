@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.6.0 - 2026-11-02
+
+- Added per-server Linux RAM used/total, available RAM, and Swap monitoring in the GPU popover, with high-usage color indicators.
+- Added a per-server memory query command in Advanced settings, alongside the GPU query command.
+- Added a saved popover width setting in Appearance, adjustable from 480 to 800 pt with a 500 pt default. The popover and its content now always use the same width.
+- Improved numeric settings so typing is not interrupted by range limits; values are validated on Return or when leaving the field.
+- Avoided restarting SSH polling for appearance changes, server renaming/reordering, and alert thresholds. Superseded settings updates and outdated collection results are ignored.
+- Added diagnostic information preview/copy from the current local state, excluding connection identifiers, custom commands, process details, and raw errors without running additional SSH queries.
+- Added versioned JSON server backup/export and reviewed import. Imports preserve existing settings and add disabled servers with fresh IDs, without restoring passwords or notification watches.
+- Restricted legacy shared-password recovery to the original migrated server so imported connections stay separate from existing credentials.
+- Fixed local app packaging to record the actual macOS SDK and preserve native settings styling.
+- Thanks @SAN-SHIa for contributing RAM/Swap monitoring and the popover width fix in #6.
+
 ## 0.5.0 - 2026-05-15
 
 - Added multi-server GPU monitoring with per-server SSH target, authentication, connection reuse, enable/disable state, and remote command settings.
