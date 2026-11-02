@@ -49,6 +49,7 @@ final class NVBeaconStore: ObservableObject {
     private let passwordStoredHintPrefix = "nvbeacon.password_saved_hint."
     private let passwordAuthWarningAcknowledgedKey = "nvbeacon.password_auth_warning_acknowledged"
     private var pollingTask: Task<Void, Never>?
+    private(set) var pollingGeneration = 0
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPasswords = [String: String]()
     private var passwordAuthWarningAcknowledgedThisSession = false
@@ -261,23 +262,31 @@ final class NVBeaconStore: ObservableObject {
     func applySettings(_ newSettings: AppSettings) {
         let normalized = newSettings.normalized()
         guard normalized != settings else { return }
+        let needsPollingRestart = PollingConfiguration(normalized) != PollingConfiguration(settings)
+        let serversChanged = normalized.configuredServers != settings.configuredServers
 
         let previousServerStates = Dictionary(uniqueKeysWithValues: serverStates.map { ($0.id, $0) })
         let previousServerIDs = Set(serverStates.map(\.id))
 
         settings = normalized
         noticeMessage = nil
-        reconcileServerStates(previousServerStates: previousServerStates)
+        if serversChanged {
+            reconcileServerStates(previousServerStates: previousServerStates, resetsRefreshState: needsPollingRestart)
+        }
 
         let currentServerIDs = Set(serverStates.map(\.id))
         for removedServerID in previousServerIDs.subtracting(currentServerIDs) {
             unlockedSSHPasswords.removeValue(forKey: removedServerID)
         }
 
-        reconcileWatchesWithCurrentServers()
+        if serversChanged {
+            reconcileWatchesWithCurrentServers()
+        }
         persistSettings()
         syncAggregateRuntimeState()
-        configurePolling(resetState: true)
+        if needsPollingRestart {
+            configurePolling(resetState: true)
+        }
     }
 
     func savePasswordForCurrentSession(_ password: String) {
@@ -599,6 +608,11 @@ final class NVBeaconStore: ObservableObject {
 
     private func configurePolling(resetState: Bool) {
         pollingTask?.cancel()
+        pollingGeneration &+= 1
+        for index in serverStates.indices {
+            serverStates[index].isRefreshing = false
+        }
+        isRefreshing = false
 
         if resetState {
             for index in serverStates.indices {
@@ -645,6 +659,7 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private func refresh(serverIDs: Set<String>? = nil) async {
+        let generation = pollingGeneration
         let targetStates = serverStates.filter { state in
             state.server.isPollable && (serverIDs?.contains(state.id) ?? true)
         }
@@ -723,6 +738,9 @@ final class NVBeaconStore: ObservableObject {
             }
 
             for await result in group {
+                // A command already running during a connection/settings change
+                // must not replace the new connection's state when it finishes.
+                guard generation == pollingGeneration else { continue }
                 switch result {
                 case .success(let serverID, let fetchedSnapshot, let detectedSSHUserID):
                     guard let state = serverState(for: serverID) else { continue }
@@ -797,7 +815,7 @@ final class NVBeaconStore: ObservableObject {
 
     private func hasSavedPasswordHint(for server: ServerConfig) -> Bool {
         userDefaults.bool(forKey: passwordStoredHintKey(for: server.id))
-            || (serverStates.count <= 1 && userDefaults.bool(forKey: passwordStoredHintKey))
+            || (server.allowsLegacyPasswordFallback && userDefaults.bool(forKey: passwordStoredHintKey))
     }
 
     private func migrateSavedPasswordHintIfNeeded(for server: ServerConfig) -> Bool {
@@ -840,7 +858,7 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private func shouldUseLegacyPasswordFallback(for server: ServerConfig) -> Bool {
-        server.id == "legacy-primary" || serverStates.count <= 1
+        server.allowsLegacyPasswordFallback
     }
 
     private func synchronizedPasswordSessionState(for server: ServerConfig) -> SSHPasswordSessionState {
@@ -1171,7 +1189,7 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
-    private func reconcileServerStates(previousServerStates: [String: ServerRuntimeState]) {
+    private func reconcileServerStates(previousServerStates: [String: ServerRuntimeState], resetsRefreshState: Bool) {
         serverStates = settings.configuredServers.map { server in
             var state = previousServerStates[server.id] ?? ServerRuntimeState(
                 server: server,
@@ -1180,7 +1198,7 @@ final class NVBeaconStore: ObservableObject {
                     for: server,
                     passwordStore: passwordStore,
                     userDefaults: userDefaults,
-                    allowLegacyPasswordFallback: settings.configuredServers.count <= 1
+                    allowLegacyPasswordFallback: server.allowsLegacyPasswordFallback
                 ),
                 detectedSSHUsername: Self.detectedSSHUsername(for: server)
             )
@@ -1199,7 +1217,9 @@ final class NVBeaconStore: ObservableObject {
                 state.lastErrorMessage = nil
             }
 
-            state.isRefreshing = false
+            if resetsRefreshState {
+                state.isRefreshing = false
+            }
             return state
         }
     }
@@ -1333,7 +1353,7 @@ final class NVBeaconStore: ObservableObject {
                     for: server,
                     passwordStore: passwordStore,
                     userDefaults: userDefaults,
-                    allowLegacyPasswordFallback: settings.configuredServers.count <= 1
+                    allowLegacyPasswordFallback: server.allowsLegacyPasswordFallback
                 ),
                 detectedSSHUsername: detectedSSHUsername(for: server)
             )

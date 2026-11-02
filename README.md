@@ -133,10 +133,22 @@ NVBeacon uses a native macOS-style settings window with these sections:
 - `General`: server list, per-server connection/authentication, polling, startup, busy GPU detection, update preferences
 - `Notifications`: permission, test notification, active watches, history, idle thresholds
 - `Appearance`: theme, language, Dock icon, menu bar summary, popover width and behavior
-- `Advanced`: remote command override
+- `Advanced`: GPU/memory query commands, server backup/import, diagnostic information, saved settings
 - `About`: version, links, runtime summary, and current configuration
 
 `Appearance` → `Popover Width` adjusts the menu bar popover from 480 to 800 pt, with a default of 500 pt. The width is saved and applies automatically to both the popover and its content. Height continues to adapt to the content and available screen space.
+
+Appearance changes, server renaming/reordering, and alert thresholds do not restart SSH polling. Connection settings, query commands, polling interval, enabled targets, and process-ownership collection still restart it when needed.
+
+### Server Settings Backup
+
+Use `Advanced` → `Export Servers…` to save server connection settings as a versioned JSON file. The backup includes host names, ports, local key-file paths, authentication/reuse modes and custom GPU/memory commands. It excludes Keychain passwords, private-key contents, notification watches and application appearance preferences. Treat connection details and custom commands as private.
+
+`Import Servers…` previews the file before adding servers. Imports preserve existing servers and preferences, assign fresh server IDs, and start the added servers disabled. Check their local key paths and commands, then enable the servers you want to monitor. Importing does not install keys or restore passwords. Backups are limited to 100 servers and 1 MB.
+
+### Diagnostic Information
+
+Use `Advanced` → `Copy Diagnostic Information…` to preview and copy the current app/OS version, collection settings, server/GPU summaries, sample age and categorized connection errors. Reports omit server names/addresses, users, key paths, custom command text, process details and raw error messages. Reports are generated from the current local snapshot without additional SSH queries; copying does not submit anything externally.
 
 ## Language Support
 

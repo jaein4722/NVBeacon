@@ -409,6 +409,11 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         "server.\(id)"
     }
 
+    var allowsLegacyPasswordFallback: Bool {
+        // Only the migrated single-server record owns the old shared account.
+        id == "legacy-primary"
+    }
+
     var connectionFingerprint: String {
         [
             sshTarget,

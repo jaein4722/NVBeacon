@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var store: NVBeaconStore
@@ -16,6 +17,13 @@ struct SettingsView: View {
     @State private var suppressPasswordAuthWarning = false
     @State private var showPasswordAuthWarning = false
     @State private var showConnectionReuseHelp = false
+    @State private var serverBackupDocument: ServerBackupDocument?
+    @State private var showsServerExporter = false
+    @State private var showsServerImporter = false
+    @State private var utilitySheet: SettingsUtilitySheet?
+    @State private var utilityError: String?
+    @State private var utilityNotice: String?
+    @State private var isReadingBackup = false
 
     private var selectedSSHConfigHost: SSHConfigHost? {
         sshConfigHosts.first { $0.alias == selectedSSHConfigAlias }
@@ -133,7 +141,12 @@ struct SettingsView: View {
         }
         .task(id: autoApplyRevision) {
             guard autoApplyRevision > 0 else { return }
-            try? await Task.sleep(for: .milliseconds(350))
+            do {
+                try await Task.sleep(for: .milliseconds(350))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             applyDraftIfNeeded()
         }
         .alert(t("Password-Based Authentication", "비밀번호 기반 인증"), isPresented: $showPasswordAuthWarning) {
@@ -157,6 +170,50 @@ struct SettingsView: View {
                     "비밀번호 기반 인증은 비밀번호를 Keychain에 저장한 뒤, 한 번 해제하면 현재 앱 세션 동안 메모리에 유지합니다. 이는 SSH 키 기반 인증보다 덜 안전하므로 키 기반 인증을 사용할 수 없을 때만 권장됩니다."
                 )
             )
+        }
+        .fileExporter(
+            isPresented: $showsServerExporter,
+            document: serverBackupDocument,
+            contentType: .json,
+            defaultFilename: "NVBeacon-servers"
+        ) { result in
+            switch result {
+            case .success:
+                utilityNotice = t("Server settings exported.", "서버 설정을 내보냈습니다.")
+            case .failure(let error):
+                showUtilityError(error)
+            }
+        }
+        .fileImporter(isPresented: $showsServerImporter, allowedContentTypes: [.json]) { result in
+            switch result {
+            case .success(let url):
+                readServerBackup(url)
+            case .failure(let error):
+                showUtilityError(error)
+            }
+        }
+        .sheet(item: $utilitySheet) { sheet in
+            switch sheet {
+            case .importServers(let backup, let fileName):
+                ServerImportReviewView(
+                    backup: backup,
+                    fileName: fileName,
+                    existingServerCount: draft.configuredServers.count,
+                    language: language,
+                    importServers: { importServerBackup(backup) },
+                    cancel: { utilitySheet = nil }
+                )
+            case .diagnostics(let report):
+                DiagnosticsPreviewView(report: report, language: language, close: { utilitySheet = nil })
+            }
+        }
+        .alert(t("Unable to Complete Action", "작업을 완료할 수 없습니다"), isPresented: Binding(
+            get: { utilityError != nil },
+            set: { if !$0 { utilityError = nil } }
+        )) {
+            Button(t("OK", "확인"), role: .cancel) { utilityError = nil }
+        } message: {
+            Text(utilityError ?? "")
         }
     }
 
@@ -508,6 +565,34 @@ struct SettingsView: View {
             }
 
             Section {
+                HStack {
+                    Button(t("Export Servers…", "서버 내보내기…"), action: exportServerBackup)
+                        .disabled(draft.configuredServers.isEmpty)
+                    Button(t("Import Servers…", "서버 가져오기…")) { showsServerImporter = true }
+                        .disabled(isReadingBackup)
+                    if isReadingBackup { ProgressView().controlSize(.small) }
+                }
+                if let utilityNotice {
+                    Text(utilityNotice).font(.caption).foregroundStyle(.secondary)
+                }
+            } header: {
+                Text(t("Server Settings Backup", "서버 설정 백업"))
+            } footer: {
+                Text(t(
+                    "Exports host names, key-file paths and remote commands. Keychain passwords, private-key contents and notification watches are excluded. Imports add disabled servers without replacing existing settings.",
+                    "호스트·키 파일 경로·원격 명령을 내보냅니다. Keychain 비밀번호·개인 키 내용·알림 감시는 제외됩니다. 가져온 서버는 비활성 상태로 추가되며 기존 설정을 덮어쓰지 않습니다."
+                ))
+            }
+
+            Section {
+                Button(t("Copy Diagnostic Information…", "진단 정보 복사…"), action: showDiagnostics)
+            } header: {
+                Text(t("Support", "문제 신고"))
+            } footer: {
+                Text(t("Preview a report of the current app and collection state. No additional SSH commands are run.", "앱과 수집 상태를 미리 확인하고 복사합니다. 추가 SSH 명령은 실행하지 않습니다."))
+            }
+
+            Section {
                 Button(t("Reload Current Settings", "현재 설정 다시 불러오기")) {
                     loadCurrentSettings()
                 }
@@ -642,6 +727,62 @@ struct SettingsView: View {
     private func scheduleAutoApply() {
         guard !suppressAutoApply else { return }
         autoApplyRevision += 1
+    }
+
+    private func exportServerBackup() {
+        do {
+            serverBackupDocument = ServerBackupDocument(data: try ServerSettingsBackup(settings: draft).encoded())
+            utilityNotice = nil
+            showsServerExporter = true
+        } catch {
+            showUtilityError(error)
+        }
+    }
+
+    private func showUtilityError(_ error: Error) {
+        let error = error as NSError
+        guard error.domain != NSCocoaErrorDomain || error.code != NSUserCancelledError else { return }
+        utilityError = error.localizedDescription
+    }
+
+    private func readServerBackup(_ url: URL) {
+        isReadingBackup = true
+        utilityNotice = nil
+        Task { @MainActor in
+            defer { isReadingBackup = false }
+            do {
+                let backup = try await Task.detached(priority: .userInitiated) {
+                    try ServerSettingsBackup.read(from: url)
+                }.value
+                utilitySheet = .importServers(backup, url.lastPathComponent)
+            } catch {
+                showUtilityError(error)
+            }
+        }
+    }
+
+    private func importServerBackup(_ backup: ServerSettingsBackup) {
+        do {
+            let imported = try backup.addingServers(to: draft)
+            store.applySettings(imported)
+            loadCurrentSettings()
+            utilityNotice = t("Added \(backup.servers.count) disabled servers.", "비활성 서버 \(backup.servers.count)개를 추가했습니다.")
+            utilitySheet = nil
+        } catch {
+            utilitySheet = nil
+            utilityError = error.localizedDescription
+        }
+    }
+
+    private func showDiagnostics() {
+        utilitySheet = .diagnostics(DiagnosticsReport.make(
+            settings: store.settings,
+            states: store.serverStates,
+            appVersion: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown",
+            buildNumber: buildVersionText,
+            notificationStatus: store.notificationPermissionState.title(in: .english),
+            pollingRestarts: max(0, store.pollingGeneration - 1)
+        ))
     }
 
     private func applyDraftIfNeeded() {
