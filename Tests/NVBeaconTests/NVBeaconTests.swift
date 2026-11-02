@@ -105,7 +105,8 @@ import Testing
                     )
                 ]
             )
-        ]
+        ],
+        hostMemory: HostMemoryReading(totalKiB: 1_048_576, availableKiB: 262_144, swapTotalKiB: 0, swapFreeKiB: 0)
     )
 
     let merged = latest.mergingResolvedProcessMetadata(from: previous)
@@ -114,6 +115,8 @@ import Testing
     #expect(process.usedGPUMemoryMB == 4096)
     #expect(process.user == "alice")
     #expect(process.commandLine == "python train.py")
+    #expect(merged.hostMemory == latest.hostMemory)
+    #expect(previous.mergingResolvedProcessMetadata(from: latest).hostMemory == nil)
 }
 
 @Test func applyingResolvedProcessMetadataUpdatesOwnershipWithoutChangingSnapshotTime() throws {
@@ -140,7 +143,8 @@ import Testing
                     )
                 ]
             )
-        ]
+        ],
+        hostMemory: HostMemoryReading(totalKiB: 1_048_576, availableKiB: 262_144, swapTotalKiB: 0, swapFreeKiB: 0)
     )
 
     let refreshedProcesses = [
@@ -159,6 +163,7 @@ import Testing
     let process = try #require(updated.gpus.first?.processes.first)
 
     #expect(updated.takenAt == takenAt)
+    #expect(updated.hostMemory == snapshot.hostMemory)
     #expect(process.userID == 501)
     #expect(process.user == nil)
 }

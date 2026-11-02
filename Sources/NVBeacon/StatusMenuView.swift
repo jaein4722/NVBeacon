@@ -10,6 +10,8 @@ private struct StatusMenuContentHeightKey: PreferenceKey {
 }
 
 struct StatusMenuView: View {
+    static let contentWidth: CGFloat = 500
+
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     @State private var expandedGPUIds: Set<String> = []
@@ -62,7 +64,7 @@ struct StatusMenuView: View {
             )
         }
         .scrollIndicators(.automatic)
-        .frame(width: 480, alignment: .top)
+        .frame(width: Self.contentWidth, alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
         .onChange(of: snapshotGPUIds) { _, newValue in
@@ -226,6 +228,7 @@ struct StatusMenuView: View {
                     UpdatedPill(date: snapshot.takenAt, language: language)
                 }
 
+                HostMemoryView(memory: snapshot.hostMemory, language: language)
                 gpuList(state, snapshot: snapshot)
             } else if state.server.isEnabled {
                 Text(state.lastErrorMessage ?? t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다."))
@@ -488,6 +491,65 @@ private struct GPUListRow: View {
                     lineWidth: 1
                 )
         )
+    }
+}
+
+private func memoryTint(ratio: Double) -> Color {
+    if ratio >= 0.95 { return .red }
+    if ratio >= 0.85 { return .orange }
+    return Color(red: 0.12, green: 0.54, blue: 0.94)
+}
+
+private func memoryUsageNotice(ratio: Double, language: AppInterfaceLanguage) -> String {
+    if ratio >= 0.95 { return language.text(" · Very high usage", " · 매우 높은 사용량") }
+    if ratio >= 0.85 { return language.text(" · High usage", " · 높은 사용량") }
+    return ""
+}
+
+private struct HostMemoryView: View {
+    let memory: HostMemoryReading?
+    let language: AppInterfaceLanguage
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            if let memory {
+                ThinMetricBar(
+                    title: language.text("Server RAM", "서버 RAM"),
+                    valueText: "\(memory.usagePercent)% · \(HostMemoryReading.capacityText(kibibytes: memory.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: memory.totalKiB))",
+                    ratio: memory.usageRatio,
+                    tint: memoryTint(ratio: memory.usageRatio)
+                )
+
+                Text(language.text("Available: ", "사용 가능: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
+                    .font(.caption2.monospacedDigit())
+                    .foregroundStyle(memoryTint(ratio: memory.usageRatio))
+
+                if let swapTotal = memory.swapTotalKiB, let swapUsed = memory.swapUsedKiB, let swapRatio = memory.swapUsageRatio {
+                    if swapTotal == 0 {
+                        Text(language.text("Swap: Not configured", "Swap: 설정되지 않음"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ThinMetricBar(
+                            title: "Swap",
+                            valueText: "\(HostMemoryReading.capacityText(kibibytes: swapUsed)) / \(HostMemoryReading.capacityText(kibibytes: swapTotal))",
+                            ratio: swapRatio,
+                            tint: memoryTint(ratio: swapRatio)
+                        )
+                    }
+                } else {
+                    Text(language.text("Swap: Unavailable", "Swap: 확인 불가"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Text(language.text("Server RAM / Swap: Unavailable", "서버 RAM / Swap: 확인 불가"))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
     }
 }
 

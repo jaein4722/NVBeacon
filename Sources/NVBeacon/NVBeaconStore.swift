@@ -951,7 +951,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         updateServerState(serverID) { state in
-            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs)
+            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostMemory: currentSnapshot.hostMemory)
         }
     }
 

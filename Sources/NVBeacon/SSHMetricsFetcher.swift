@@ -4,6 +4,7 @@ struct SSHMetricsFetcher: Sendable {
     static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
     private static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
     private static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
+    private static let memorySectionSeparator = "__NVBEACON_MEMORY_SECTION__"
     private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
 
     enum FetchError: LocalizedError, Equatable {
@@ -50,11 +51,11 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand),
+            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand),
             password: password
         )
         let gpus = try Self.parseSnapshot(output)
-        return GPUSnapshot(takenAt: Date(), gpus: gpus)
+        return GPUSnapshot(takenAt: Date(), gpus: gpus, hostMemory: Self.parseHostMemory(output))
     }
 
     func fetchProcessDetails(
@@ -190,6 +191,42 @@ struct SSHMetricsFetcher: Sendable {
                 processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
             )
         }
+    }
+
+    static func parseHostMemory(_ output: String) -> HostMemoryReading? {
+        let memorySection = section(named: memorySectionSeparator, from: output)
+        let keys: Set<String> = ["MemTotal", "MemAvailable", "SwapTotal", "SwapFree"]
+        var values = [String: Int]()
+        for line in memorySection.split(whereSeparator: \.isNewline) {
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count == 3, fields[2] == "kB" else { continue }
+            let key = String(fields[0].dropLast())
+            guard fields[0].hasSuffix(":"), keys.contains(key) else { continue }
+            guard let value = Int(fields[1]), value >= 0 else {
+                if key == "MemTotal" || key == "MemAvailable" { return nil }
+                continue
+            }
+            guard values[key] == nil else { return nil }
+            values[key] = value
+        }
+
+        // MemFree alone excludes reclaimable cache and can exaggerate OOM risk.
+        guard let total = values["MemTotal"], total > 0,
+              let available = values["MemAvailable"], available <= total else { return nil }
+        let swapTotal = values["SwapTotal"]
+        let swapFree = values["SwapFree"]
+        let validSwap: Bool
+        if let swapTotal, let swapFree {
+            validSwap = swapFree <= swapTotal
+        } else {
+            validSwap = false
+        }
+        return HostMemoryReading(
+            totalKiB: total,
+            availableKiB: available,
+            swapTotalKiB: validSwap ? swapTotal : nil,
+            swapFreeKiB: validSwap ? swapFree : nil
+        )
     }
 
     private static func parseGPUSection(_ output: String) throws -> [GPUReading] {
@@ -495,7 +532,7 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func buildSummaryRemoteCommand(summaryCommand: String) -> String {
+    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand) -> String {
         """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
@@ -514,6 +551,10 @@ struct SSHMetricsFetcher: Sendable {
           [ -n "$real_uid" ] || continue
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
+        printf '\\n\(memorySectionSeparator)\\n'
+        (
+          \(memoryCommand)
+        ) 2>/dev/null || true
         """
     }
 
@@ -556,7 +597,7 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator]
+        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator]
 
         if let name {
             guard let startRange = output.range(of: name) else {

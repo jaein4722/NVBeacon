@@ -54,6 +54,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Remote NVIDIA GPU monitoring over `ssh` using `nvidia-smi`
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
+- Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
 - On-demand process details with user, PID, memory, and command preview
 - Automatic detection and highlighting of your own remote SSH user processes and GPUs
 - Job completion alerts through macOS Notification Center when watched GPU processes exit
@@ -105,6 +106,16 @@ Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722
 8. Open the `About` tab when you want to check for a newer release manually.
 
 All settings apply automatically. There is no separate apply button.
+
+## Memory Monitoring
+
+Each server's popover shows RAM used / total, available RAM, and Swap used / total. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
+
+RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
+
+In `Advanced` settings, `GPU Query Command` and `Memory Query Command` apply to the server selected in `General`. The memory command defaults to `cat /proc/meminfo`; a custom command must return the same field names and `kB` units (`MemTotal`, `MemAvailable`, and optionally `SwapTotal` / `SwapFree`). An empty command restores the default. The memory query runs once per server within the existing SSH refresh, not once per GPU or in an extra SSH connection. A failed memory command leaves GPU monitoring available.
+
+The existing polling interval defaults to 10 seconds and can be set to 1 second in Settings. Actual updates also depend on SSH command duration; brief allocation peaks can be missed. Host RAM totals do not show container, cgroup, or scheduler job memory limits, and free VRAM alone does not guarantee a CUDA allocation will succeed.
 
 ## Notifications
 

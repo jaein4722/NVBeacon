@@ -332,6 +332,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
     var sshAuthenticationMode: SSHAuthenticationMode
     var sshConnectionReuseMode: SSHConnectionReuseMode
     var remoteCommand: String
+    var memoryCommand: String
     var isEnabled: Bool
 
     init(
@@ -343,6 +344,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         sshAuthenticationMode: SSHAuthenticationMode = .keyBased,
         sshConnectionReuseMode: SSHConnectionReuseMode = .reuseWhenPossible,
         remoteCommand: String = AppSettings.defaultRemoteCommand,
+        memoryCommand: String = AppSettings.defaultMemoryCommand,
         isEnabled: Bool = true
     ) {
         self.id = id
@@ -353,7 +355,29 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         self.sshAuthenticationMode = sshAuthenticationMode
         self.sshConnectionReuseMode = sshConnectionReuseMode
         self.remoteCommand = remoteCommand
+        self.memoryCommand = memoryCommand
         self.isEnabled = isEnabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, sshTarget, sshPort, sshIdentityFilePath
+        case sshAuthenticationMode, sshConnectionReuseMode, remoteCommand, memoryCommand, isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(String.self, forKey: .id),
+            name: try container.decode(String.self, forKey: .name),
+            sshTarget: try container.decode(String.self, forKey: .sshTarget),
+            sshPort: try container.decode(String.self, forKey: .sshPort),
+            sshIdentityFilePath: try container.decode(String.self, forKey: .sshIdentityFilePath),
+            sshAuthenticationMode: try container.decode(SSHAuthenticationMode.self, forKey: .sshAuthenticationMode),
+            sshConnectionReuseMode: try container.decode(SSHConnectionReuseMode.self, forKey: .sshConnectionReuseMode),
+            remoteCommand: try container.decode(String.self, forKey: .remoteCommand),
+            memoryCommand: try container.decodeIfPresent(String.self, forKey: .memoryCommand) ?? AppSettings.defaultMemoryCommand,
+            isEnabled: try container.decode(Bool.self, forKey: .isEnabled)
+        )
     }
 
     var displayName: String {
@@ -408,6 +432,9 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
             copy.remoteCommand = trimmedCommand
         }
 
+        let trimmedMemoryCommand = memoryCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        copy.memoryCommand = trimmedMemoryCommand.isEmpty ? AppSettings.defaultMemoryCommand : trimmedMemoryCommand
+
         return copy
     }
 
@@ -419,6 +446,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         copy.sshAuthenticationMode = sshAuthenticationMode
         copy.sshConnectionReuseMode = sshConnectionReuseMode
         copy.remoteCommand = remoteCommand
+        copy.memoryCommand = memoryCommand
         copy.servers = [self]
         return copy
     }
@@ -454,6 +482,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
             sshAuthenticationMode: settings.sshAuthenticationMode,
             sshConnectionReuseMode: settings.sshConnectionReuseMode,
             remoteCommand: settings.remoteCommand,
+            memoryCommand: settings.memoryCommand,
             isEnabled: true
         ).normalized()
     }
@@ -504,6 +533,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
 struct AppSettings: Codable, Equatable, Sendable {
     static let legacyDefaultRemoteCommand = "nvidia-smi --query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
     static let defaultRemoteCommand = "nvidia-smi --query-gpu=index,name,uuid,utilization.gpu,memory.used,memory.total,temperature.gpu --format=csv,noheader,nounits"
+    static let defaultMemoryCommand = "cat /proc/meminfo"
 
     var servers: [ServerConfig] = []
     var sshTarget: String = ""
@@ -516,6 +546,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var busyMemoryThresholdMB: Int = 50
     var busyUtilizationThresholdPercent: Int = 10
     var remoteCommand: String = Self.defaultRemoteCommand
+    var memoryCommand: String = Self.defaultMemoryCommand
     var menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
     var languagePreference: AppLanguagePreference = .system
     var appearanceMode: AppAppearanceMode = .system
@@ -537,6 +568,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         busyMemoryThresholdMB: Int = 50,
         busyUtilizationThresholdPercent: Int = 10,
         remoteCommand: String = Self.defaultRemoteCommand,
+        memoryCommand: String = Self.defaultMemoryCommand,
         menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy,
         languagePreference: AppLanguagePreference = .system,
         appearanceMode: AppAppearanceMode = .system,
@@ -557,6 +589,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.busyMemoryThresholdMB = busyMemoryThresholdMB
         self.busyUtilizationThresholdPercent = busyUtilizationThresholdPercent
         self.remoteCommand = remoteCommand
+        self.memoryCommand = memoryCommand
         self.menuBarDisplayMode = menuBarDisplayMode
         self.languagePreference = languagePreference
         self.appearanceMode = appearanceMode
@@ -579,6 +612,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case busyMemoryThresholdMB
         case busyUtilizationThresholdPercent
         case remoteCommand
+        case memoryCommand
         case menuBarDisplayMode
         case languagePreference
         case appearanceMode
@@ -603,6 +637,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             busyMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .busyMemoryThresholdMB) ?? 50,
             busyUtilizationThresholdPercent: try container.decodeIfPresent(Int.self, forKey: .busyUtilizationThresholdPercent) ?? 10,
             remoteCommand: try container.decodeIfPresent(String.self, forKey: .remoteCommand) ?? Self.defaultRemoteCommand,
+            memoryCommand: try container.decodeIfPresent(String.self, forKey: .memoryCommand) ?? Self.defaultMemoryCommand,
             menuBarDisplayMode: try container.decodeIfPresent(MenuBarDisplayMode.self, forKey: .menuBarDisplayMode) ?? .averageAndBusy,
             languagePreference: try container.decodeIfPresent(AppLanguagePreference.self, forKey: .languagePreference) ?? .system,
             appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system,
@@ -669,11 +704,13 @@ struct AppSettings: Codable, Equatable, Sendable {
             copy.sshAuthenticationMode = primaryServer.sshAuthenticationMode
             copy.sshConnectionReuseMode = primaryServer.sshConnectionReuseMode
             copy.remoteCommand = primaryServer.remoteCommand
+            copy.memoryCommand = primaryServer.memoryCommand
         } else {
             copy.sshTarget = ""
             copy.sshPort = ""
             copy.sshIdentityFilePath = ""
             copy.remoteCommand = Self.defaultRemoteCommand
+            copy.memoryCommand = Self.defaultMemoryCommand
         }
 
         return copy
@@ -794,9 +831,35 @@ struct GPUReading: Identifiable, Equatable, Sendable {
     }
 }
 
+struct HostMemoryReading: Equatable, Sendable {
+    let totalKiB: Int
+    let availableKiB: Int
+    let swapTotalKiB: Int?
+    let swapFreeKiB: Int?
+
+    var usedKiB: Int { totalKiB - availableKiB }
+    var usageRatio: Double { Double(usedKiB) / Double(totalKiB) }
+    var usagePercent: Int { Int((usageRatio * 100).rounded()) }
+
+    var swapUsedKiB: Int? {
+        guard let swapTotalKiB, let swapFreeKiB else { return nil }
+        return swapTotalKiB - swapFreeKiB
+    }
+
+    var swapUsageRatio: Double? {
+        guard let swapTotalKiB, let swapUsedKiB else { return nil }
+        return swapTotalKiB > 0 ? Double(swapUsedKiB) / Double(swapTotalKiB) : 0
+    }
+
+    static func capacityText(kibibytes: Int) -> String {
+        String(format: "%.1f GiB", locale: Locale(identifier: "en_US_POSIX"), Double(kibibytes) / 1_048_576)
+    }
+}
+
 struct GPUSnapshot: Equatable, Sendable {
     let takenAt: Date
     let gpus: [GPUReading]
+    var hostMemory: HostMemoryReading? = nil
 
     var averageUtilization: Int {
         guard !gpus.isEmpty else { return 0 }
@@ -847,7 +910,7 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory)
     }
 
     func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
@@ -875,7 +938,7 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory)
     }
 }
 
