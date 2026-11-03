@@ -13,7 +13,7 @@ struct PollingConfiguration: Equatable, Sendable {
         let gpuCommand: String
         let memoryCommand: String
 
-        init(_ server: ServerConfig) {
+        init(_ server: ServerConfig, collectsMemory: Bool) {
             id = server.id
             target = server.sshTarget
             port = server.sshPort
@@ -21,19 +21,20 @@ struct PollingConfiguration: Equatable, Sendable {
             authentication = server.sshAuthenticationMode
             connectionReuse = server.sshConnectionReuseMode
             gpuCommand = server.remoteCommand
-            memoryCommand = server.memoryCommand
+            memoryCommand = collectsMemory ? server.memoryCommand : ""
         }
     }
 
     let interval: Int
     let highlightsMyProcesses: Bool
-    let showsNetworkUsage: Bool
+    let hostMetrics: HostMetricsOptions
     let servers: [Server]
 
     init(_ settings: AppSettings) {
+        let hostMetrics = settings.hostMetricsOptions
         interval = settings.pollIntervalSeconds
         highlightsMyProcesses = settings.highlightsMyProcesses
-        showsNetworkUsage = settings.showsNetworkUsage
-        servers = settings.pollableServers.map(Server.init).sorted { $0.id < $1.id }
+        self.hostMetrics = hostMetrics
+        servers = settings.pollableServers.map { Server($0, collectsMemory: hostMetrics.memory) }.sorted { $0.id < $1.id }
     }
 }

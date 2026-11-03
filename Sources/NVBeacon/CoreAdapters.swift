@@ -3,6 +3,9 @@ import NVBeaconCore
 
 typealias GPUReading = NVBeaconCore.GPUReading
 typealias HostMemoryReading = NVBeaconCore.HostMemoryReading
+typealias HostMetricsOptions = NVBeaconCore.HostMetricsOptions
+typealias HostCPUSample = NVBeaconCore.HostCPUSample
+typealias CPUUsageEvaluator = NVBeaconCore.CPUUsageEvaluator
 typealias NetworkInterfaceReading = NVBeaconCore.NetworkInterfaceReading
 typealias NetworkSample = NVBeaconCore.NetworkSample
 typealias NetworkUsage = NVBeaconCore.NetworkUsage

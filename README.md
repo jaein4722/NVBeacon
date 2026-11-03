@@ -60,6 +60,7 @@ Each server shows Linux CPU utilization (two `/proc/stat` samples 0.2 seconds ap
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
 - Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
+- Per-server CPU usage, grouped host information, and saved expand/collapse state
 - Per-server network usage with download and upload rates plus total transferred bytes
 - On-demand process details with user, PID, memory, and command preview
 - Automatic detection and highlighting of your own remote SSH user processes and GPUs
@@ -113,7 +114,15 @@ Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722
 
 All settings apply automatically. There is no separate apply button.
 
-## Memory Monitoring
+## Host Information
+
+Each server groups CPU, memory (RAM / Swap), and network metrics in one **Host Information** section. All items are enabled and expanded by default. Collapse an entire server using the chevron next to its name, or collapse only its host information section. Both states are saved separately per server across popover openings and app restarts. Reopening a server keeps the previous host section state.
+
+In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. These choices apply to all servers. Disabled items are omitted from the remote query, not just hidden. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
+
+Enabled host metrics share the existing GPU polling SSH call. CPU and network rates use the difference between ordinary polls, without an extra connection or a sampling delay. They become available after the second successful sample and show the average over the measured interval; long gaps and counter resets start a new baseline.
+
+### Memory Monitoring
 
 Each server's popover shows RAM used / total, available RAM, and Swap used / total. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
 
@@ -170,7 +179,7 @@ The interface can be set to:
 
 - NVBeacon uses your local SSH setup directly, including `~/.ssh/config`.
 - Network usage is read from the server's interface counters (`/sys/class/net` or `/proc/net/dev`) in the same SSH call as the GPU data, so polling stays a single round trip. Loopback, container, and overlay interfaces are skipped, and bond/bridge slaves are only counted through their aggregate device.
-- Network rates appear from the second refresh on, because a rate needs two counter readings. Turn the `Show network usage` toggle off in Settings to stop reading network counters entirely.
+- Network rates appear from the second refresh on, because a rate needs two counter readings. Turn **Network** off under **General > Host Information** to stop reading network counters entirely. Interface filtering is heuristic; unusual network topologies or unavailable topology data can affect aggregation.
 - In key-based mode, background polling does not read from Keychain.
 - SSH command attempts have a 15-second timeout and an 8 MiB combined output limit. Output is drained while commands run, and cancellation terminates and reaps the owned SSH process.
 - In password-based mode, each server password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.

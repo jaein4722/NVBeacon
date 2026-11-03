@@ -57,7 +57,9 @@ struct SSHMetricsFetcher: Sendable {
 
         let collector = MetricsCollector(transport: Transport(settings: normalized, password: password))
         do {
-            let snapshot = try await collector.fetchSummary(gpuCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand, includesNetworkUsage: normalized.showsNetworkUsage)
+            let snapshot = try await collector.fetchSummary(gpuCommand: normalized.remoteCommand,
+                                                           memoryCommand: normalized.memoryCommand,
+                                                           hostMetrics: normalized.hostMetricsOptions)
             return ServerReading(snapshot: snapshot, networkSample: snapshot.networkSample)
         } catch {
             throw Self.localizedCollectionError(error)
@@ -165,7 +167,7 @@ struct SSHMetricsFetcher: Sendable {
         let takenAt = Date()
         let interfaces = MetricsParser.parseNetworkSection(MetricsParser.networkSection(output))
         let sample = interfaces.isEmpty ? nil : NetworkSample(takenAt: takenAt, interfaces: interfaces)
-        let snapshot = GPUSnapshot(takenAt: takenAt, gpus: try parseSnapshot(output), hostMemory: MetricsParser.parseHostMemory(output), hostCPU: MetricsParser.parseHostCPU(output), networkSample: sample)
+        let snapshot = GPUSnapshot(takenAt: takenAt, gpus: try parseSnapshot(output), hostMemory: MetricsParser.parseHostMemory(output), hostCPU: MetricsParser.parseHostCPU(output), networkSample: sample, hostCPUSample: MetricsParser.parseHostCPUSample(output, takenAt: takenAt))
         return ServerReading(snapshot: snapshot, networkSample: sample)
     }
 

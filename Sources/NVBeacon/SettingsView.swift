@@ -314,15 +314,22 @@ struct SettingsView: View {
                         )
                     }
                 }
-                Toggle(t("Show network usage", "네트워크 사용량 표시"), isOn: $draft.showsNetworkUsage)
-
-                Text(draft.showsNetworkUsage
-                     ? t("Reads the server's network counters together with the GPU data and shows download and upload rates for each server.", "GPU 정보를 읽을 때 서버의 네트워크 카운터도 함께 읽어 서버별 다운로드/업로드 속도를 표시합니다.")
-                     : t("Network counters are not read from the server.", "서버에서 네트워크 카운터를 읽지 않습니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } header: {
                 Text(t("Polling", "폴링"))
+            }
+
+            Section {
+                Toggle(t("Collect host information", "호스트 정보 수집"), isOn: $draft.collectsHostInfo)
+                Group {
+                    Toggle("CPU", isOn: $draft.collectsHostCPU)
+                    Toggle(t("Memory (RAM / Swap)", "메모리 (RAM / Swap)"), isOn: $draft.collectsHostMemory)
+                    Toggle(t("Network", "네트워크"), isOn: $draft.showsNetworkUsage)
+                }
+                .disabled(!draft.collectsHostInfo)
+            } header: {
+                Text(t("Host Information", "호스트 정보"))
+            } footer: {
+                Text(t("These settings apply to all servers. Disabled items are not collected. Collapsing a server's host information only hides it; collection continues.", "모든 서버에 적용됩니다. 끈 항목은 수집하지 않습니다. 호스트 정보를 접으면 화면에서만 숨겨지고 수집은 계속됩니다."))
             }
 
             Section {

@@ -35,8 +35,9 @@ public enum RemoteMetricCommands {
     fi
     """
 
-    public static func summary(summaryCommand: String, memoryCommand: String = defaultMemoryCommand, includesNetworkUsage: Bool = true) -> String {
-        let command = """
+    public static func summary(summaryCommand: String, memoryCommand: String = defaultMemoryCommand,
+                               includesNetworkUsage: Bool = true, hostMetrics: HostMetricsOptions = .init()) -> String {
+        var command = """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
         process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
@@ -54,18 +55,32 @@ public enum RemoteMetricCommands {
           [ -n "$real_uid" ] || continue
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
-        printf '\\n\(cpuSectionSeparator)\\n'
-        (head -n 1 /proc/stat; sleep 0.2; head -n 1 /proc/stat) 2>/dev/null || true
-        printf '\\n\(memorySectionSeparator)\\n'
-        (
-          \(memoryCommand)
-        ) 2>/dev/null || true
         """
-        guard includesNetworkUsage else { return command }
-        return """
-        \(command)
-        printf '\\n\(networkSectionSeparator)\\n'
-        \(networkSampleCommand)
-        """
+        if hostMetrics.cpu {
+            command += """
+
+            printf '\\n\(cpuSectionSeparator)\\n'
+            awk '/^cpu / || /^btime / { print }' /proc/stat 2>/dev/null || true
+            """
+        }
+        if hostMetrics.memory {
+            command += """
+
+            printf '\\n\(memorySectionSeparator)\\n'
+            (
+              \(memoryCommand)
+            ) 2>/dev/null || true
+            """
+        }
+        if hostMetrics.network && includesNetworkUsage {
+            command += """
+
+            printf '\\n\(networkSectionSeparator)\\n'
+            (
+              \(networkSampleCommand)
+            ) 2>/dev/null || true
+            """
+        }
+        return command
     }
 }

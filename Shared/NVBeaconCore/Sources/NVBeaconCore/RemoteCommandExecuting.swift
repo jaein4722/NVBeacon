@@ -29,11 +29,13 @@ public struct MetricsCollector<Transport: RemoteCommandExecuting>: Sendable {
     public func fetchSummary(
         gpuCommand: String = RemoteMetricCommands.defaultGPUCommand,
         memoryCommand: String = RemoteMetricCommands.defaultMemoryCommand,
-        includesNetworkUsage: Bool = true
+        includesNetworkUsage: Bool = true,
+        hostMetrics: HostMetricsOptions = .init()
     ) async throws -> GPUSnapshot {
         try Task.checkCancellation()
         let output = try await transport.execute(
-            RemoteMetricCommands.summary(summaryCommand: gpuCommand, memoryCommand: memoryCommand, includesNetworkUsage: includesNetworkUsage)
+            RemoteMetricCommands.summary(summaryCommand: gpuCommand, memoryCommand: memoryCommand,
+                                         includesNetworkUsage: includesNetworkUsage, hostMetrics: hostMetrics)
         )
         try Task.checkCancellation()
         guard output.exitStatus == 0 else {
@@ -43,13 +45,15 @@ public struct MetricsCollector<Transport: RemoteCommandExecuting>: Sendable {
             )
         }
         let takenAt = Date()
-        let interfaces = MetricsParser.parseNetworkSection(MetricsParser.networkSection(output.standardOutput))
+        let interfaces = hostMetrics.network && includesNetworkUsage
+            ? MetricsParser.parseNetworkSection(MetricsParser.networkSection(output.standardOutput)) : []
         return GPUSnapshot(
             takenAt: takenAt,
             gpus: try MetricsParser.parseSnapshot(output.standardOutput),
-            hostMemory: MetricsParser.parseHostMemory(output.standardOutput),
-            hostCPU: MetricsParser.parseHostCPU(output.standardOutput),
-            networkSample: interfaces.isEmpty ? nil : NetworkSample(takenAt: takenAt, interfaces: interfaces)
+            hostMemory: hostMetrics.memory ? MetricsParser.parseHostMemory(output.standardOutput) : nil,
+            hostCPU: hostMetrics.cpu ? MetricsParser.parseHostCPU(output.standardOutput) : nil,
+            networkSample: interfaces.isEmpty ? nil : NetworkSample(takenAt: takenAt, interfaces: interfaces),
+            hostCPUSample: hostMetrics.cpu ? MetricsParser.parseHostCPUSample(output.standardOutput, takenAt: takenAt) : nil
         )
     }
 }

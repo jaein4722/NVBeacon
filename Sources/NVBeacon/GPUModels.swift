@@ -554,6 +554,9 @@ struct AppSettings: Codable, Equatable, Sendable {
     var closesPopoverOnOutsideClick: Bool = true
     var popoverWidth: Int = Self.defaultPopoverWidth
     var highlightsMyProcesses: Bool = true
+    var collectsHostInfo: Bool = true
+    var collectsHostCPU: Bool = true
+    var collectsHostMemory: Bool = true
     var showsNetworkUsage: Bool = true
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
@@ -578,6 +581,9 @@ struct AppSettings: Codable, Equatable, Sendable {
         closesPopoverOnOutsideClick: Bool = true,
         popoverWidth: Int = Self.defaultPopoverWidth,
         highlightsMyProcesses: Bool = true,
+        collectsHostInfo: Bool = true,
+        collectsHostCPU: Bool = true,
+        collectsHostMemory: Bool = true,
         showsNetworkUsage: Bool = true,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
@@ -601,6 +607,9 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.popoverWidth = popoverWidth
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.collectsHostInfo = collectsHostInfo
+        self.collectsHostCPU = collectsHostCPU
+        self.collectsHostMemory = collectsHostMemory
         self.showsNetworkUsage = showsNetworkUsage
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
@@ -626,6 +635,9 @@ struct AppSettings: Codable, Equatable, Sendable {
         case closesPopoverOnOutsideClick
         case popoverWidth
         case highlightsMyProcesses
+        case collectsHostInfo
+        case collectsHostCPU
+        case collectsHostMemory
         case showsNetworkUsage
         case idleNotificationSeconds
         case idleMemoryThresholdMB
@@ -653,10 +665,18 @@ struct AppSettings: Codable, Equatable, Sendable {
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
+            collectsHostInfo: try container.decodeIfPresent(Bool.self, forKey: .collectsHostInfo) ?? true,
+            collectsHostCPU: try container.decodeIfPresent(Bool.self, forKey: .collectsHostCPU) ?? true,
+            collectsHostMemory: try container.decodeIfPresent(Bool.self, forKey: .collectsHostMemory) ?? true,
             showsNetworkUsage: try container.decodeIfPresent(Bool.self, forKey: .showsNetworkUsage) ?? true,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
         )
+    }
+
+    var hostMetricsOptions: HostMetricsOptions {
+        guard collectsHostInfo else { return .none }
+        return HostMetricsOptions(cpu: collectsHostCPU, memory: collectsHostMemory, network: showsNetworkUsage)
     }
 
     var isConfigured: Bool {

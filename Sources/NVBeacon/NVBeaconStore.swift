@@ -36,6 +36,8 @@ final class NVBeaconStore: ObservableObject {
     @Published private(set) var watchedIdleGPUs = [GPUIdleWatch]()
     @Published private(set) var notificationHistory = [NotificationHistoryEntry]()
     @Published private(set) var detectedSSHUsername: String?
+    @Published private(set) var collapsedHostServerIDs = Set<String>()
+    @Published private(set) var collapsedServerIDs = Set<String>()
 
     private let fetcher: SSHMetricsFetcher
     private let notificationManager: ProcessExitNotificationManager
@@ -45,6 +47,8 @@ final class NVBeaconStore: ObservableObject {
     private let watchedProcessesKey = "nvbeacon.process_exit_watches"
     private let watchedIdleGPUsKey = "nvbeacon.gpu_idle_watches"
     private let notificationHistoryKey = "nvbeacon.notification_history"
+    private let collapsedHostSectionsKey = "nvbeacon.collapsed_host_sections"
+    private let collapsedServersKey = "nvbeacon.collapsed_servers"
     private let passwordStoredHintKey = "nvbeacon.password_saved_hint"
     private let passwordStoredHintPrefix = "nvbeacon.password_saved_hint."
     private let passwordAuthWarningAcknowledgedKey = "nvbeacon.password_auth_warning_acknowledged"
@@ -53,6 +57,7 @@ final class NVBeaconStore: ObservableObject {
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPasswords = [String: String]()
     private var networkSamples = [String: NetworkSample]()
+    private var cpuSamples = [String: HostCPUSample]()
     private var passwordAuthWarningAcknowledgedThisSession = false
 
     private var language: AppInterfaceLanguage {
@@ -87,6 +92,10 @@ final class NVBeaconStore: ObservableObject {
         self.watchedProcesses = Self.loadWatchedProcesses(from: userDefaults)
         self.watchedIdleGPUs = Self.loadWatchedIdleGPUs(from: userDefaults)
         self.notificationHistory = Self.loadNotificationHistory(from: userDefaults)
+        self.collapsedHostServerIDs = Set(userDefaults.stringArray(forKey: collapsedHostSectionsKey) ?? [])
+            .intersection(Set(initialServerStates.map(\.id)))
+        self.collapsedServerIDs = Set(userDefaults.stringArray(forKey: collapsedServersKey) ?? [])
+            .intersection(Set(initialServerStates.map(\.id)))
         self.lastErrorMessage = settings.isConfigured
             ? Self.initialStatusMessage(for: initialServerStates, language: settings.resolvedLanguage)
             : settings.resolvedLanguage.text("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
@@ -270,6 +279,7 @@ final class NVBeaconStore: ObservableObject {
         guard normalized != settings else { return }
         let needsPollingRestart = PollingConfiguration(normalized) != PollingConfiguration(settings)
         let serversChanged = normalized.configuredServers != settings.configuredServers
+        let hostCollectionChanged = normalized.hostMetricsOptions != settings.hostMetricsOptions
 
         let previousServerStates = Dictionary(uniqueKeysWithValues: serverStates.map { ($0.id, $0) })
         let previousServerIDs = Set(serverStates.map(\.id))
@@ -284,16 +294,28 @@ final class NVBeaconStore: ObservableObject {
         for removedServerID in previousServerIDs.subtracting(currentServerIDs) {
             unlockedSSHPasswords.removeValue(forKey: removedServerID)
             networkSamples.removeValue(forKey: removedServerID)
+            cpuSamples.removeValue(forKey: removedServerID)
         }
 
-        if !normalized.showsNetworkUsage {
+        if hostCollectionChanged {
+            cpuSamples.removeAll()
             networkSamples.removeAll()
             for index in serverStates.indices {
                 serverStates[index].networkUsage = nil
+                serverStates[index].snapshot?.hostCPU = nil
+                serverStates[index].snapshot?.hostCPUSample = nil
+                serverStates[index].snapshot?.networkSample = nil
+                if !normalized.hostMetricsOptions.memory {
+                    serverStates[index].snapshot?.hostMemory = nil
+                }
             }
         }
 
         if serversChanged {
+            collapsedHostServerIDs.formIntersection(currentServerIDs)
+            collapsedServerIDs.formIntersection(currentServerIDs)
+            userDefaults.set(collapsedHostServerIDs.sorted(), forKey: collapsedHostSectionsKey)
+            userDefaults.set(collapsedServerIDs.sorted(), forKey: collapsedServersKey)
             reconcileWatchesWithCurrentServers()
         }
         persistSettings()
@@ -301,6 +323,34 @@ final class NVBeaconStore: ObservableObject {
         if needsPollingRestart {
             configurePolling(resetState: true)
         }
+    }
+
+    func isHostInfoExpanded(for serverID: String) -> Bool {
+        !collapsedHostServerIDs.contains(serverID)
+    }
+
+    func setHostInfoExpanded(_ isExpanded: Bool, for serverID: String) {
+        guard serverStates.contains(where: { $0.id == serverID }) else { return }
+        if isExpanded {
+            collapsedHostServerIDs.remove(serverID)
+        } else {
+            collapsedHostServerIDs.insert(serverID)
+        }
+        userDefaults.set(collapsedHostServerIDs.sorted(), forKey: collapsedHostSectionsKey)
+    }
+
+    func isServerExpanded(for serverID: String) -> Bool {
+        !collapsedServerIDs.contains(serverID)
+    }
+
+    func setServerExpanded(_ isExpanded: Bool, for serverID: String) {
+        guard serverStates.contains(where: { $0.id == serverID }) else { return }
+        if isExpanded {
+            collapsedServerIDs.remove(serverID)
+        } else {
+            collapsedServerIDs.insert(serverID)
+        }
+        userDefaults.set(collapsedServerIDs.sorted(), forKey: collapsedServersKey)
     }
 
     func savePasswordForCurrentSession(_ password: String) {
@@ -434,6 +484,9 @@ final class NVBeaconStore: ObservableObject {
         detectedSSHUsername = nil
         unlockedSSHPasswords = [:]
         networkSamples = [:]
+        cpuSamples = [:]
+        collapsedHostServerIDs = []
+        collapsedServerIDs = []
         passwordSessionState = .notRequired
         snapshot = nil
         watchedProcesses = []
@@ -444,6 +497,8 @@ final class NVBeaconStore: ObservableObject {
         userDefaults.removeObject(forKey: watchedProcessesKey)
         userDefaults.removeObject(forKey: watchedIdleGPUsKey)
         userDefaults.removeObject(forKey: notificationHistoryKey)
+        userDefaults.removeObject(forKey: collapsedHostSectionsKey)
+        userDefaults.removeObject(forKey: collapsedServersKey)
         userDefaults.removeObject(forKey: passwordStoredHintKey)
         lastErrorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
         noticeMessage = nil
@@ -759,7 +814,8 @@ final class NVBeaconStore: ObservableObject {
                 switch result {
                 case .success(let serverID, let reading, let detectedSSHUserID):
                     guard let state = serverState(for: serverID) else { continue }
-                    let mergedSnapshot = reading.snapshot.mergingResolvedProcessMetadata(from: state.snapshot)
+                    var mergedSnapshot = reading.snapshot.mergingResolvedProcessMetadata(from: state.snapshot)
+                    mergedSnapshot.hostCPU = updateCPUUsage(for: serverID, sample: mergedSnapshot.hostCPUSample)
                     let networkUsage = updateNetworkUsage(for: serverID, sample: reading.networkSample)
                     updateServerState(serverID) { state in
                         state.snapshot = mergedSnapshot
@@ -825,6 +881,24 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private static let minimumNetworkSampleInterval: TimeInterval = 1
+
+    private func updateCPUUsage(for serverID: String, sample: HostCPUSample?) -> Int? {
+        guard let sample else {
+            cpuSamples.removeValue(forKey: serverID)
+            return nil
+        }
+        let previous = cpuSamples[serverID]
+        if let previous {
+            let interval = sample.takenAt.timeIntervalSince(previous.takenAt)
+            if interval <= 0 || interval >= 1 || sample.bootTime != previous.bootTime {
+                cpuSamples[serverID] = sample
+            }
+        } else {
+            cpuSamples[serverID] = sample
+        }
+        return CPUUsageEvaluator.usage(previous: previous, current: sample,
+                                       maximumInterval: max(60, Double(settings.pollIntervalSeconds) * 4))
+    }
 
     private func persistSettings() {
         do {
@@ -1018,7 +1092,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         updateServerState(serverID) { state in
-            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostMemory: currentSnapshot.hostMemory, hostCPU: currentSnapshot.hostCPU, networkSample: currentSnapshot.networkSample)
+            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostMemory: currentSnapshot.hostMemory, hostCPU: currentSnapshot.hostCPU, networkSample: currentSnapshot.networkSample, hostCPUSample: currentSnapshot.hostCPUSample)
         }
     }
 
@@ -1253,6 +1327,10 @@ final class NVBeaconStore: ObservableObject {
             )
 
             let connectionChanged = state.server.connectionFingerprint != server.connectionFingerprint
+            if state.server.isEnabled != server.isEnabled {
+                cpuSamples.removeValue(forKey: server.id)
+                networkSamples.removeValue(forKey: server.id)
+            }
             state.server = server
             state.detectedSSHUsername = Self.detectedSSHUsername(for: server)
             state.passwordSessionState = synchronizedPasswordSessionState(for: server)
@@ -1264,6 +1342,7 @@ final class NVBeaconStore: ObservableObject {
                 state.lastErrorMessage = initialStatusMessage(for: server)
                 unlockedSSHPasswords.removeValue(forKey: server.id)
                 networkSamples.removeValue(forKey: server.id)
+                cpuSamples.removeValue(forKey: server.id)
             } else if state.passwordSessionState == .notRequired && state.lastErrorMessage == missingPasswordSessionMessage() {
                 state.lastErrorMessage = nil
             }
