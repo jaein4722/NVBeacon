@@ -257,6 +257,13 @@ struct SettingsView: View {
                         )
                     }
                 }
+                Toggle(t("Show network usage", "네트워크 사용량 표시"), isOn: $draft.showsNetworkUsage)
+
+                Text(draft.showsNetworkUsage
+                     ? t("Reads the server's network counters together with the GPU data and shows download and upload rates for each server.", "GPU 정보를 읽을 때 서버의 네트워크 카운터도 함께 읽어 서버별 다운로드/업로드 속도를 표시합니다.")
+                     : t("Network counters are not read from the server.", "서버에서 네트워크 카운터를 읽지 않습니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             } header: {
                 Text(t("Polling", "폴링"))
             }

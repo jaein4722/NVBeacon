@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
+- Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
+- Added a `Show network usage` toggle in Settings so users can skip network counters entirely.
+
 ## 0.5.0 - 2026-05-15
 
 - Added multi-server GPU monitoring with per-server SSH target, authentication, connection reuse, enable/disable state, and remote command settings.

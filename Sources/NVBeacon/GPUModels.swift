@@ -475,6 +475,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
     let id: String
     var server: ServerConfig
     var snapshot: GPUSnapshot?
+    var networkUsage: NetworkUsage?
     var isRefreshing: Bool
     var lastErrorMessage: String?
     var passwordSessionState: SSHPasswordSessionState
@@ -484,6 +485,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
     init(
         server: ServerConfig,
         snapshot: GPUSnapshot? = nil,
+        networkUsage: NetworkUsage? = nil,
         isRefreshing: Bool = false,
         lastErrorMessage: String? = nil,
         passwordSessionState: SSHPasswordSessionState = .notRequired,
@@ -493,6 +495,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
         self.id = server.id
         self.server = server
         self.snapshot = snapshot
+        self.networkUsage = networkUsage
         self.isRefreshing = isRefreshing
         self.lastErrorMessage = lastErrorMessage
         self.passwordSessionState = passwordSessionState
@@ -522,6 +525,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var showsDockIcon: Bool = false
     var closesPopoverOnOutsideClick: Bool = true
     var highlightsMyProcesses: Bool = true
+    var showsNetworkUsage: Bool = true
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
 
@@ -543,6 +547,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         showsDockIcon: Bool = false,
         closesPopoverOnOutsideClick: Bool = true,
         highlightsMyProcesses: Bool = true,
+        showsNetworkUsage: Bool = true,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
     ) {
@@ -563,6 +568,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.showsDockIcon = showsDockIcon
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.showsNetworkUsage = showsNetworkUsage
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
     }
@@ -585,6 +591,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case showsDockIcon
         case closesPopoverOnOutsideClick
         case highlightsMyProcesses
+        case showsNetworkUsage
         case idleNotificationSeconds
         case idleMemoryThresholdMB
     }
@@ -609,6 +616,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
+            showsNetworkUsage: try container.decodeIfPresent(Bool.self, forKey: .showsNetworkUsage) ?? true,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
         )
@@ -794,9 +802,21 @@ struct GPUReading: Identifiable, Equatable, Sendable {
     }
 }
 
+struct HostMemoryReading: Equatable, Sendable {
+    let totalKiB: Int
+    let availableKiB: Int
+    let swapTotalKiB: Int?
+    let swapFreeKiB: Int?
+    var usedKiB: Int { totalKiB - availableKiB }
+    var ratio: Double { Double(usedKiB) / Double(totalKiB) }
+    static func capacity(_ value: Int) -> String { String(format: "%.1f GiB", Double(value) / 1_048_576) }
+}
+
 struct GPUSnapshot: Equatable, Sendable {
     let takenAt: Date
     let gpus: [GPUReading]
+    var hostCPU: Int? = nil
+    var hostMemory: HostMemoryReading? = nil
 
     var averageUtilization: Int {
         guard !gpus.isEmpty else { return 0 }
@@ -847,7 +867,7 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostCPU: hostCPU, hostMemory: hostMemory)
     }
 
     func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
@@ -875,7 +895,7 @@ struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs)
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostCPU: hostCPU, hostMemory: hostMemory)
     }
 }
 

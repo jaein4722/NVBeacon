@@ -265,6 +265,7 @@ import Testing
     #expect(settings.showsDockIcon == false)
     #expect(settings.closesPopoverOnOutsideClick == true)
     #expect(settings.highlightsMyProcesses == true)
+    #expect(settings.showsNetworkUsage == true)
     #expect(settings.sshConnectionReuseMode == .reuseWhenPossible)
     #expect(settings.busyDetectionMode == .activeProcess)
     #expect(settings.busyMemoryThresholdMB == 50)
@@ -582,4 +583,277 @@ import Testing
     #expect(idleGPU.isIdle(memoryThresholdMB: 50))
     #expect(!idleGPU.isIdle(memoryThresholdMB: 10))
     #expect(!busyGPU.isIdle(memoryThresholdMB: 50))
+}
+
+@Test func parsesNetworkSectionFromSummaryOutput() throws {
+    let output = """
+    0, NVIDIA RTX 6000 Ada Generation, GPU-111, 73, 12048, 49140, 65
+    __GPUUSAGE_PROCESS_SECTION__
+    GPU-111, 1001, 501, python, 8192
+    __GPUUSAGE_NETWORK_SECTION__
+    eth0 1024 2048
+    ib0 4096 8192
+    """
+
+    let reading = try SSHMetricsFetcher.parseReading(output)
+
+    #expect(reading.snapshot.gpus.count == 1)
+    #expect(reading.snapshot.gpus[0].processes.count == 1)
+
+    let sample = try #require(reading.networkSample)
+    #expect(sample.interfaces.map(\.name) == ["eth0", "ib0"])
+    #expect(sample.receivedBytes == 5_120)
+    #expect(sample.transmittedBytes == 10_240)
+}
+
+@Test func summaryOutputWithoutNetworkSectionHasNoNetworkSample() throws {
+    let output = """
+    0, NVIDIA RTX 6000 Ada Generation, GPU-111, 73, 12048, 49140, 65
+    __GPUUSAGE_PROCESS_SECTION__
+    GPU-111, 1001, 501, python, 8192
+    """
+
+    let reading = try SSHMetricsFetcher.parseReading(output)
+
+    #expect(reading.snapshot.gpus.count == 1)
+    #expect(reading.networkSample == nil)
+}
+
+@Test func networkUsageComputesRateBetweenSamples() throws {
+    let start = Date()
+    let previous = NetworkSample(
+        takenAt: start,
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 1_000, transmittedBytes: 2_000)]
+    )
+    let current = NetworkSample(
+        takenAt: start.addingTimeInterval(10),
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 21_000, transmittedBytes: 12_000)]
+    )
+
+    let usage = try #require(
+        NetworkUsageEvaluator.usage(previous: previous, current: current, maximumInterval: 60)
+    )
+
+    #expect(usage.receivedBytesPerSecond == 2_000)
+    #expect(usage.transmittedBytesPerSecond == 1_000)
+    #expect(usage.totalReceivedBytes == 21_000)
+    #expect(usage.interfaceNames == ["eth0"])
+    #expect(usage.hasRates)
+}
+
+@Test func networkUsageWithoutPreviousSampleHasTotalsOnly() throws {
+    let current = NetworkSample(
+        takenAt: Date(),
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 21_000, transmittedBytes: 12_000)]
+    )
+
+    let usage = try #require(
+        NetworkUsageEvaluator.usage(previous: nil, current: current, maximumInterval: 60)
+    )
+
+    #expect(usage.receivedBytesPerSecond == nil)
+    #expect(!usage.hasRates)
+    #expect(usage.totalReceivedBytes == 21_000)
+    #expect(usage.totalTransmittedBytes == 12_000)
+}
+
+@Test func networkUsageSkipsRateWhenCountersReset() throws {
+    let start = Date()
+    let previous = NetworkSample(
+        takenAt: start,
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 5_000_000, transmittedBytes: 5_000_000)]
+    )
+    let current = NetworkSample(
+        takenAt: start.addingTimeInterval(10),
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 500, transmittedBytes: 600)]
+    )
+
+    let usage = try #require(
+        NetworkUsageEvaluator.usage(previous: previous, current: current, maximumInterval: 60)
+    )
+
+    #expect(usage.receivedBytesPerSecond == nil)
+    #expect(usage.totalReceivedBytes == 500)
+}
+
+@Test func networkUsageSkipsRateForLongIntervals() throws {
+    let start = Date()
+    let previous = NetworkSample(
+        takenAt: start,
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 1_000, transmittedBytes: 2_000)]
+    )
+    let current = NetworkSample(
+        takenAt: start.addingTimeInterval(3_600),
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 3_601_000, transmittedBytes: 3_602_000)]
+    )
+
+    let usage = try #require(
+        NetworkUsageEvaluator.usage(previous: previous, current: current, maximumInterval: 60)
+    )
+
+    #expect(usage.receivedBytesPerSecond == nil)
+}
+
+@Test func networkUsageIgnoresInterfacesWithoutBaseline() throws {
+    let start = Date()
+    let previous = NetworkSample(
+        takenAt: start,
+        interfaces: [NetworkInterfaceReading(name: "eth0", receivedBytes: 1_000, transmittedBytes: 1_000)]
+    )
+    let current = NetworkSample(
+        takenAt: start.addingTimeInterval(10),
+        interfaces: [
+            NetworkInterfaceReading(name: "eth0", receivedBytes: 3_000, transmittedBytes: 2_000),
+            NetworkInterfaceReading(name: "ib0", receivedBytes: 9_000_000, transmittedBytes: 9_000_000),
+        ]
+    )
+
+    let usage = try #require(
+        NetworkUsageEvaluator.usage(previous: previous, current: current, maximumInterval: 60)
+    )
+
+    #expect(usage.receivedBytesPerSecond == 200)
+    #expect(usage.transmittedBytesPerSecond == 100)
+    #expect(usage.totalReceivedBytes == 9_003_000)
+    #expect(usage.interfaceNames == ["eth0", "ib0"])
+}
+
+@Test func networkUsageWithoutInterfacesIsUnavailable() {
+    let current = NetworkSample(takenAt: Date(), interfaces: [])
+
+    #expect(NetworkUsageEvaluator.usage(previous: nil, current: current, maximumInterval: 60) == nil)
+}
+
+@Test func formatsNetworkRatesAndSizes() {
+    #expect(NetworkUsageFormatter.rateText(nil) == "--")
+    #expect(NetworkUsageFormatter.rateText(-5) == "--")
+    #expect(NetworkUsageFormatter.rateText(0) == "0 B/s")
+    #expect(NetworkUsageFormatter.rateText(1_500) == "1.5 KB/s")
+    #expect(NetworkUsageFormatter.rateText(12_345_678) == "12.3 MB/s")
+    #expect(NetworkUsageFormatter.rateText(1_250_000_000) == "1.2 GB/s")
+    #expect(NetworkUsageFormatter.byteCountText(2_500_000_000_000) == "2.5 TB")
+}
+
+@Test func networkSampleCommandReportsPhysicalInterfacesOnly() throws {
+    let root = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let sysNet = root.appendingPathComponent("sys/class/net", isDirectory: true)
+    let interfaces: [(name: String, receivedBytes: UInt64, transmittedBytes: UInt64)] = [
+        ("eth0", 1_000, 2_000),
+        ("ib0", 500, 600),
+        ("bond0", 7_000, 8_000),
+        ("eth1", 7_000, 8_000),
+        ("lo", 10, 20),
+        ("veth1234", 30, 40),
+        ("docker0", 50, 60),
+    ]
+    for interface in interfaces {
+        try writeInterfaceCounters(interface, in: sysNet)
+    }
+
+    // eth1 is enslaved to bond0, so only the aggregate bond device must be reported.
+    try FileManager.default.createSymbolicLink(
+        atPath: sysNet.appendingPathComponent("eth1/master").path,
+        withDestinationPath: "../bond0"
+    )
+
+    let output = try runNetworkSampleCommand(
+        sysNetPath: sysNet,
+        procNetDevPath: root.appendingPathComponent("missing-proc-net-dev").path
+    )
+
+    #expect(output.split(whereSeparator: \.isNewline).map(String.init).sorted() == ["bond0 7000 8000", "eth0 1000 2000", "ib0 500 600"])
+}
+
+@Test func networkSampleCommandFallsBackToProcNetDev() throws {
+    let root = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+
+    let procNetDev = root.appendingPathComponent("proc-net-dev")
+    let contents = """
+    Inter-|   Receive                                                |  Transmit
+     face |bytes    packets errs drop fifo frame compressed multicast|bytes    packets errs drop fifo colls carrier compressed
+        lo: 1000  10 0 0 0 0 0 0 1000 10 0 0 0 0 0 0
+      eth0: 5000  50 0 0 0 0 0 0 7000 70 0 0 0 0 0 0
+    docker0: 111  1 0 0 0 0 0 0 222  2 0 0 0 0 0 0
+    """
+    try contents.write(to: procNetDev, atomically: true, encoding: .utf8)
+
+    let output = try runNetworkSampleCommand(
+        sysNetPath: root.appendingPathComponent("missing-sys-class-net"),
+        procNetDevPath: procNetDev.path
+    )
+
+    #expect(output.split(whereSeparator: \.isNewline).map(String.init).sorted() == ["eth0 5000 7000"])
+}
+
+private func makeTemporaryDirectory() throws -> URL {
+    let url = URL(fileURLWithPath: NSTemporaryDirectory())
+        .appendingPathComponent("nvbeacon-tests-\(UUID().uuidString)", isDirectory: true)
+    try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
+    return url
+}
+
+private func writeInterfaceCounters(
+    _ interface: (name: String, receivedBytes: UInt64, transmittedBytes: UInt64),
+    in sysNet: URL
+) throws {
+    let directory = sysNet.appendingPathComponent(interface.name, isDirectory: true)
+    let statistics = directory.appendingPathComponent("statistics", isDirectory: true)
+    try FileManager.default.createDirectory(at: statistics, withIntermediateDirectories: true)
+    try "\(interface.receivedBytes)\n".write(
+        to: statistics.appendingPathComponent("rx_bytes"),
+        atomically: true,
+        encoding: .utf8
+    )
+    try "\(interface.transmittedBytes)\n".write(
+        to: statistics.appendingPathComponent("tx_bytes"),
+        atomically: true,
+        encoding: .utf8
+    )
+}
+
+private func runNetworkSampleCommand(sysNetPath: URL, procNetDevPath: String) throws -> String {
+    let command = SSHMetricsFetcher.networkSampleCommand
+        .replacingOccurrences(of: "/sys/class/net/", with: sysNetPath.path + "/")
+        .replacingOccurrences(of: "/proc/net/dev", with: procNetDevPath)
+
+    let process = Process()
+    process.executableURL = URL(fileURLWithPath: "/bin/sh")
+    process.arguments = ["-c", command]
+
+    let stdoutPipe = Pipe()
+    process.standardOutput = stdoutPipe
+    process.standardError = Pipe()
+
+    try process.run()
+    let data = stdoutPipe.fileHandleForReading.readDataToEndOfFile()
+    process.waitUntilExit()
+
+    return String(decoding: data, as: UTF8.self)
+}
+
+@Test func hostMetricsCoexistWithNetworkAndGPU() throws {
+    let output = """
+    0, Test GPU, GPU-123, 20, 100, 1000, 40
+    __GPUUSAGE_PROCESS_SECTION__
+    __NVBEACON_CPU_SECTION__
+    cpu 100 0 100 800 0 0 0 0
+    cpu 150 0 110 840 0 0 0 0
+    __NVBEACON_MEMORY_SECTION__
+    MemTotal: 1000 kB
+    MemAvailable: 250 kB
+    SwapTotal: 100 kB
+    SwapFree: 50 kB
+    __GPUUSAGE_NETWORK_SECTION__
+    eth0 1000 2000
+    """
+    let reading = try SSHMetricsFetcher.parseReading(output)
+    #expect(reading.snapshot.hostCPU == 60)
+    #expect(reading.snapshot.hostMemory?.usedKiB == 750)
+    #expect(reading.snapshot.hostMemory?.swapFreeKiB == 50)
+    #expect(reading.networkSample?.interfaces.count == 1)
+    #expect(reading.snapshot.gpus.count == 1)
+    #expect(SSHMetricsFetcher.parseHostCPU("__NVBEACON_CPU_SECTION__\ncpu 1 2 3 4\ncpu 1 2 3 4") == nil)
 }

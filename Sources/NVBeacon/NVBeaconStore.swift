@@ -16,7 +16,7 @@ private struct ServerRefreshContext: Sendable {
 }
 
 private enum ServerRefreshResult: Sendable {
-    case success(serverID: String, snapshot: GPUSnapshot, detectedSSHUserID: Int?)
+    case success(serverID: String, reading: ServerReading, detectedSSHUserID: Int?)
     case failure(serverID: String, message: String)
     case cancelled(serverID: String)
 }
@@ -51,6 +51,7 @@ final class NVBeaconStore: ObservableObject {
     private var pollingTask: Task<Void, Never>?
     private var idleWatchTrackingStates = [String: GPUIdleWatchTrackingState]()
     private var unlockedSSHPasswords = [String: String]()
+    private var networkSamples = [String: NetworkSample]()
     private var passwordAuthWarningAcknowledgedThisSession = false
 
     private var language: AppInterfaceLanguage {
@@ -143,17 +144,22 @@ final class NVBeaconStore: ObservableObject {
                 )
             ]
 
-            let serverLines = serverStates.map { state in
+            let serverLines = serverStates.map { state -> String in
+                let baseLine: String
                 if let snapshot = state.snapshot {
                     let busyCount = snapshot.busyCount(using: settings)
-                    return "\(state.server.displayName): \(snapshot.averageUtilization)% · \(busyCount)/\(snapshot.gpus.count)"
+                    baseLine = "\(state.server.displayName): \(snapshot.averageUtilization)% · \(busyCount)/\(snapshot.gpus.count)"
+                } else if let error = state.lastErrorMessage {
+                    baseLine = "\(state.server.displayName): \(error)"
+                } else {
+                    baseLine = "\(state.server.displayName): --"
                 }
 
-                if let error = state.lastErrorMessage {
-                    return "\(state.server.displayName): \(error)"
+                guard let networkUsage = state.networkUsage else {
+                    return baseLine
                 }
 
-                return "\(state.server.displayName): --"
+                return "\(baseLine) · \(networkUsage.rateSummary)"
             }
             lines.append(contentsOf: serverLines)
             return lines.joined(separator: "\n")
@@ -272,6 +278,14 @@ final class NVBeaconStore: ObservableObject {
         let currentServerIDs = Set(serverStates.map(\.id))
         for removedServerID in previousServerIDs.subtracting(currentServerIDs) {
             unlockedSSHPasswords.removeValue(forKey: removedServerID)
+            networkSamples.removeValue(forKey: removedServerID)
+        }
+
+        if !normalized.showsNetworkUsage {
+            networkSamples.removeAll()
+            for index in serverStates.indices {
+                serverStates[index].networkUsage = nil
+            }
         }
 
         reconcileWatchesWithCurrentServers()
@@ -410,6 +424,7 @@ final class NVBeaconStore: ObservableObject {
         serverStates = []
         detectedSSHUsername = nil
         unlockedSSHPasswords = [:]
+        networkSamples = [:]
         passwordSessionState = .notRequired
         snapshot = nil
         watchedProcesses = []
@@ -691,7 +706,7 @@ final class NVBeaconStore: ObservableObject {
             for context in contexts {
                 group.addTask { [fetcher] in
                     do {
-                        let fetchedSnapshot = try await fetcher.fetchSummary(
+                        let fetchedReading = try await fetcher.fetchSummary(
                             settings: context.connectionSettings,
                             password: context.password
                         )
@@ -711,7 +726,7 @@ final class NVBeaconStore: ObservableObject {
 
                         return .success(
                             serverID: context.serverID,
-                            snapshot: fetchedSnapshot,
+                            reading: fetchedReading,
                             detectedSSHUserID: detectedUserID
                         )
                     } catch is CancellationError {
@@ -724,11 +739,13 @@ final class NVBeaconStore: ObservableObject {
 
             for await result in group {
                 switch result {
-                case .success(let serverID, let fetchedSnapshot, let detectedSSHUserID):
+                case .success(let serverID, let reading, let detectedSSHUserID):
                     guard let state = serverState(for: serverID) else { continue }
-                    let mergedSnapshot = fetchedSnapshot.mergingResolvedProcessMetadata(from: state.snapshot)
+                    let mergedSnapshot = reading.snapshot.mergingResolvedProcessMetadata(from: state.snapshot)
+                    let networkUsage = updateNetworkUsage(for: serverID, sample: reading.networkSample)
                     updateServerState(serverID) { state in
                         state.snapshot = mergedSnapshot
+                        state.networkUsage = networkUsage
                         state.detectedSSHUserID = settings.highlightsMyProcesses ? detectedSSHUserID : nil
                         state.lastErrorMessage = nil
                         state.isRefreshing = false
@@ -758,6 +775,38 @@ final class NVBeaconStore: ObservableObject {
 
         syncAggregateRuntimeState()
     }
+
+    /// Derives a transfer rate by comparing the newest counters with the previous sample.
+    ///
+    /// The previous sample stays the baseline for intervals that are too short (a manual refresh
+    /// right after a scheduled poll, for example), so the shown rate is never measured over a few
+    /// milliseconds, and it is dropped for intervals that are too long (sleep, paused polling).
+    private func updateNetworkUsage(for serverID: String, sample: NetworkSample?) -> NetworkUsage? {
+        guard let sample else {
+            networkSamples.removeValue(forKey: serverID)
+            return nil
+        }
+
+        let previousSample = networkSamples[serverID]
+
+        if let previousSample {
+            let interval = sample.takenAt.timeIntervalSince(previousSample.takenAt)
+            if interval <= 0 || interval >= Self.minimumNetworkSampleInterval {
+                networkSamples[serverID] = sample
+            }
+        } else {
+            networkSamples[serverID] = sample
+        }
+
+        let maximumInterval = max(60, Double(settings.pollIntervalSeconds) * 4)
+        return NetworkUsageEvaluator.usage(
+            previous: previousSample,
+            current: sample,
+            maximumInterval: maximumInterval
+        )
+    }
+
+    private static let minimumNetworkSampleInterval: TimeInterval = 1
 
     private func persistSettings() {
         do {
@@ -951,7 +1000,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         updateServerState(serverID) { state in
-            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs)
+            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostCPU: currentSnapshot.hostCPU, hostMemory: currentSnapshot.hostMemory)
         }
     }
 
@@ -1192,9 +1241,11 @@ final class NVBeaconStore: ObservableObject {
 
             if connectionChanged {
                 state.snapshot = nil
+                state.networkUsage = nil
                 state.detectedSSHUserID = nil
                 state.lastErrorMessage = initialStatusMessage(for: server)
                 unlockedSSHPasswords.removeValue(forKey: server.id)
+                networkSamples.removeValue(forKey: server.id)
             } else if state.passwordSessionState == .notRequired && state.lastErrorMessage == missingPasswordSessionMessage() {
                 state.lastErrorMessage = nil
             }

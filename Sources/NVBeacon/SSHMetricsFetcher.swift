@@ -1,10 +1,42 @@
 import Foundation
 
+struct ServerReading: Sendable {
+    let snapshot: GPUSnapshot
+    let networkSample: NetworkSample?
+}
+
 struct SSHMetricsFetcher: Sendable {
     static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
     private static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
     private static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
+    private static let cpuSectionSeparator = "__NVBEACON_CPU_SECTION__"
+    private static let memorySectionSeparator = "__NVBEACON_MEMORY_SECTION__"
+    private static let networkSectionSeparator = "__GPUUSAGE_NETWORK_SECTION__"
     private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
+
+    /// Prints one `interface received_bytes transmitted_bytes` line per physical network interface.
+    ///
+    /// Container and overlay interfaces are excluded so container traffic is not counted twice,
+    /// and interfaces enslaved to a bond or bridge are skipped so the aggregate device is counted once.
+    static let networkSampleCommand = """
+    net_count=0
+    for net_dir in /sys/class/net/*/; do
+      net_name="${net_dir%/}"
+      net_name="${net_name##*/}"
+      if [ "$net_name" = "lo" ]; then continue; fi
+      case "$net_name" in
+        veth*|docker*|br-*|virbr*|vnet*|tap*|tun*|wg*|zt*|tailscale*|kube*|cni*|flannel*|cali*|dummy*|ifb*) continue ;;
+      esac
+      if [ -e "${net_dir}master" ]; then continue; fi
+      net_rx="$(cat "${net_dir}statistics/rx_bytes" 2>/dev/null)" || continue
+      net_tx="$(cat "${net_dir}statistics/tx_bytes" 2>/dev/null)" || continue
+      printf '%s %s %s\\n' "$net_name" "$net_rx" "$net_tx"
+      net_count=$((net_count + 1))
+    done
+    if [ "$net_count" -eq 0 ]; then
+      sed 's/^[[:space:]]*//' /proc/net/dev 2>/dev/null | awk -F'[[:space:]:]+' 'NR > 2 { if ($1 == "lo") next; if ($1 ~ /^(veth|docker|br-|virbr|vnet|tap|tun|wg|zt|tailscale|kube|cni|flannel|cali|dummy|ifb)/) next; if ($10 == "") next; print $1, $2, $10 }'
+    fi
+    """
 
     enum FetchError: LocalizedError, Equatable {
         case commandFailed(Int32, String)
@@ -42,7 +74,7 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    func fetchSummary(settings: AppSettings, password: String? = nil) async throws -> GPUSnapshot {
+    func fetchSummary(settings: AppSettings, password: String? = nil) async throws -> ServerReading {
         let normalized = settings.normalized()
         guard normalized.isConfigured else {
             throw FetchError.missingTarget
@@ -50,11 +82,13 @@ struct SSHMetricsFetcher: Sendable {
 
         let output = try await runSSHCommand(
             settings: normalized,
-            remoteCommand: Self.buildSummaryRemoteCommand(summaryCommand: normalized.remoteCommand),
+            remoteCommand: Self.buildSummaryRemoteCommand(
+                summaryCommand: normalized.remoteCommand,
+                includesNetworkUsage: normalized.showsNetworkUsage
+            ),
             password: password
         )
-        let gpus = try Self.parseSnapshot(output)
-        return GPUSnapshot(takenAt: Date(), gpus: gpus)
+        return try Self.parseReading(output)
     }
 
     func fetchProcessDetails(
@@ -151,9 +185,14 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     static func parseSnapshot(_ output: String) throws -> [GPUReading] {
+        try parseReading(output).snapshot.gpus
+    }
+
+    static func parseReading(_ output: String) throws -> ServerReading {
         let gpuSection = section(named: nil, from: output)
         let processSection = section(named: processSectionSeparator, from: output)
         let psSection = section(named: psSectionSeparator, from: output)
+        let networkSection = section(named: networkSectionSeparator, from: output)
 
         let gpus = try parseGPUSection(gpuSection)
         let processes = try parseProcessSection(processSection)
@@ -173,23 +212,101 @@ struct SSHMetricsFetcher: Sendable {
             )
         }
 
-        guard !enrichedProcesses.isEmpty else {
-            return gpus
+        let takenAt = Date()
+        let interfaces = parseNetworkSection(networkSection)
+        let networkSample = interfaces.isEmpty
+            ? nil
+            : NetworkSample(takenAt: takenAt, interfaces: interfaces)
+
+        let enrichedGPUs: [GPUReading]
+        if enrichedProcesses.isEmpty {
+            enrichedGPUs = gpus
+        } else {
+            let processesByGPU = Dictionary(grouping: enrichedProcesses, by: \.gpuUUID)
+            enrichedGPUs = gpus.map { gpu in
+                GPUReading(
+                    index: gpu.index,
+                    name: gpu.name,
+                    uuid: gpu.uuid,
+                    utilization: gpu.utilization,
+                    memoryUsedMB: gpu.memoryUsedMB,
+                    memoryTotalMB: gpu.memoryTotalMB,
+                    temperatureCelsius: gpu.temperatureCelsius,
+                    processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
+                )
+            }
         }
 
-        let processesByGPU = Dictionary(grouping: enrichedProcesses, by: \.gpuUUID)
-        return gpus.map { gpu in
-            GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
-            )
+        return ServerReading(
+            snapshot: GPUSnapshot(takenAt: takenAt, gpus: enrichedGPUs, hostCPU: parseHostCPU(output), hostMemory: parseHostMemory(output)),
+            networkSample: networkSample
+        )
+    }
+
+    static func parseHostCPU(_ output: String) -> Int? {
+        let lines = section(named: cpuSectionSeparator, from: output).split(whereSeparator: \.isNewline)
+        guard lines.count == 2 else { return nil }
+        func counters(_ line: Substring) -> (total: UInt64, idle: UInt64)? {
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count >= 5, fields[0] == "cpu" else { return nil }
+            let numbers = fields.dropFirst().prefix(8).compactMap { UInt64($0) }
+            guard numbers.count == min(fields.count - 1, 8), numbers.count >= 4 else { return nil }
+            var total: UInt64 = 0
+            for number in numbers {
+                let (sum, overflow) = total.addingReportingOverflow(number)
+                guard !overflow else { return nil }
+                total = sum
+            }
+            let (idle, overflow) = numbers[3].addingReportingOverflow(numbers.count > 4 ? numbers[4] : 0)
+            guard !overflow else { return nil }
+            return (total, idle)
         }
+        guard let first = counters(lines[0]), let second = counters(lines[1]),
+              second.total > first.total, second.idle >= first.idle else { return nil }
+        let total = second.total - first.total
+        let idle = second.idle - first.idle
+        guard idle <= total else { return nil }
+        return Int((100 * Double(total - idle) / Double(total)).rounded())
+    }
+
+    static func parseHostMemory(_ output: String) -> HostMemoryReading? {
+        let text = section(named: memorySectionSeparator, from: output)
+        var values = [String: Int]()
+        for line in text.split(whereSeparator: \.isNewline) {
+            let fields = line.split(whereSeparator: \.isWhitespace)
+            guard fields.count == 3, fields[2] == "kB", fields[0].hasSuffix(":"), let value = Int(fields[1]), value >= 0 else { continue }
+            let key = String(fields[0].dropLast())
+            if ["MemTotal", "MemAvailable", "SwapTotal", "SwapFree"].contains(key) {
+                guard values[key] == nil else { return nil }
+                values[key] = value
+            }
+        }
+        guard let total = values["MemTotal"], total > 0, let available = values["MemAvailable"], available <= total else { return nil }
+        let swapTotal = values["SwapTotal"], swapFree = values["SwapFree"]
+        let validSwap = swapTotal != nil && swapFree != nil && swapFree! <= swapTotal!
+        return HostMemoryReading(totalKiB: total, availableKiB: available, swapTotalKiB: validSwap ? swapTotal : nil, swapFreeKiB: validSwap ? swapFree : nil)
+    }
+
+    static func parseNetworkSection(_ output: String) -> [NetworkInterfaceReading] {
+        output
+            .split(whereSeparator: \.isNewline)
+            .compactMap { line in
+                let columns = line.split(separator: " ", omittingEmptySubsequences: true)
+
+                guard
+                    columns.count >= 3,
+                    let receivedBytes = UInt64(columns[1]),
+                    let transmittedBytes = UInt64(columns[2])
+                else {
+                    return nil
+                }
+
+                return NetworkInterfaceReading(
+                    name: String(columns[0]),
+                    receivedBytes: receivedBytes,
+                    transmittedBytes: transmittedBytes
+                )
+            }
     }
 
     private static func parseGPUSection(_ output: String) throws -> [GPUReading] {
@@ -495,8 +612,8 @@ struct SSHMetricsFetcher: Sendable {
         )
     }
 
-    private static func buildSummaryRemoteCommand(summaryCommand: String) -> String {
-        """
+    private static func buildSummaryRemoteCommand(summaryCommand: String, includesNetworkUsage: Bool) -> String {
+        let baseCommand = """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
         process_output="$(\(processDetailsCommand) 2>/dev/null || true)"
@@ -514,6 +631,22 @@ struct SSHMetricsFetcher: Sendable {
           [ -n "$real_uid" ] || continue
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
+        """
+
+        let hostCommand = """
+        \(baseCommand)
+        printf '\\n\(cpuSectionSeparator)\\n'
+        (head -n 1 /proc/stat; sleep 0.2; head -n 1 /proc/stat) 2>/dev/null || true
+        printf '\\n\(memorySectionSeparator)\\n'
+        cat /proc/meminfo 2>/dev/null || true
+        """
+        guard includesNetworkUsage else { return hostCommand }
+
+        return """
+        \(hostCommand)
+
+        printf '\\n\(networkSectionSeparator)\\n'
+        \(networkSampleCommand)
         """
     }
 
@@ -556,7 +689,7 @@ struct SSHMetricsFetcher: Sendable {
     }
 
     private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator]
+        let separators = [processSectionSeparator, psSectionSeparator, networkSectionSeparator, cpuSectionSeparator, memorySectionSeparator]
 
         if let name {
             guard let startRange = output.range(of: name) else {
