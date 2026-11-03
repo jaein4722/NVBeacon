@@ -275,7 +275,7 @@ public enum MetricsParser {
     }
 
     private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator, cpuSectionSeparator, networkSectionSeparator]
+        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator, cpuSectionSeparator, networkSectionSeparator, RemoteMetricCommands.hostSectionSeparator]
 
         if let name {
             guard let startRange = output.range(of: name) else {

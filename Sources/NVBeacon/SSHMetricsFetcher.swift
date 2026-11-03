@@ -58,8 +58,8 @@ struct SSHMetricsFetcher: Sendable {
         let collector = MetricsCollector(transport: Transport(settings: normalized, password: password))
         do {
             let snapshot = try await collector.fetchSummary(gpuCommand: normalized.remoteCommand,
-                                                           memoryCommand: normalized.memoryCommand,
-                                                           hostMetrics: normalized.hostMetricsOptions)
+                                                           hostMetrics: normalized.hostMetricsOptions,
+                                                           hostCommand: normalized.hostCommand)
             return ServerReading(snapshot: snapshot, networkSample: snapshot.networkSample)
         } catch {
             throw Self.localizedCollectionError(error)
@@ -343,8 +343,8 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand, includesNetworkUsage: Bool = true) -> String {
-        RemoteMetricCommands.summary(summaryCommand: summaryCommand, memoryCommand: memoryCommand, includesNetworkUsage: includesNetworkUsage)
+    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand, includesNetworkUsage: Bool = true, hostCommand: String? = nil) -> String {
+        RemoteMetricCommands.summary(summaryCommand: summaryCommand, memoryCommand: memoryCommand, includesNetworkUsage: includesNetworkUsage, hostCommand: hostCommand)
     }
 
     private static func buildPSLookupCommand(pids: [Int]) -> String {

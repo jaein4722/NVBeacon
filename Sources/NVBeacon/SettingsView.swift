@@ -566,15 +566,15 @@ struct SettingsView: View {
             }
 
             Section {
-                TextField("", text: selectedServerStringBinding(\.memoryCommand, defaultValue: AppSettings.defaultMemoryCommand), prompt: Text(AppSettings.defaultMemoryCommand))
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
+                TextEditor(text: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand))
+                    .font(.system(.caption, design: .monospaced))
+                    .frame(height: 160)
+                    .accessibilityLabel(t("Host Information Query Command", "호스트 정보 수집 명령"))
                     .disabled(selectedServer == nil)
             } header: {
-                Text(t("Memory Query Command", "메모리 조회 명령"))
+                Text(t("Host Information Query Command", "호스트 정보 수집 명령"))
             } footer: {
-                Text(t("Applies to the selected server in the same SSH refresh. Output must use Linux /proc/meminfo format with kB units. Leave empty to restore the default command.", "선택된 서버의 같은 SSH 새로고침에서 실행됩니다. 출력은 kB 단위의 Linux /proc/meminfo 형식이어야 합니다. 비워두면 기본 명령으로 돌아갑니다."))
+                Text(t("Collects CPU, RAM/Swap, and network for the selected server in the same SSH refresh. Keep the section markers and collection switches when customizing. Leave empty to restore the default command.", "선택된 서버의 CPU·RAM/Swap·네트워크를 같은 SSH 새로고침에서 수집합니다. 수정할 때 영역 구분자와 항목별 수집 조건을 유지하세요. 비워두면 기본 명령으로 돌아갑니다."))
             }
 
             Section {
@@ -867,6 +867,7 @@ struct SettingsView: View {
             draft.sshIdentityFilePath = ""
             draft.remoteCommand = AppSettings.defaultRemoteCommand
             draft.memoryCommand = AppSettings.defaultMemoryCommand
+            draft.hostCommand = AppSettings.defaultHostCommand
         }
     }
 

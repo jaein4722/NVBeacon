@@ -1327,6 +1327,15 @@ final class NVBeaconStore: ObservableObject {
             )
 
             let connectionChanged = state.server.connectionFingerprint != server.connectionFingerprint
+            if resetsRefreshState && state.server.hostCommand != server.hostCommand {
+                cpuSamples.removeValue(forKey: server.id)
+                networkSamples.removeValue(forKey: server.id)
+                state.snapshot?.hostCPU = nil
+                state.snapshot?.hostCPUSample = nil
+                state.snapshot?.hostMemory = nil
+                state.snapshot?.networkSample = nil
+                state.networkUsage = nil
+            }
             if state.server.isEnabled != server.isEnabled {
                 cpuSamples.removeValue(forKey: server.id)
                 networkSamples.removeValue(forKey: server.id)

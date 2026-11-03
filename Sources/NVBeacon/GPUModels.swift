@@ -322,7 +322,15 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
     var sshAuthenticationMode: SSHAuthenticationMode
     var sshConnectionReuseMode: SSHConnectionReuseMode
     var remoteCommand: String
-    var memoryCommand: String
+    // Legacy setting/backup compatibility. The UI and collector use hostCommand.
+    var memoryCommand: String {
+        didSet {
+            if hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: oldValue) {
+                hostCommand = RemoteMetricCommands.hostInfo(memoryCommand: memoryCommand)
+            }
+        }
+    }
+    var hostCommand: String
     var isEnabled: Bool
 
     init(
@@ -335,6 +343,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         sshConnectionReuseMode: SSHConnectionReuseMode = .reuseWhenPossible,
         remoteCommand: String = AppSettings.defaultRemoteCommand,
         memoryCommand: String = AppSettings.defaultMemoryCommand,
+        hostCommand: String? = nil,
         isEnabled: Bool = true
     ) {
         self.id = id
@@ -346,12 +355,13 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         self.sshConnectionReuseMode = sshConnectionReuseMode
         self.remoteCommand = remoteCommand
         self.memoryCommand = memoryCommand
+        self.hostCommand = RemoteMetricCommands.resolveHostCommand(hostCommand, legacyMemoryCommand: memoryCommand)
         self.isEnabled = isEnabled
     }
 
     private enum CodingKeys: String, CodingKey {
         case id, name, sshTarget, sshPort, sshIdentityFilePath
-        case sshAuthenticationMode, sshConnectionReuseMode, remoteCommand, memoryCommand, isEnabled
+        case sshAuthenticationMode, sshConnectionReuseMode, remoteCommand, memoryCommand, hostCommand, isEnabled
     }
 
     init(from decoder: Decoder) throws {
@@ -366,6 +376,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
             sshConnectionReuseMode: try container.decode(SSHConnectionReuseMode.self, forKey: .sshConnectionReuseMode),
             remoteCommand: try container.decode(String.self, forKey: .remoteCommand),
             memoryCommand: try container.decodeIfPresent(String.self, forKey: .memoryCommand) ?? AppSettings.defaultMemoryCommand,
+            hostCommand: try container.decodeIfPresent(String.self, forKey: .hostCommand),
             isEnabled: try container.decode(Bool.self, forKey: .isEnabled)
         )
     }
@@ -429,6 +440,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
 
         let trimmedMemoryCommand = memoryCommand.trimmingCharacters(in: .whitespacesAndNewlines)
         copy.memoryCommand = trimmedMemoryCommand.isEmpty ? AppSettings.defaultMemoryCommand : trimmedMemoryCommand
+        copy.hostCommand = RemoteMetricCommands.resolveHostCommand(copy.hostCommand)
 
         return copy
     }
@@ -442,6 +454,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         copy.sshConnectionReuseMode = sshConnectionReuseMode
         copy.remoteCommand = remoteCommand
         copy.memoryCommand = memoryCommand
+        copy.hostCommand = hostCommand
         copy.servers = [self]
         return copy
     }
@@ -478,6 +491,7 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
             sshConnectionReuseMode: settings.sshConnectionReuseMode,
             remoteCommand: settings.remoteCommand,
             memoryCommand: settings.memoryCommand,
+            hostCommand: settings.hostCommand,
             isEnabled: true
         ).normalized()
     }
@@ -532,6 +546,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     static let legacyDefaultRemoteCommand = RemoteMetricCommands.legacyGPUCommand
     static let defaultRemoteCommand = RemoteMetricCommands.defaultGPUCommand
     static let defaultMemoryCommand = RemoteMetricCommands.defaultMemoryCommand
+    static let defaultHostCommand = RemoteMetricCommands.defaultHostCommand
     static let defaultPopoverWidth = 500
     static let popoverWidthRange = 480...800
 
@@ -546,7 +561,15 @@ struct AppSettings: Codable, Equatable, Sendable {
     var busyMemoryThresholdMB: Int = 50
     var busyUtilizationThresholdPercent: Int = 10
     var remoteCommand: String = Self.defaultRemoteCommand
-    var memoryCommand: String = Self.defaultMemoryCommand
+    // Preserve old settings without overwriting an edited complete host script.
+    var memoryCommand: String = Self.defaultMemoryCommand {
+        didSet {
+            if hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: oldValue) {
+                hostCommand = RemoteMetricCommands.hostInfo(memoryCommand: memoryCommand)
+            }
+        }
+    }
+    var hostCommand: String = Self.defaultHostCommand
     var menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy
     var languagePreference: AppLanguagePreference = .system
     var appearanceMode: AppAppearanceMode = .system
@@ -574,6 +597,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         busyUtilizationThresholdPercent: Int = 10,
         remoteCommand: String = Self.defaultRemoteCommand,
         memoryCommand: String = Self.defaultMemoryCommand,
+        hostCommand: String? = nil,
         menuBarDisplayMode: MenuBarDisplayMode = .averageAndBusy,
         languagePreference: AppLanguagePreference = .system,
         appearanceMode: AppAppearanceMode = .system,
@@ -600,6 +624,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.busyUtilizationThresholdPercent = busyUtilizationThresholdPercent
         self.remoteCommand = remoteCommand
         self.memoryCommand = memoryCommand
+        self.hostCommand = RemoteMetricCommands.resolveHostCommand(hostCommand, legacyMemoryCommand: memoryCommand)
         self.menuBarDisplayMode = menuBarDisplayMode
         self.languagePreference = languagePreference
         self.appearanceMode = appearanceMode
@@ -628,6 +653,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case busyUtilizationThresholdPercent
         case remoteCommand
         case memoryCommand
+        case hostCommand
         case menuBarDisplayMode
         case languagePreference
         case appearanceMode
@@ -658,6 +684,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             busyUtilizationThresholdPercent: try container.decodeIfPresent(Int.self, forKey: .busyUtilizationThresholdPercent) ?? 10,
             remoteCommand: try container.decodeIfPresent(String.self, forKey: .remoteCommand) ?? Self.defaultRemoteCommand,
             memoryCommand: try container.decodeIfPresent(String.self, forKey: .memoryCommand) ?? Self.defaultMemoryCommand,
+            hostCommand: try container.decodeIfPresent(String.self, forKey: .hostCommand),
             menuBarDisplayMode: try container.decodeIfPresent(MenuBarDisplayMode.self, forKey: .menuBarDisplayMode) ?? .averageAndBusy,
             languagePreference: try container.decodeIfPresent(AppLanguagePreference.self, forKey: .languagePreference) ?? .system,
             appearanceMode: try container.decodeIfPresent(AppAppearanceMode.self, forKey: .appearanceMode) ?? .system,
@@ -740,12 +767,14 @@ struct AppSettings: Codable, Equatable, Sendable {
             copy.sshConnectionReuseMode = primaryServer.sshConnectionReuseMode
             copy.remoteCommand = primaryServer.remoteCommand
             copy.memoryCommand = primaryServer.memoryCommand
+            copy.hostCommand = primaryServer.hostCommand
         } else {
             copy.sshTarget = ""
             copy.sshPort = ""
             copy.sshIdentityFilePath = ""
             copy.remoteCommand = Self.defaultRemoteCommand
             copy.memoryCommand = Self.defaultMemoryCommand
+            copy.hostCommand = Self.defaultHostCommand
         }
 
         return copy

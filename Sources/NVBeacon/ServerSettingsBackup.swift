@@ -29,7 +29,7 @@ extension ServerSettingsBackup.Entry {
                   sshIdentityFilePath: server.sshIdentityFilePath,
                   sshAuthenticationMode: server.sshAuthenticationMode,
                   sshConnectionReuseMode: server.sshConnectionReuseMode,
-                  remoteCommand: server.remoteCommand, memoryCommand: server.memoryCommand)
+                  remoteCommand: server.remoteCommand, memoryCommand: server.memoryCommand, hostCommand: server.hostCommand)
     }
 
     func makeServer() -> ServerConfig {
@@ -44,6 +44,7 @@ extension ServerSettingsBackup.Entry {
             sshConnectionReuseMode: sshConnectionReuseMode,
             remoteCommand: remoteCommand,
             memoryCommand: memoryCommand,
+            hostCommand: hostCommand,
             isEnabled: false
         ).normalized()
     }

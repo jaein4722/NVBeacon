@@ -192,6 +192,7 @@ private func fixtureServer(_ id: String, enabled: Bool = true) -> ServerConfig {
     server.sshIdentityFilePath = "/Users/test/.ssh/private-fixture"
     server.remoteCommand = "gpu-query --token=" + secret
     server.memoryCommand = "memory-query --token=" + secret
+    server.hostCommand = "host-query --token=" + secret
     let process = GPUProcessReading(gpuUUID: "GPU-private-uuid", pid: 424242, processName: "private-process",
                                     usedGPUMemoryMB: 100, userID: 501, user: "fixture-user",
                                     commandLine: "python --token=" + secret)
@@ -212,7 +213,7 @@ private func fixtureServer(_ id: String, enabled: Bool = true) -> ServerConfig {
         pollingRestarts: 0, now: Date(timeIntervalSince1970: 1010)
     )
     for omitted in [secret, server.name, server.sshTarget, server.sshIdentityFilePath,
-                    server.remoteCommand, server.memoryCommand, "fixture-user", "GPU-private-uuid",
+                    server.remoteCommand, server.memoryCommand, server.hostCommand, "fixture-user", "GPU-private-uuid",
                     "424242", "private-process", "python --token", state.id] {
         #expect(!report.contains(omitted))
     }

@@ -30,12 +30,13 @@ public struct MetricsCollector<Transport: RemoteCommandExecuting>: Sendable {
         gpuCommand: String = RemoteMetricCommands.defaultGPUCommand,
         memoryCommand: String = RemoteMetricCommands.defaultMemoryCommand,
         includesNetworkUsage: Bool = true,
-        hostMetrics: HostMetricsOptions = .init()
+        hostMetrics: HostMetricsOptions = .init(),
+        hostCommand: String? = nil
     ) async throws -> GPUSnapshot {
         try Task.checkCancellation()
         let output = try await transport.execute(
             RemoteMetricCommands.summary(summaryCommand: gpuCommand, memoryCommand: memoryCommand,
-                                         includesNetworkUsage: includesNetworkUsage, hostMetrics: hostMetrics)
+                                         includesNetworkUsage: includesNetworkUsage, hostMetrics: hostMetrics, hostCommand: hostCommand)
         )
         try Task.checkCancellation()
         guard output.exitStatus == 0 else {

@@ -7,6 +7,7 @@ public enum RemoteMetricCommands {
     public static let processDetailsCommand = "nvidia-smi --query-compute-apps=gpu_uuid,pid,process_name,used_gpu_memory --format=csv,noheader,nounits"
     public static let processSectionSeparator = "__GPUUSAGE_PROCESS_SECTION__"
     public static let psSectionSeparator = "__GPUUSAGE_PS_SECTION__"
+    public static let hostSectionSeparator = "__NVBEACON_HOST_SECTION__"
     public static let memorySectionSeparator = "__NVBEACON_MEMORY_SECTION__"
 
     public static let cpuSectionSeparator = "__NVBEACON_CPU_SECTION__"
@@ -35,8 +36,46 @@ public enum RemoteMetricCommands {
     fi
     """
 
+    public static let defaultHostCommand = hostInfo()
+
+    /// This entire script is editable per server. Collection switches are passed
+    /// in the environment so custom scripts can honor the same item preferences.
+    public static func hostInfo(memoryCommand: String = defaultMemoryCommand) -> String {
+        let memory = memoryCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        let memoryQuery = memory.isEmpty ? defaultMemoryCommand : memory
+        return """
+        if [ "${NVBEACON_COLLECT_CPU:-1}" = "1" ]; then
+          printf '\\n\(cpuSectionSeparator)\\n'
+          awk '/^cpu / || /^btime / { print }' /proc/stat 2>/dev/null || true
+        fi
+        if [ "${NVBEACON_COLLECT_MEMORY:-1}" = "1" ]; then
+          printf '\\n\(memorySectionSeparator)\\n'
+          (
+            \(memoryQuery)
+          ) 2>/dev/null || true
+        fi
+        if [ "${NVBEACON_COLLECT_NETWORK:-1}" = "1" ]; then
+          printf '\\n\(networkSectionSeparator)\\n'
+          (
+            \(networkSampleCommand)
+          ) 2>/dev/null || true
+        fi
+        """
+    }
+
+    public static func resolveHostCommand(_ command: String?, legacyMemoryCommand: String = defaultMemoryCommand) -> String {
+        guard let command else { return hostInfo(memoryCommand: legacyMemoryCommand) }
+        let trimmed = command.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? defaultHostCommand : trimmed
+    }
+
+    private static func shellQuote(_ value: String) -> String {
+        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+
     public static func summary(summaryCommand: String, memoryCommand: String = defaultMemoryCommand,
-                               includesNetworkUsage: Bool = true, hostMetrics: HostMetricsOptions = .init()) -> String {
+                               includesNetworkUsage: Bool = true, hostMetrics: HostMetricsOptions = .init(),
+                               hostCommand: String? = nil) -> String {
         var command = """
         \(summaryCommand)
         printf '\\n\(processSectionSeparator)\\n'
@@ -56,31 +95,18 @@ public enum RemoteMetricCommands {
           printf '%s,%s,%s,%s,%s\\n' "$gpu_uuid" "$pid" "$real_uid" "$pname" "$used_mem"
         done
         """
-        if hostMetrics.cpu {
-            command += """
+        guard hostMetrics.cpu || hostMetrics.memory || (hostMetrics.network && includesNetworkUsage) else { return command }
+        let hostScript = resolveHostCommand(hostCommand, legacyMemoryCommand: memoryCommand)
+        command += """
 
-            printf '\\n\(cpuSectionSeparator)\\n'
-            awk '/^cpu / || /^btime / { print }' /proc/stat 2>/dev/null || true
-            """
-        }
-        if hostMetrics.memory {
-            command += """
-
-            printf '\\n\(memorySectionSeparator)\\n'
-            (
-              \(memoryCommand)
-            ) 2>/dev/null || true
-            """
-        }
-        if hostMetrics.network && includesNetworkUsage {
-            command += """
-
-            printf '\\n\(networkSectionSeparator)\\n'
-            (
-              \(networkSampleCommand)
-            ) 2>/dev/null || true
-            """
-        }
+        printf '\\n\(hostSectionSeparator)\\n'
+        (
+          export NVBEACON_COLLECT_CPU=\(hostMetrics.cpu ? 1 : 0)
+          export NVBEACON_COLLECT_MEMORY=\(hostMetrics.memory ? 1 : 0)
+          export NVBEACON_COLLECT_NETWORK=\(hostMetrics.network && includesNetworkUsage ? 1 : 0)
+          /bin/sh -c \(shellQuote(hostScript))
+        ) 2>/dev/null || true
+        """
         return command
     }
 }

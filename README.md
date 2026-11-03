@@ -118,7 +118,7 @@ All settings apply automatically. There is no separate apply button.
 
 Each server groups CPU, memory (RAM / Swap), and network metrics in one **Host Information** section. All items are enabled and expanded by default. Collapse an entire server using the chevron next to its name, or collapse only its host information section. Both states are saved separately per server across popover openings and app restarts. Reopening a server keeps the previous host section state.
 
-In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. The individual switches appear only while host collection is enabled. These choices apply to all servers. Disabled items are omitted from the remote query, not just hidden. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
+In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. The individual switches appear only while host collection is enabled. These choices apply to all servers. Disabled probes are not executed by the default host script, and their output is not parsed. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
 
 Enabled host metrics share the existing GPU polling SSH call. CPU and network rates use the difference between ordinary polls, without an extra connection or a sampling delay. They become available after the second successful sample and show the average over the measured interval; long gaps and counter resets start a new baseline.
 
@@ -128,7 +128,19 @@ Each server's popover shows RAM used / total and Swap used / total when swap is 
 
 RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
 
-In `Advanced` settings, `GPU Query Command` and `Memory Query Command` apply to the server selected in `General`. The memory command defaults to `cat /proc/meminfo`; a custom command must return the same field names and `kB` units (`MemTotal`, `MemAvailable`, and optionally `SwapTotal` / `SwapFree`). An empty command restores the default. The memory query runs once per server within the existing SSH refresh, not once per GPU or in an extra SSH connection. A failed memory command leaves GPU monitoring available.
+In **Advanced** settings, **GPU Query Command** and **Host Information Query Command** apply to the server selected in **General**. The host command is an editable multiline shell script that collects CPU, RAM/Swap, and network counters together in the same SSH refresh. An empty command restores the complete default host script. Existing custom memory commands are migrated into that script's memory section.
+
+Custom host commands must preserve these output sections:
+
+| Section marker | Output |
+| --- | --- |
+| `__NVBEACON_CPU_SECTION__` | One aggregate `cpu` line and a `btime` line from `/proc/stat` |
+| `__NVBEACON_MEMORY_SECTION__` | `/proc/meminfo` fields in `kB`: `MemTotal`, `MemAvailable`, optionally `SwapTotal` and `SwapFree` |
+| `__GPUUSAGE_NETWORK_SECTION__` | One `interface received_bytes transmitted_bytes` line per included interface |
+
+The app exports `NVBEACON_COLLECT_CPU`, `NVBEACON_COLLECT_MEMORY`, and `NVBEACON_COLLECT_NETWORK` as `1` or `0`. Keep the default script's conditional guards, or honor these switches in your own script, so disabled items are not collected. Turning host collection off entirely skips the whole script. Missing, failed, or malformed host output does not interrupt GPU monitoring.
+
+Server backup exports now use format version 2 to preserve the host command. Version 1 backups remain importable; their memory command is migrated into the complete host script. Imported servers still start disabled.
 
 The existing polling interval defaults to 10 seconds and can be set to 1 second in Settings. Actual updates also depend on SSH command duration; brief allocation peaks can be missed. Host RAM totals do not show container, cgroup, or scheduler job memory limits, and free VRAM alone does not guarantee a CUDA allocation will succeed.
 

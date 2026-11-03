@@ -29,6 +29,7 @@ private struct Server: Sendable {
     let reusesConnection: Bool
     let gpuCommand: String
     let memoryCommand: String
+    let hostCommand: String?
 
     init?(_ json: [String: Any]) {
         guard json["isEnabled"] as? Bool ?? true,
@@ -41,6 +42,7 @@ private struct Server: Sendable {
         reusesConnection = (json["sshConnectionReuseMode"] as? String ?? "reuseWhenPossible") == "reuseWhenPossible"
         gpuCommand = json["remoteCommand"] as? String ?? RemoteMetricCommands.defaultGPUCommand
         memoryCommand = json["memoryCommand"] as? String ?? RemoteMetricCommands.defaultMemoryCommand
+        hostCommand = json["hostCommand"] as? String
     }
 }
 
@@ -168,9 +170,9 @@ private func remoteProgram(commands: [String: String], samples: Int) throws -> S
     """
 }
 
-private func replay(text: String, options: HostMetricsOptions, name: String, iterations: Int) async throws -> ReplayObservation {
+private func replay(text: String, options: HostMetricsOptions, name: String, iterations: Int, server: Server) async throws -> ReplayObservation {
     let collector = MetricsCollector(transport: ReplayTransport(text: text))
-    for _ in 0..<20 { _ = try await collector.fetchSummary(hostMetrics: options) }
+    for _ in 0..<20 { _ = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand) }
     var walls = [Double]()
     var cpus = [Double]()
     var checksum = 0
@@ -178,7 +180,7 @@ private func replay(text: String, options: HostMetricsOptions, name: String, ite
         let cpu = cpuMilliseconds()
         let start = ContinuousClock.now
         for _ in 0..<iterations {
-            let snapshot = try await collector.fetchSummary(hostMetrics: options)
+            let snapshot = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand)
             checksum += snapshot.gpus.count + (snapshot.hostMemory == nil ? 0 : 1)
         }
         walls.append(milliseconds(start.duration(to: .now)) * 1000 / Double(iterations))
@@ -266,7 +268,7 @@ private struct HostMetricsBenchmark {
         let collector = MetricsCollector(transport: transport)
         let variants: [(String, HostMetricsOptions)] = [("gpuOnly", .none), ("allHost", .init())]
         for (_, options) in variants {
-            let snapshot = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options)
+            let snapshot = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand)
             guard !snapshot.gpus.isEmpty else { throw BenchmarkError.invalidResponse }
         }
         var observations = [Observation]()
@@ -278,12 +280,12 @@ private struct HostMetricsBenchmark {
             for (name, options) in order {
                 let cpu = cpuMilliseconds()
                 let start = ContinuousClock.now
-                let snapshot = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options)
+                let snapshot = try await collector.fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand)
                 let wallMS = milliseconds(start.duration(to: .now))
                 let cpuMS = cpuMilliseconds() - cpu
                 let text = await transport.lastOutput
                 let requestBytes = RemoteMetricCommands.summary(summaryCommand: server.gpuCommand,
-                    memoryCommand: server.memoryCommand, hostMetrics: options).utf8.count
+                    memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand).utf8.count
                 observations.append(.init(round: round, variant: name, wallMS: wallMS, localCPUMS: cpuMS,
                                           requestBytes: requestBytes, responseBytes: text.utf8.count))
                 lastOutputs[name] = text
@@ -291,7 +293,7 @@ private struct HostMetricsBenchmark {
                 if name == "allHost" { interfaceCount = snapshot.networkSample?.interfaces.count ?? 0 }
             }
         }
-        let baseline = RemoteMetricCommands.summary(summaryCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: .none)
+        let baseline = RemoteMetricCommands.summary(summaryCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: .none, hostCommand: server.hostCommand)
         var commands = ["gpuOnly": baseline, "emptyShell": ":"]
         for (name, options) in [
             ("cpuProbe", HostMetricsOptions(cpu: true, memory: false, network: false)),
@@ -299,7 +301,7 @@ private struct HostMetricsBenchmark {
             ("networkProbe", HostMetricsOptions(cpu: false, memory: false, network: true)),
             ("hostProbes", HostMetricsOptions()),
         ] {
-            let full = RemoteMetricCommands.summary(summaryCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options)
+            let full = RemoteMetricCommands.summary(summaryCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand)
             guard full.hasPrefix(baseline) else { throw BenchmarkError.invalidResponse }
             commands[name] = String(full.dropFirst(baseline.count))
             if name == "hostProbes" { commands["allHost"] = full }
@@ -316,7 +318,7 @@ private struct HostMetricsBenchmark {
         var replayObservations = [ReplayObservation]()
         for (name, options) in variants {
             if let text = lastOutputs[name] {
-                replayObservations.append(try await replay(text: text, options: options, name: name, iterations: iterations))
+                replayObservations.append(try await replay(text: text, options: options, name: name, iterations: iterations, server: server))
             }
         }
         return .init(serverIndex: index, connectionReuse: server.reusesConnection, gpuCount: gpuCount,
