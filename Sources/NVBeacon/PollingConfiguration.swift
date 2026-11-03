@@ -27,11 +27,13 @@ struct PollingConfiguration: Equatable, Sendable {
 
     let interval: Int
     let highlightsMyProcesses: Bool
+    let showsNetworkUsage: Bool
     let servers: [Server]
 
     init(_ settings: AppSettings) {
         interval = settings.pollIntervalSeconds
         highlightsMyProcesses = settings.highlightsMyProcesses
+        showsNetworkUsage = settings.showsNetworkUsage
         servers = settings.pollableServers.map(Server.init).sorted { $0.id < $1.id }
     }
 }

@@ -226,6 +226,11 @@ struct StatusMenuView: View {
                     UpdatedPill(date: snapshot.takenAt, language: language)
                 }
 
+                if let networkUsage = state.networkUsage {
+                    NetworkUsageRow(usage: networkUsage, language: language)
+                }
+
+                HostCPUView(cpu: snapshot.hostCPU, language: language)
                 HostMemoryView(memory: snapshot.hostMemory, language: language)
                 gpuList(state, snapshot: snapshot)
             } else if state.server.isEnabled {
@@ -504,6 +509,21 @@ private func memoryUsageNotice(ratio: Double, language: AppInterfaceLanguage) ->
     return ""
 }
 
+private struct HostCPUView: View {
+    let cpu: Int?
+    let language: AppInterfaceLanguage
+
+    var body: some View {
+        if let cpu {
+            ThinMetricBar(title: "CPU", valueText: "\(cpu)%", ratio: Double(cpu) / 100, tint: .orange)
+        } else {
+            Text(language.text("CPU: Unavailable", "CPU: 확인 불가"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 private struct HostMemoryView: View {
     let memory: HostMemoryReading?
     let language: AppInterfaceLanguage
@@ -548,6 +568,84 @@ private struct HostMemoryView: View {
         }
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+}
+
+private struct NetworkUsageRow: View {
+    let usage: NetworkUsage
+    let language: AppInterfaceLanguage
+
+    private func t(_ english: String, _ korean: String) -> String {
+        language.text(english, korean)
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "network")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+
+            NetworkRateLabel(
+                systemImage: "arrow.down",
+                value: NetworkUsageFormatter.rateText(usage.receivedBytesPerSecond),
+                tint: Color(red: 0.12, green: 0.54, blue: 0.94)
+            )
+
+            NetworkRateLabel(
+                systemImage: "arrow.up",
+                value: NetworkUsageFormatter.rateText(usage.transmittedBytesPerSecond),
+                tint: Color(red: 0.93, green: 0.45, blue: 0.15)
+            )
+
+            Spacer(minLength: 8)
+
+            Text("\(t("Total since boot", "부팅 후 누적")) \(usage.totalSummary)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 5)
+        .background(
+            RoundedRectangle(cornerRadius: 9, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        var lines = [String]()
+
+        if usage.interfaceNames.isEmpty {
+            lines.append(t("The server did not report any network interface.", "서버에서 네트워크 인터페이스 정보를 가져오지 못했습니다."))
+        } else {
+            lines.append("\(t("Interfaces", "인터페이스")): \(usage.interfaceNames.joined(separator: ", "))")
+        }
+
+        lines.append("\(t("Total since boot", "부팅 후 누적")): \(usage.totalSummary)")
+
+        if !usage.hasRates {
+            lines.append(t("The transfer rate is measured from the next refresh on.", "전송 속도는 다음 새로고침부터 표시됩니다."))
+        }
+
+        return lines.joined(separator: "\n")
+    }
+}
+
+private struct NetworkRateLabel: View {
+    let systemImage: String
+    let value: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(tint)
+
+            Text(value)
+                .font(.caption.monospacedDigit().weight(.semibold))
+        }
     }
 }
 

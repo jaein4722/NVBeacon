@@ -499,6 +499,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
     let id: String
     var server: ServerConfig
     var snapshot: GPUSnapshot?
+    var networkUsage: NetworkUsage?
     var isRefreshing: Bool
     var lastErrorMessage: String?
     var passwordSessionState: SSHPasswordSessionState
@@ -508,6 +509,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
     init(
         server: ServerConfig,
         snapshot: GPUSnapshot? = nil,
+        networkUsage: NetworkUsage? = nil,
         isRefreshing: Bool = false,
         lastErrorMessage: String? = nil,
         passwordSessionState: SSHPasswordSessionState = .notRequired,
@@ -517,6 +519,7 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
         self.id = server.id
         self.server = server
         self.snapshot = snapshot
+        self.networkUsage = networkUsage
         self.isRefreshing = isRefreshing
         self.lastErrorMessage = lastErrorMessage
         self.passwordSessionState = passwordSessionState
@@ -551,6 +554,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var closesPopoverOnOutsideClick: Bool = true
     var popoverWidth: Int = Self.defaultPopoverWidth
     var highlightsMyProcesses: Bool = true
+    var showsNetworkUsage: Bool = true
     var idleNotificationSeconds: Int = 300
     var idleMemoryThresholdMB: Int = 50
 
@@ -574,6 +578,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         closesPopoverOnOutsideClick: Bool = true,
         popoverWidth: Int = Self.defaultPopoverWidth,
         highlightsMyProcesses: Bool = true,
+        showsNetworkUsage: Bool = true,
         idleNotificationSeconds: Int = 300,
         idleMemoryThresholdMB: Int = 50
     ) {
@@ -596,6 +601,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.popoverWidth = popoverWidth
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.showsNetworkUsage = showsNetworkUsage
         self.idleNotificationSeconds = idleNotificationSeconds
         self.idleMemoryThresholdMB = idleMemoryThresholdMB
     }
@@ -620,6 +626,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case closesPopoverOnOutsideClick
         case popoverWidth
         case highlightsMyProcesses
+        case showsNetworkUsage
         case idleNotificationSeconds
         case idleMemoryThresholdMB
     }
@@ -646,6 +653,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
+            showsNetworkUsage: try container.decodeIfPresent(Bool.self, forKey: .showsNetworkUsage) ?? true,
             idleNotificationSeconds: try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? 300,
             idleMemoryThresholdMB: try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? 50
         )

@@ -94,13 +94,17 @@ public struct HostMemoryReading: Equatable, Sendable {
 public struct GPUSnapshot: Equatable, Sendable {
     public let takenAt: Date
     public let gpus: [GPUReading]
-    public init(takenAt: Date, gpus: [GPUReading], hostMemory: HostMemoryReading? = nil) {
+    public init(takenAt: Date, gpus: [GPUReading], hostMemory: HostMemoryReading? = nil, hostCPU: Int? = nil, networkSample: NetworkSample? = nil) {
         self.takenAt = takenAt
         self.gpus = gpus
         self.hostMemory = hostMemory
+        self.hostCPU = hostCPU
+        self.networkSample = networkSample
     }
 
     public var hostMemory: HostMemoryReading? = nil
+    public var hostCPU: Int? = nil
+    public var networkSample: NetworkSample? = nil
 
     public var averageUtilization: Int {
         guard !gpus.isEmpty else { return 0 }
@@ -147,7 +151,7 @@ public struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory)
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample)
     }
 
     public func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
@@ -175,7 +179,7 @@ public struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory)
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample)
     }
 }
 

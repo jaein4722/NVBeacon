@@ -32,6 +32,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Which process is running on that GPU?
 - Did my training job finish?
 - Has a watched GPU stayed idle long enough to reuse?
+- How fast is the server's network while the job runs?
 
 ## Screenshots
 
@@ -48,6 +49,10 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 
 <p align="center"><em>Detailed light and dark mode popovers with per-GPU status, process details, and job notification controls</em></p>
 
+## Host monitoring
+
+Each server shows Linux CPU utilization (two `/proc/stat` samples 0.2 seconds apart), RAM used and available (`MemTotal - MemAvailable`), and swap. These use the existing SSH polling connection. Network monitoring remains available.
+
 ## Features
 
 - Native macOS menu bar UI with compact status text or icon-only mode
@@ -55,6 +60,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
 - Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
+- Per-server network usage with download and upload rates plus total transferred bytes
 - On-demand process details with user, PID, memory, and command preview
 - Automatic detection and highlighting of your own remote SSH user processes and GPUs
 - Job completion alerts through macOS Notification Center when watched GPU processes exit
@@ -163,6 +169,8 @@ The interface can be set to:
 ## Notes
 
 - NVBeacon uses your local SSH setup directly, including `~/.ssh/config`.
+- Network usage is read from the server's interface counters (`/sys/class/net` or `/proc/net/dev`) in the same SSH call as the GPU data, so polling stays a single round trip. Loopback, container, and overlay interfaces are skipped, and bond/bridge slaves are only counted through their aggregate device.
+- Network rates appear from the second refresh on, because a rate needs two counter readings. Turn the `Show network usage` toggle off in Settings to stop reading network counters entirely.
 - In key-based mode, background polling does not read from Keychain.
 - SSH command attempts have a 15-second timeout and an 8 MiB combined output limit. Output is drained while commands run, and cancellation terminates and reaps the owned SSH process.
 - In password-based mode, each server password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.

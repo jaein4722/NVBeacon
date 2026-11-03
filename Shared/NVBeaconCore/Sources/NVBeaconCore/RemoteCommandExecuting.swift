@@ -28,11 +28,12 @@ public struct MetricsCollector<Transport: RemoteCommandExecuting>: Sendable {
 
     public func fetchSummary(
         gpuCommand: String = RemoteMetricCommands.defaultGPUCommand,
-        memoryCommand: String = RemoteMetricCommands.defaultMemoryCommand
+        memoryCommand: String = RemoteMetricCommands.defaultMemoryCommand,
+        includesNetworkUsage: Bool = true
     ) async throws -> GPUSnapshot {
         try Task.checkCancellation()
         let output = try await transport.execute(
-            RemoteMetricCommands.summary(summaryCommand: gpuCommand, memoryCommand: memoryCommand)
+            RemoteMetricCommands.summary(summaryCommand: gpuCommand, memoryCommand: memoryCommand, includesNetworkUsage: includesNetworkUsage)
         )
         try Task.checkCancellation()
         guard output.exitStatus == 0 else {
@@ -41,10 +42,14 @@ public struct MetricsCollector<Transport: RemoteCommandExecuting>: Sendable {
                 output.standardError.isEmpty ? output.standardOutput : output.standardError
             )
         }
+        let takenAt = Date()
+        let interfaces = MetricsParser.parseNetworkSection(MetricsParser.networkSection(output.standardOutput))
         return GPUSnapshot(
-            takenAt: Date(),
+            takenAt: takenAt,
             gpus: try MetricsParser.parseSnapshot(output.standardOutput),
-            hostMemory: MetricsParser.parseHostMemory(output.standardOutput)
+            hostMemory: MetricsParser.parseHostMemory(output.standardOutput),
+            hostCPU: MetricsParser.parseHostCPU(output.standardOutput),
+            networkSample: interfaces.isEmpty ? nil : NetworkSample(takenAt: takenAt, interfaces: interfaces)
         )
     }
 }
