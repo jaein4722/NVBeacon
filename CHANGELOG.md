@@ -6,7 +6,8 @@
 - Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
 - Grouped CPU, RAM/Swap, and network metrics in one host information section, expanded by default, with a saved expand/collapse state per server.
 - Added collapsible server cards, expanded by default, with saved states independent of each server's host information section. Collapsing either section keeps polling and alerts running.
-- Added host information collection controls in General settings: turn all collection off or select CPU, memory, and network individually. Disabled items are omitted from remote commands.
+- Added host information collection controls in General settings: turn all collection off or select CPU, memory, and network individually. Individual switches are hidden while collection is off, with their choices retained. Disabled items are omitted from remote commands.
+- Hid unconfigured swap and moved available RAM into the RAM bar tooltip to keep host information compact.
 - Calculated CPU utilization between regular polls, removing the extra 0.2-second sampling delay while keeping a single SSH query for GPU and host metrics.
 - Suppressed network rates for samples less than one second apart, and retained bond/bridge slave filtering when falling back to `/proc/net/dev` with available interface topology.
 

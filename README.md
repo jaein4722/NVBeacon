@@ -51,7 +51,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 
 ## Host monitoring
 
-Each server shows Linux CPU utilization (two `/proc/stat` samples 0.2 seconds apart), RAM used and available (`MemTotal - MemAvailable`), and swap. These use the existing SSH polling connection. Network monitoring remains available.
+Each server can show Linux CPU utilization, RAM usage, configured swap, and network throughput in one collapsible section. CPU and network rates use consecutive polls over the existing SSH connection, without an extra sampling delay. See [Host Information](#host-information) for collection controls.
 
 ## Features
 
@@ -124,7 +124,7 @@ Enabled host metrics share the existing GPU polling SSH call. CPU and network ra
 
 ### Memory Monitoring
 
-Each server's popover shows RAM used / total, available RAM, and Swap used / total. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
+Each server's popover shows RAM used / total and Swap used / total when swap is configured. Unconfigured swap is hidden. Hover over the RAM bar to see available RAM. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
 
 RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
 

@@ -626,17 +626,10 @@ private struct HostMemoryView: View {
                     ratio: memory.usageRatio,
                     tint: memoryTint(ratio: memory.usageRatio)
                 )
-
-                Text(language.text("Available: ", "사용 가능: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(memoryTint(ratio: memory.usageRatio))
+                .help(language.text("Available: ", "사용 가능: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
 
                 if let swapTotal = memory.swapTotalKiB, let swapUsed = memory.swapUsedKiB, let swapRatio = memory.swapUsageRatio {
-                    if swapTotal == 0 {
-                        Text(language.text("Swap: Not configured", "Swap: 설정되지 않음"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    } else {
+                    if swapTotal > 0 {
                         ThinMetricBar(
                             title: "Swap",
                             valueText: "\(HostMemoryReading.capacityText(kibibytes: swapUsed)) / \(HostMemoryReading.capacityText(kibibytes: swapTotal))",
