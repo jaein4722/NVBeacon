@@ -621,7 +621,7 @@ private struct HostMemoryView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let memory {
                 ThinMetricBar(
-                    title: language.text("Server RAM", "서버 RAM"),
+                    title: "RAM",
                     valueText: "\(memory.usagePercent)% · \(HostMemoryReading.capacityText(kibibytes: memory.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: memory.totalKiB))",
                     ratio: memory.usageRatio,
                     tint: memoryTint(ratio: memory.usageRatio)
@@ -643,7 +643,7 @@ private struct HostMemoryView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(language.text("Server RAM / Swap: Unavailable", "서버 RAM / Swap: 확인 불가"))
+                Text(language.text("RAM / Swap: Unavailable", "RAM / Swap: 확인 불가"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
