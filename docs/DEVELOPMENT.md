@@ -2,6 +2,36 @@
 
 This document is for contributors and maintainers of NVBeacon.
 
+## GitHub Flow
+
+NVBeacon follows GitHub Flow. `master` is the release-ready default branch.
+
+1. Update a clean local `master` with `git pull --ff-only origin master`.
+2. Create a short-lived branch for the change: `feat/<topic>`, `fix/<topic>`,
+   `chore/<topic>`, or `docs/<topic>`.
+3. Commit focused changes, push the branch, and open a pull request targeting
+   `master`. Link the related issue when there is one.
+4. Run the relevant tests and complete review before merging the pull request.
+   Squash intermediate commits when practical.
+5. Delete the merged branch when it is no longer needed. Create release tags
+   from verified commits on `master` using the release workflow below.
+
+Urgent fixes follow the same process on a `fix/<topic>` branch. Do not introduce
+long-lived `develop`, `release/*`, or `hotfix/*` branches.
+
+Keep unrelated work separate. If the current worktree contains in-progress
+changes, preserve it, fetch `origin/master`, and create a separate branch and
+worktree from that ref. Do not switch or pull over uncommitted work to start an
+unrelated change. Code fetched from a contributor fork can be reviewed separately;
+accepted changes go through a feature branch and pull request, with credit to
+the contributor.
+
+Preserve original contributor commits and authorship when integrating forked
+work. Keep adaptations and fixes in follow-up commits and describe both the
+original contribution and the adjustments in the pull request. Use `git
+cherry-pick -x` if replaying a commit is necessary. When squashing a contribution,
+retain the contributor's credit with a `Co-authored-by` trailer.
+
 ## Prerequisites
 
 - macOS 14 or later
@@ -155,9 +185,9 @@ NVBeacon uses tag-based GitHub Releases.
 
 Typical release sequence:
 
-1. commit the final release candidate to `master`
-2. run `swift test`
-3. update `CHANGELOG.md`
+1. prepare the final release candidate and update `CHANGELOG.md` on a short-lived branch
+2. merge it into `master` through a reviewed pull request with passing checks
+3. verify `swift test` passes on the release commit on `master`
 4. create and push a version tag
 
 Example:
