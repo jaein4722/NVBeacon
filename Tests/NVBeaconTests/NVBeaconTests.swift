@@ -744,6 +744,20 @@ import Testing
     #expect(NetworkUsageEvaluator.usage(previous: nil, current: current, maximumInterval: 60) == nil)
 }
 
+@Test func networkUsageDoesNotPublishRatesForRapidManualRefreshes() throws {
+    let start = Date(timeIntervalSince1970: 1000)
+    let previous = NetworkSample(takenAt: start, interfaces: [
+        NetworkInterfaceReading(name: "eth0", receivedBytes: 1000, transmittedBytes: 1000)
+    ])
+    let current = NetworkSample(takenAt: start.addingTimeInterval(0.01), interfaces: [
+        NetworkInterfaceReading(name: "eth0", receivedBytes: 2000, transmittedBytes: 3000)
+    ])
+    let usage = try #require(NetworkUsageEvaluator.usage(previous: previous, current: current, maximumInterval: 60))
+    #expect(!usage.hasRates)
+    #expect(usage.totalReceivedBytes == 2000)
+    #expect(usage.totalTransmittedBytes == 3000)
+}
+
 @Test func formatsNetworkRatesAndSizes() {
     #expect(NetworkUsageFormatter.rateText(nil) == "--")
     #expect(NetworkUsageFormatter.rateText(-5) == "--")
@@ -806,6 +820,24 @@ import Testing
     )
 
     #expect(output.split(whereSeparator: \.isNewline).map(String.init).sorted() == ["eth0 5000 7000"])
+}
+
+@Test func networkFallbackStillExcludesBondSlavesWhenSysfsCountersAreUnavailable() throws {
+    let root = try makeTemporaryDirectory()
+    defer { try? FileManager.default.removeItem(at: root) }
+    let sysNet = root.appendingPathComponent("sys/class/net", isDirectory: true)
+    try FileManager.default.createDirectory(at: sysNet.appendingPathComponent("bond0"), withIntermediateDirectories: true)
+    try FileManager.default.createDirectory(at: sysNet.appendingPathComponent("eth1"), withIntermediateDirectories: true)
+    try FileManager.default.createSymbolicLink(atPath: sysNet.appendingPathComponent("eth1/master").path, withDestinationPath: "../bond0")
+    let procNetDev = root.appendingPathComponent("proc-net-dev")
+    try """
+    Inter-| Receive | Transmit
+     face |bytes packets errs drop fifo frame compressed multicast|bytes packets errs drop fifo colls carrier compressed
+     bond0: 7000 1 0 0 0 0 0 0 8000 1 0 0 0 0 0 0
+     eth1: 7000 1 0 0 0 0 0 0 8000 1 0 0 0 0 0 0
+    """.write(to: procNetDev, atomically: true, encoding: .utf8)
+    let output = try runNetworkSampleCommand(sysNetPath: sysNet, procNetDevPath: procNetDev.path)
+    #expect(output.split(whereSeparator: \.isNewline).map(String.init) == ["bond0 7000 8000"])
 }
 
 private func makeTemporaryDirectory() throws -> URL {

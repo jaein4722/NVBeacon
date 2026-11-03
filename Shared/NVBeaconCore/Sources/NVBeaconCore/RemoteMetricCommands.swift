@@ -28,7 +28,10 @@ public enum RemoteMetricCommands {
       net_count=$((net_count + 1))
     done
     if [ "$net_count" -eq 0 ]; then
-      sed 's/^[[:space:]]*//' /proc/net/dev 2>/dev/null | awk -F'[[:space:]:]+' 'NR > 2 { if ($1 == "lo") next; if ($1 ~ /^(veth|docker|br-|virbr|vnet|tap|tun|wg|zt|tailscale|kube|cni|flannel|cali|dummy|ifb)/) next; if ($10 == "") next; print $1, $2, $10 }'
+      sed 's/^[[:space:]]*//' /proc/net/dev 2>/dev/null | awk -F'[[:space:]:]+' 'NR > 2 { if ($1 == "lo") next; if ($1 ~ /^(veth|docker|br-|virbr|vnet|tap|tun|wg|zt|tailscale|kube|cni|flannel|cali|dummy|ifb)/) next; if ($10 == "") next; print $1, $2, $10 }' | while read -r net_name net_rx net_tx; do
+        [ -e "/sys/class/net/$net_name/master" ] && continue
+        printf '%s %s %s\\n' "$net_name" "$net_rx" "$net_tx"
+      done
     fi
     """
 

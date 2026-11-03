@@ -5,6 +5,7 @@
 - Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
 - Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
 - Added a `Show network usage` toggle in Settings so users can skip network counters entirely.
+- Suppressed network rates for samples less than one second apart, and retained bond/bridge slave filtering when falling back to `/proc/net/dev` with available interface topology.
 
 - Thanks @JunbiaoXue for contributing server network and CPU monitoring in #7.
 

@@ -69,7 +69,8 @@ public enum NetworkUsageEvaluator {
     public static func usage(
         previous: NetworkSample?,
         current: NetworkSample,
-        maximumInterval: TimeInterval
+        maximumInterval: TimeInterval,
+        minimumInterval: TimeInterval = 1
     ) -> NetworkUsage? {
         guard !current.interfaces.isEmpty else { return nil }
 
@@ -79,7 +80,7 @@ public enum NetworkUsageEvaluator {
         if let previous, !previous.interfaces.isEmpty {
             let interval = current.takenAt.timeIntervalSince(previous.takenAt)
 
-            if interval > 0, interval <= maximumInterval {
+            if interval >= minimumInterval, interval > 0, interval <= maximumInterval {
                 let previousByName = Dictionary(
                     previous.interfaces.map { ($0.name, $0) },
                     uniquingKeysWith: { first, _ in first }
