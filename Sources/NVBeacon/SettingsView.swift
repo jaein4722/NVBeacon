@@ -320,12 +320,11 @@ struct SettingsView: View {
 
             Section {
                 Toggle(t("Collect host information", "호스트 정보 수집"), isOn: $draft.collectsHostInfo)
-                Group {
+                if draft.collectsHostInfo {
                     Toggle("CPU", isOn: $draft.collectsHostCPU)
                     Toggle(t("Memory (RAM / Swap)", "메모리 (RAM / Swap)"), isOn: $draft.collectsHostMemory)
                     Toggle(t("Network", "네트워크"), isOn: $draft.showsNetworkUsage)
                 }
-                .disabled(!draft.collectsHostInfo)
             } header: {
                 Text(t("Host Information", "호스트 정보"))
             } footer: {

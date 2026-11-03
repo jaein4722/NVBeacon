@@ -118,7 +118,7 @@ All settings apply automatically. There is no separate apply button.
 
 Each server groups CPU, memory (RAM / Swap), and network metrics in one **Host Information** section. All items are enabled and expanded by default. Collapse an entire server using the chevron next to its name, or collapse only its host information section. Both states are saved separately per server across popover openings and app restarts. Reopening a server keeps the previous host section state.
 
-In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. These choices apply to all servers. Disabled items are omitted from the remote query, not just hidden. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
+In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. The individual switches appear only while host collection is enabled. These choices apply to all servers. Disabled items are omitted from the remote query, not just hidden. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
 
 Enabled host metrics share the existing GPU polling SSH call. CPU and network rates use the difference between ordinary polls, without an extra connection or a sampling delay. They become available after the second successful sample and show the average over the measured interval; long gaps and counter resets start a new baseline.
 
