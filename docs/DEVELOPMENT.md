@@ -67,6 +67,41 @@ and CI, does not read passwords or change configuration, and logs counts only:
 NVBEACON_LIVE_SSH_SMOKE=1 swift test --build-system native --filter liveSSHCollectionWithTheSharedCore
 ```
 
+### Host Metrics Overhead Benchmark
+
+Run a manual, read-only comparison against enabled, key-authenticated servers in
+an existing app settings domain:
+
+```bash
+bash scripts/benchmark_host_metrics.sh \
+  --settings-domain com.leejaein.NVBeacon \
+  --samples 12 --max-servers 2 --parse-iterations 300 \
+  --output dist/benchmarks/host-metrics-overhead.json
+```
+
+Use the test app's bundle identifier as the settings domain to measure its
+configured servers instead. The benchmark does not change settings, read
+passwords from Keychain, install remote software, or run in normal tests/CI.
+It performs additional monitoring queries, so run it when that temporary load
+is acceptable.
+
+The helper compiles the current core collector and macOS process runner with
+optimization. After warm-up, it alternates GPU-only and all-host SSH polls and
+records wall time, local process CPU time, and script/response sizes. Replaying
+the captured responses in memory separates collection/parsing cost from SSH.
+If Python 3 is already available remotely, a standard-library helper also
+measures generated command wall/child CPU time and isolated CPU, memory, and
+network probes in shuffled order. An empty-shell control estimates shell
+startup overhead. Python helper CPU is excluded from child CPU measurements.
+
+Only numerical results with anonymous server indices are saved under the
+ignored `dist/` directory. Endpoints, usernames, identity paths, custom commands,
+and raw process/GPU responses are not saved. Payload sizes exclude SSH framing
+and encryption. Normal app polling and remote workloads remain running;
+end-to-end differences can include workload/network noise. This benchmark
+does not measure GUI rendering, persistent app memory, or the separate SSH
+master process's CPU usage.
+
 ## Test App Workflow
 
 Some features, especially Notification Center behavior, should be tested from an actual `.app` bundle instead of `swift run`.
