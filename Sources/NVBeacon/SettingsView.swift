@@ -554,23 +554,25 @@ struct SettingsView: View {
     private var advancedPane: some View {
         Form {
             Section {
-                TextField("", text: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand), prompt: Text(AppSettings.defaultRemoteCommand))
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
-                    .disabled(selectedServer == nil)
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand),
+                    defaultCommand: AppSettings.defaultRemoteCommand,
+                    title: t("GPU Query Command", "GPU 조회 명령"),
+                    isEnabled: selectedServer != nil
+                )
             } header: {
                 Text(t("GPU Query Command", "GPU 조회 명령"))
             } footer: {
-                Text(t("Applies to the selected server. Only change this if you need a custom command.", "선택된 서버에 적용됩니다. 커스텀 명령이 필요할 때만 변경하세요."))
+                Text(t("Applies to the selected server. Leave empty to restore the default command.", "선택된 서버에 적용됩니다. 비워두면 기본 명령으로 돌아갑니다."))
             }
 
             Section {
-                TextEditor(text: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand))
-                    .font(.system(.caption, design: .monospaced))
-                    .frame(height: 160)
-                    .accessibilityLabel(t("Host Information Query Command", "호스트 정보 수집 명령"))
-                    .disabled(selectedServer == nil)
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand),
+                    defaultCommand: AppSettings.defaultHostCommand,
+                    title: t("Host Information Query Command", "호스트 정보 수집 명령"),
+                    isEnabled: selectedServer != nil
+                )
             } header: {
                 Text(t("Host Information Query Command", "호스트 정보 수집 명령"))
             } footer: {
@@ -1428,6 +1430,35 @@ private struct NumericStepperField: View {
         .onChange(of: value) { _, newValue in
             if !isInputFocused { inputText = String(newValue) }
         }
+    }
+}
+
+private struct QueryCommandField: View {
+    @Binding var command: String
+    let defaultCommand: String
+    let title: String
+    let isEnabled: Bool
+
+    private var displayedCommand: Binding<String> {
+        Binding(
+            get: { RemoteMetricCommands.singleLineCommand(command) },
+            set: { value in
+                // Merely focusing a field must not rewrite a saved script.
+                if value != RemoteMetricCommands.singleLineCommand(command) {
+                    command = value
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        TextField("", text: displayedCommand, prompt: Text(RemoteMetricCommands.singleLineCommand(defaultCommand)))
+            .labelsHidden()
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.leading)
+            .lineLimit(1)
+            .accessibilityLabel(title)
+            .disabled(!isEnabled)
     }
 }
 

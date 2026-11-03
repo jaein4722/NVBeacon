@@ -128,7 +128,7 @@ Each server's popover shows RAM used / total and Swap used / total when swap is 
 
 RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
 
-In **Advanced** settings, **GPU Query Command** and **Host Information Query Command** apply to the server selected in **General**. The host command is an editable multiline shell script that collects CPU, RAM/Swap, and network counters together in the same SSH refresh. An empty command restores the complete default host script. Existing custom memory commands are migrated into that script's memory section.
+In **Advanced** settings, **GPU Query Command** and **Host Information Query Command** apply to the server selected in **General**. Both commands use the same single-line input field. The host command collects CPU, RAM/Swap, and network counters together in the same SSH refresh. Saved multiline scripts are shown as an equivalent executable single-line command; their original contents are preserved until edited. An empty command restores the complete default host script. Existing custom memory commands are migrated into that script's memory section.
 
 Custom host commands must preserve these output sections:
 

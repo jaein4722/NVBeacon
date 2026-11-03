@@ -6,6 +6,7 @@
 - Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
 - Grouped CPU, RAM/Swap, and network metrics in one host information section, expanded by default, with a saved expand/collapse state per server.
 - Added collapsible server cards, expanded by default, with saved states independent of each server's host information section. Collapsing either section keeps polling and alerts running.
+- Unified GPU and host query editors as matching single-line fields, preserving multiline script behavior through an executable single-line representation.
 - Replaced the per-server memory-only command editor with a complete host information script for CPU, RAM/Swap, and network collection; preserved existing custom memory queries through migration. Server backup v2 preserves host scripts and still imports v1 backups.
 - Added host information collection controls in General settings: turn all collection off or select CPU, memory, and network individually. Individual switches are hidden while collection is off, with their choices retained. The default host script skips disabled probes.
 - Hid unconfigured swap and moved available RAM into the RAM bar tooltip to keep host information compact.

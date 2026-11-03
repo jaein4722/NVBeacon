@@ -73,6 +73,18 @@ public enum RemoteMetricCommands {
         "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
     }
 
+    /// A copyable, executable single-line representation of a saved script.
+    /// printf restores exact newlines/backslashes; the sentinel prevents command
+    /// substitution from stripping trailing newlines. sh -c keeps stdin intact.
+    public static func singleLineCommand(_ command: String) -> String {
+        guard command.contains("\n") || command.contains("\r") else { return command }
+        let escaped = command
+            .replacingOccurrences(of: "\\", with: "\\\\")
+            .replacingOccurrences(of: "\r", with: "\\r")
+            .replacingOccurrences(of: "\n", with: "\\n")
+        return "/bin/sh -c 'exec /bin/sh -c \"${1%_}\"' sh \"$(printf '%b_' \(shellQuote(escaped)))\""
+    }
+
     public static func summary(summaryCommand: String, memoryCommand: String = defaultMemoryCommand,
                                includesNetworkUsage: Bool = true, hostMetrics: HostMetricsOptions = .init(),
                                hostCommand: String? = nil) -> String {

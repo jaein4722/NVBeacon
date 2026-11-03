@@ -24,6 +24,7 @@ private actor HostCommandTransport: RemoteCommandExecuting {
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/bin/sh")
         process.arguments = ["-c", command]
+        process.standardInput = FileHandle.nullDevice
         process.environment = ["PATH": path + ":/usr/bin:/bin"]
         let output = Pipe()
         process.standardOutput = output
@@ -43,21 +44,48 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     try "#!/bin/sh\nexit 0\n".write(to: stub, atomically: true, encoding: .utf8)
     try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: stub.path)
     let gpu = "printf '0, Fixture GPU, GPU-fixture, 20, 100, 1000, 40\\n'"
-    for mask in 0..<8 {
-        let options = HostMetricsOptions(cpu: mask & 1 != 0, memory: mask & 2 != 0, network: mask & 4 != 0)
-        let transport = HostCommandTransport(path: root.path)
-        let snapshot = try await MetricsCollector(transport: transport).fetchSummary(
-            gpuCommand: gpu, hostMetrics: options, hostCommand: hostCommandFixture)
-        #expect(snapshot.gpus.first?.utilization == 20)
-        #expect((snapshot.hostCPUSample?.total == 1000) == options.cpu)
-        #expect((snapshot.hostMemory?.usedKiB == 750) == options.memory)
-        #expect((snapshot.networkSample?.interfaces.first?.name == "fixture0") == options.network)
-        #expect(await transport.commands.count == 1)
-        let command = try #require(await transport.commands.first)
-        #expect(!command.contains("/proc/stat"))
-        #expect(!command.contains("/proc/meminfo"))
-        #expect(!command.contains("/sys/class/net"))
+    for hostCommand in [hostCommandFixture, RemoteMetricCommands.singleLineCommand(hostCommandFixture)] {
+        for mask in 0..<8 {
+            let options = HostMetricsOptions(cpu: mask & 1 != 0, memory: mask & 2 != 0, network: mask & 4 != 0)
+            let transport = HostCommandTransport(path: root.path)
+            let snapshot = try await MetricsCollector(transport: transport).fetchSummary(
+                gpuCommand: gpu, hostMetrics: options,
+                hostCommand: hostCommand)
+            #expect(snapshot.gpus.first?.utilization == 20)
+            #expect((snapshot.hostCPUSample?.total == 1000) == options.cpu)
+            #expect((snapshot.hostMemory?.usedKiB == 750) == options.memory)
+            #expect((snapshot.networkSample?.interfaces.first?.name == "fixture0") == options.network)
+            #expect(await transport.commands.count == 1)
+            let command = try #require(await transport.commands.first)
+            #expect(!command.contains("/proc/stat"))
+            #expect(!command.contains("/proc/meminfo"))
+            #expect(!command.contains("/sys/class/net"))
+        }
     }
+}
+
+@Test func singleLineCommandKeepsCommentsHereDocumentsAndShellEscapesIntact() async throws {
+    let script = #"""
+    # This comment must end before the next command.
+    value='literal $HOME and "quotes"'
+    printf '%s\n' "$value"
+    cat <<'NVBEACON_LITERAL'
+    literal \n \c \\ % $HOME 'single' "double"
+    NVBEACON_LITERAL
+    if IFS= read -r value; then printf '%s\n' "$value"; else printf '%s\n' 'stdin eof'; fi
+    printf '%s\n' 'last line'
+    """#
+    let oneLine = RemoteMetricCommands.singleLineCommand(script)
+    #expect(!oneLine.contains("\n"))
+    #expect(!oneLine.contains("\r"))
+    #expect(RemoteMetricCommands.singleLineCommand(oneLine) == oneLine)
+    let transport = HostCommandTransport(path: "/usr/bin")
+    let original = try await transport.execute(script)
+    let converted = try await transport.execute(oneLine)
+    #expect(original.exitStatus == 0)
+    #expect(converted.exitStatus == original.exitStatus)
+    #expect(converted.standardOutput == original.standardOutput)
+    #expect(RemoteMetricCommands.singleLineCommand("/opt/bin/host-report") == "/opt/bin/host-report")
 }
 
 @Test func failedOrMalformedHostCommandCannotContaminateGPUProcessParsing() async throws {
