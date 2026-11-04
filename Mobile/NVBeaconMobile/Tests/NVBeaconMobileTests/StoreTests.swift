@@ -238,3 +238,97 @@ private actor DelayedFirstResponse {
         #expect(!report.contains(sensitive))
     }
 }
+
+@Test @MainActor func singleServerRefreshAndOverlappingFleetPollShareWork() async throws {
+    let suite = "NVBeaconMobileTests.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let gate = DelayedFirstResponse()
+    actor Calls {
+        var ids: [UUID] = []
+        func record(_ id: UUID) { ids.append(id) }
+    }
+    let calls = Calls()
+    let store = MobileStore(defaults: defaults, vault: TestCredentials()) { server, _ in
+        await calls.record(server.id)
+        return await gate.fetch()
+    }
+    var first = MobileServer()
+    first.host = "one.example.invalid"
+    first.username = "test"
+    first.authentication = .passwordBased
+    var second = first
+    second.id = UUID()
+    second.host = "two.example.invalid"
+    var disabled = first
+    disabled.id = UUID()
+    disabled.isEnabled = false
+    for server in [first, second, disabled] { try store.save(server, credential: .init(secret: "fixture")) }
+
+    let pull = Task { await store.refresh(serverID: first.id) }
+    await gate.waitUntilStarted()
+    #expect(store.refreshingServerIDs == [first.id])
+    #expect(await calls.ids == [first.id])
+    let release = Task { @MainActor in await gate.finish() }
+    await store.refresh()
+    await release.value
+    await pull.value
+    #expect(await calls.ids == [first.id, second.id])
+    await store.refresh(serverID: disabled.id)
+    await store.refresh(serverID: second.id)
+    #expect(await calls.ids == [first.id, second.id, second.id])
+}
+
+@Test @MainActor func loadTrendKeepsTwentyActualSamplesAndRestartsAfterFailure() async throws {
+    actor Source {
+        var sequence = 0
+        func next() throws -> GPUSnapshot {
+            sequence += 1
+            if sequence == 23 { throw MobileError.timedOut }
+            let gpu = GPUReading(index: 0, name: "Fixture", uuid: nil, utilization: sequence,
+                                 memoryUsedMB: 25, memoryTotalMB: 100, temperatureCelsius: nil, processes: [])
+            return GPUSnapshot(takenAt: Date(timeIntervalSince1970: Double(sequence)), gpus: [gpu])
+        }
+    }
+    let suite = "NVBeaconMobileTests.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let source = Source()
+    let store = MobileStore(defaults: defaults, vault: TestCredentials()) { _, _ in try await source.next() }
+    var server = MobileServer()
+    server.host = "trend.example.invalid"
+    server.username = "fixture"
+    server.authentication = .passwordBased
+    try store.save(server, credential: .init(secret: "fixture"))
+    for _ in 0..<22 { await store.refresh(serverID: server.id) }
+    #expect(store.readings[server.id]?.history.map(\.load) == Array(3...22))
+    await store.refresh(serverID: server.id)
+    #expect(store.readings[server.id]?.history.last?.load == 22)
+    await store.refresh(serverID: server.id)
+    #expect(store.readings[server.id]?.history.map(\.load) == [24])
+    #expect(store.readings[server.id]?.history.last?.memory == 25)
+}
+
+@Test @MainActor func ownerHighlightPrefersUIDAndHonorsPreference() async throws {
+    let suite = "NVBeaconMobileTests.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: suite))
+    defer { defaults.removePersistentDomain(forName: suite) }
+    let store = MobileStore(defaults: defaults, vault: TestCredentials()) { _, _ in
+        GPUSnapshot(takenAt: Date(), gpus: [], sshUserID: 1000)
+    }
+    var server = MobileServer()
+    server.host = "gpu.example.invalid"
+    server.username = "lab"
+    server.authentication = .passwordBased
+    try store.save(server, credential: .init(secret: "fixture"))
+    await store.refresh()
+    func process(_ uid: Int?, _ name: String?) -> GPUProcessReading {
+        .init(gpuUUID: "GPU-0", pid: 1, processName: "train", usedGPUMemoryMB: 1, userID: uid, user: name, commandLine: nil)
+    }
+    #expect(store.isMine(process(1000, nil), on: server))
+    #expect(!store.isMine(process(1001, "lab"), on: server))
+    #expect(store.isMine(process(nil, " LAB "), on: server))
+    #expect(!store.isMine(process(nil, nil), on: server))
+    store.highlightMine = false
+    #expect(!store.isMine(process(1000, "lab"), on: server))
+}

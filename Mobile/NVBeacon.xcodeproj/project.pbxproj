@@ -4,6 +4,8 @@
 	classes = {};
 	objectVersion = 77;
 	objects = {
+        A10000000000000000000040 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ../Sources/NVBeacon/GPUCardSummary.swift; sourceTree = "<group>"; };
+        A10000000000000000000041 = {isa = PBXBuildFile; fileRef = A10000000000000000000040; };
 		A10000000000000000000025 = {isa = PBXBuildFile; productRef = A10000000000000000000026; };
 		A10000000000000000000026 = {isa = XCSwiftPackageProductDependency; package = A10000000000000000000027; productName = NVBeaconTransfer; };
 		A10000000000000000000027 = {isa = XCLocalSwiftPackageReference; relativePath = ../Shared/NVBeaconTransfer; };
@@ -11,10 +13,10 @@
 		A10000000000000000000002 = {isa = PBXBuildFile; productRef = A10000000000000000000022; };
 		A10000000000000000000003 = {isa = PBXFileReference; explicitFileType = wrapper.application; path = NVBeacon.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000004 = {isa = PBXFileSystemSynchronizedRootGroup; path = NVBeacon; sourceTree = "<group>"; };
-		A10000000000000000000005 = {isa = PBXGroup; children = (A10000000000000000000004, A10000000000000000000036, A10000000000000000000006); sourceTree = "<group>"; };
+		A10000000000000000000005 = {isa = PBXGroup; children = (A10000000000000000000004, A10000000000000000000036, A10000000000000000000040, A10000000000000000000006); sourceTree = "<group>"; };
 		A10000000000000000000006 = {isa = PBXGroup; children = (A10000000000000000000003); name = Products; sourceTree = "<group>"; };
 		A10000000000000000000007 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000001, A10000000000000000000002, A10000000000000000000025); runOnlyForDeploymentPostprocessing = 0; };
-		A10000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		A10000000000000000000008 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (A10000000000000000000041); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000009 = {isa = PBXResourcesBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
 		A10000000000000000000010 = {
 			isa = PBXNativeTarget;

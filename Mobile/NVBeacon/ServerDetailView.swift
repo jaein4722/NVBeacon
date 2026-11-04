@@ -4,10 +4,13 @@ import NVBeaconMobile
 
 struct ServerDetailView: View {
     @Bindable var store: MobileStore
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.horizontalSizeClass) private var sizeClass
     let serverID: UUID
     let edit: (MobileServer) -> Void
+    @State private var expandedGPUs: Set<Int> = []
     @State private var trustPresented = false
-    @AppStorage("hostMetricsExpanded") private var hostMetricsExpanded = true
+    @AppStorage("hostMetricsExpanded") private var hostMetricsExpanded = false
 
     private var server: MobileServer? { store.servers.first { $0.id == serverID } }
     private var reading: ServerReading? { store.readings[serverID] }
@@ -34,130 +37,202 @@ struct ServerDetailView: View {
                     }
                     if let snapshot = reading?.snapshot {
                         Section {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("\(snapshot.averageUtilization)%").font(.largeTitle.bold()).monospacedDigit()
-                                    Text("Average GPU utilization").font(.caption).foregroundStyle(.secondary)
+                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5),
+                                                     count: typeSize.isAccessibilitySize ? 2 : 4), spacing: 5) {
+                                MonitorSummaryTile("Average GPU", Text("\(snapshot.averageUtilization)%"))
+                                MonitorSummaryTile("Busy", Text("\(snapshot.gpus.filter { store.isBusy($0) }.count)/\(snapshot.gpus.count)"))
+                                MonitorSummaryTile("Processes", Text("\(snapshot.totalProcessCount)"))
+                                TimelineView(.periodic(from: .now, by: 1)) { tick in
+                                    let age = max(0, Int(tick.date.timeIntervalSince(snapshot.takenAt)))
+                                    MonitorSummaryTile("Updated", Text(verbatim: age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"))
                                 }
-                                Spacer()
-                                VStack(alignment: .trailing, spacing: 4) {
-                                    Text("\(snapshot.totalProcessCount)").font(.title.bold()).monospacedDigit()
-                                    Text("GPU processes").font(.caption).foregroundStyle(.secondary)
-                                }
-                            }.padding(.vertical, 8)
-                        } footer: {
-                            HStack {
-                                Text(reading?.error == nil ? "Updated" : "Last successful update")
-                                Text(snapshot.takenAt, style: .relative)
-                                Text("ago")
+                            }
+                            .listRowInsets(EdgeInsets())
+                            .listRowBackground(Color.clear)
+                            if sizeClass == .regular, let samples = reading?.history, let last = samples.last {
+                                ServerLoadTrends(current: last, samples: samples)
                             }
                         }
                         if store.collectsCPU || store.collectsMemory || store.collectsNetwork {
                             Section {
-                                DisclosureGroup("Host information", isExpanded: $hostMetricsExpanded) {
-                                    hostMetrics(snapshot)
+                                VStack(alignment: .leading, spacing: 0) {
+                                    Button {
+                                        hostMetricsExpanded.toggle()
+                                    } label: {
+                                        HStack {
+                                            Text("Host information").font(.subheadline.weight(.semibold))
+                                            Spacer()
+                                            Image(systemName: hostMetricsExpanded ? "chevron.down" : "chevron.right")
+                                                .font(.caption.bold()).foregroundStyle(.secondary)
+                                        }.frame(minHeight: 44).contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityValue(hostMetricsExpanded ? Text("Expanded") : Text("Collapsed"))
+                                    if hostMetricsExpanded {
+                                        Divider()
+                                        hostMetrics(snapshot).padding(.top, 10).padding(.bottom, 12)
+                                    }
                                 }
+                                .listRowInsets(EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12))
                             }
                         }
-                        ForEach(snapshot.gpus) { gpu in
-                            Section {
-                                VStack(alignment: .leading, spacing: 16) {
-                                    HStack {
-                                        Label(gpu.name, systemImage: "cpu").font(.headline)
-                                        Spacer()
-                                        if gpu.processes.contains(where: { store.isMine($0, on: server) }) {
-                                            Image(systemName: "person.fill").foregroundStyle(.tint).accessibilityLabel("My jobs")
-                                        }
-                                        if let temperature = gpu.temperatureCelsius {
-                                            Label("\(temperature)°C", systemImage: "thermometer.medium")
-                                                .font(.caption).foregroundStyle(temperature >= 85 ? .orange : .secondary)
-                                        }
-                                    }
-                                    MetricBar(title: "Utilization", value: gpu.utilizationRatio, detail: "\(gpu.utilization)%")
-                                    MetricBar(title: "VRAM", value: gpu.memoryUsageRatio, detail: gpu.memorySummary)
-                                }.padding(.vertical, 8)
-                                if gpu.processes.isEmpty {
-                                    Label("No active GPU processes", systemImage: "moon.zzz").font(.caption).foregroundStyle(.secondary)
-                                }
-                                ForEach(gpu.processes) { process in
-                                    DisclosureGroup {
-                                        Text(process.commandSummary).font(.caption.monospaced()).textSelection(.enabled)
-                                    } label: {
-                                        VStack(alignment: .leading, spacing: 5) {
-                                            HStack {
-                                                Text(process.displayProcessName).font(.subheadline).lineLimit(1)
-                                                if store.isMine(process, on: server) { Label("Mine", systemImage: "person.fill").font(.caption).foregroundStyle(.tint) }
-                                            }
-                                            HStack {
-                                                Text("PID \(process.pid) · \(process.userSummary)")
-                                                Spacer()
-                                                Text(process.memorySummary)
-                                            }.font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                                        }
-                                    }
-                                }
-                            } header: {
-                                HStack {
-                                    Text("GPU \(gpu.index)")
-                                    Spacer()
-                                    Text(store.isBusy(gpu) ? "Busy" : "Available")
-                                }
+                        Section("GPUs") {
+                            ForEach(snapshot.gpus) { gpu in
+                                gpuRow(gpu, server: server, uid: snapshot.sshUserID)
                             }
                         }
                     } else if server.isEnabled, reading?.error == nil {
                         Section { HStack { ProgressView(); Text("Connecting…").foregroundStyle(.secondary) } }
                     }
                 }
-                .refreshable { await store.refresh() }
+                .refreshable { await store.refresh(serverID: server.id) }
                 .navigationTitle(server.displayName)
-                .toolbar { Button("Edit", systemImage: "slider.horizontal.3") { edit(server) } }
+                .navigationBarTitleDisplayMode(.inline)
+                .contentMargins(.top, 8, for: .scrollContent)
+                .contentMargins(.horizontal, 12, for: .scrollContent)
+                .listSectionSpacing(10)
+                .toolbar {
+                    if server.isEnabled { RefreshServerButton(store: store, id: server.id) }
+                    Button("Edit", systemImage: "slider.horizontal.3") { edit(server) }
+                }
                 .sheet(isPresented: $trustPresented) {
                     HostTrustView(store: store, server: server, reading: reading)
                 }
             }
         }
+        .onChange(of: serverID) { expandedGPUs.removeAll() }
     }
-    @ViewBuilder private func hostMetrics(_ snapshot: GPUSnapshot) -> some View {
-        if store.collectsCPU {
-            if let cpu = snapshot.hostCPU {
-                MetricBar(title: "CPU", value: Double(cpu) / 100, detail: "\(cpu)%")
-            } else {
-                LabeledContent("CPU") { Text(snapshot.hostCPUSample == nil ? "Unavailable" : "Measuring…") }
+    private func gpuRow(_ gpu: GPUReading, server: MobileServer, uid: Int?) -> some View {
+        let mine = gpu.processes.contains { store.isMine($0, on: server) }
+        let expanded = expandedGPUs.contains(gpu.index)
+        let summary = GPUCardSummary(gpu: gpu, mine: mine, badge: Text("My processes"), expanded: expanded, expandable: true)
+        return VStack(alignment: .leading, spacing: 7) {
+            Button {
+                if expanded { expandedGPUs.remove(gpu.index) } else { expandedGPUs.insert(gpu.index) }
+            } label: {
+                summary.frame(maxWidth: .infinity, minHeight: 44, alignment: .leading).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(expanded ? Text("Expanded") : Text("Collapsed"))
+            if expanded {
+                Divider()
+                if gpu.processes.isEmpty {
+                    Text("No active GPU processes").font(.caption).foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 6) {
+                        ForEach(gpu.processes) { process in
+                            MobileProcessRow(process: process, mine: store.isMine(process, on: server),
+                                             login: server.username, loginID: uid)
+                        }
+                    }
+                }
             }
         }
-        if store.collectsMemory {
-            if let memory = snapshot.hostMemory {
-                MetricBar(title: "RAM", value: memory.usageRatio,
-                          detail: "\(HostMemoryReading.capacityText(kibibytes: memory.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: memory.totalKiB))")
-                if let used = memory.swapUsedKiB, let total = memory.swapTotalKiB {
-                    LabeledContent("Swap", value: "\(HostMemoryReading.capacityText(kibibytes: used)) / \(HostMemoryReading.capacityText(kibibytes: total))")
-                }
-            } else { LabeledContent("RAM") { Text("Unavailable") } }
-        }
-        if store.collectsNetwork {
-            if let usage = reading?.networkUsage {
-                LabeledContent("Network") {
-                    if usage.hasRates { Text(verbatim: usage.rateSummary) }
-                    else { Text("Measuring…") }
-                }
-                LabeledContent("Total traffic", value: usage.totalSummary)
-            } else { LabeledContent("Network") { Text("Unavailable") } }
-        }
+        .gpuCardSurface(mine: mine, expanded: expanded)
+        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+        .listRowBackground(Color.clear)
+        .listRowSeparator(.hidden)
     }
+
+    @ViewBuilder private func hostMetrics(_ snapshot: GPUSnapshot) -> some View {
+        // One list cell: native List row insets aren't repeated for every metric.
+        VStack(alignment: .leading, spacing: 10) {
+            if store.collectsCPU {
+                if let cpu = snapshot.hostCPU {
+                    MonitorGauge(title: "CPU", value: cpu, color: .orange)
+                } else { LabeledContent("CPU") { Text(snapshot.hostCPUSample == nil ? "Unavailable" : "Measuring…") } }
+            }
+            if store.collectsMemory {
+                if let mem = snapshot.hostMemory {
+                    MonitorGauge(title: "RAM", value: mem.usagePercent, color: MonitorInk.memoryTint(mem.usageRatio),
+                                 detail: "\(mem.usagePercent)% · \(capacity(mem.usedKiB)) / \(capacity(mem.totalKiB))")
+                    if let total = mem.swapTotalKiB, total > 0, let used = mem.swapUsedKiB, let ratio = mem.swapUsageRatio {
+                        MonitorGauge(title: "Swap", value: Int((ratio * 100).rounded()), color: MonitorInk.memoryTint(ratio),
+                                     detail: "\(capacity(used)) / \(capacity(total))")
+                    } else if mem.swapTotalKiB == nil { LabeledContent("Swap") { Text("Unavailable") } }
+                } else { LabeledContent("RAM") { Text("Unavailable") } }
+            }
+            if store.collectsNetwork {
+                if let usage = reading?.networkUsage {
+                    NetworkRateSummary(usage: usage)
+                    LabeledContent("Total traffic", value: usage.totalSummary).foregroundStyle(.secondary)
+                } else { LabeledContent("Network") { Text("Unavailable") } }
+            }
+        }.font(.caption).monospacedDigit()
+    }
+
+    private func capacity(_ kib: Int) -> String { HostMemoryReading.capacityText(kibibytes: kib) }
+
 
 }
 
-struct MetricBar: View {
-    let title: LocalizedStringKey
-    let value: Double
-    let detail: String
+private struct MobileProcessRow: View {
+    let process: GPUProcessReading
+    let mine: Bool
+    let login: String
+    let loginID: Int?
+    @State private var expanded = false
+
+    private var owner: Text {
+        if let name = process.user, !name.isEmpty, name != "--" { return Text(verbatim: name) }
+        if let id = process.userID { return Text(verbatim: id == loginID ? login : "UID \(id)") }
+        return Text("Unknown owner")
+    }
+
     var body: some View {
-        VStack(spacing: 6) {
-            HStack { Text(title); Spacer(); Text(detail).monospacedDigit().foregroundStyle(.secondary) }.font(.caption)
-            ProgressView(value: min(1, max(0, value)))
-                .tint(value >= 0.9 ? .orange : .green)
-                .accessibilityLabel(title).accessibilityValue(detail)
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                var transaction = Transaction(animation: nil)
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { expanded.toggle() }
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    ViewThatFits(in: .horizontal) {
+                        HStack(spacing: 8) {
+                            ownerLabel.fixedSize()
+                            Spacer(minLength: 2)
+                            resourceLabel.fixedSize()
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            ownerLabel
+                            resourceLabel
+                        }
+                    }
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(verbatim: process.displayProcessName).font(.subheadline.weight(.medium))
+                            .lineLimit(expanded ? nil : 1).truncationMode(.middle)
+                            .contentTransition(.identity)
+                        Spacer(minLength: 4)
+                        Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                            .font(.caption2).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(expanded ? Text("Expanded") : Text("Collapsed"))
+            if expanded && process.showsSeparateCommandSummary {
+                Text(verbatim: process.commandSummary).font(.caption.monospaced()).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true).textSelection(.enabled)
+                    .transition(.identity)
+            }
         }
+        .padding(8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background((mine ? Color.green.opacity(0.08) : Color(uiColor: .systemGroupedBackground)), in: RoundedRectangle(cornerRadius: 11))
+    }
+
+    private var ownerLabel: some View {
+        HStack(spacing: 4) {
+            Image(systemName: mine ? "person.fill" : "person")
+            owner.fontWeight(.semibold)
+        }.font(.caption).foregroundStyle(mine ? Color.green : .secondary)
+    }
+
+    private var resourceLabel: some View {
+        Text(verbatim: "PID \(process.pid) · VRAM \(process.memorySummary)")
+            .font(.caption2.monospacedDigit()).foregroundStyle(.secondary)
     }
 }
 

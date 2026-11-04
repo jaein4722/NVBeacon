@@ -2,6 +2,21 @@ import Foundation
 import Observation
 import NVBeaconCore
 
+public struct GPULoadSample: Identifiable, Sendable {
+    public let time: Date
+    public let load: Int
+    public let memory: Int
+    public var id: Date { time }
+
+    public init(_ snapshot: GPUSnapshot) {
+        time = snapshot.takenAt
+        load = snapshot.averageUtilization
+        let capacity = snapshot.gpus.reduce(0.0) { $0 + Double($1.memoryTotalMB) }
+        let used = snapshot.gpus.reduce(0.0) { $0 + Double($1.memoryUsedMB) }
+        memory = capacity > 0 ? Int((100 * used / capacity).rounded()) : 0
+    }
+}
+
 public struct ServerReading: Sendable {
     public var snapshot: GPUSnapshot?
     public var error: String?
@@ -9,6 +24,7 @@ public struct ServerReading: Sendable {
     public var hostKey: String?
     public var fingerprint: String?
     public var networkUsage: NetworkUsage?
+    public fileprivate(set) var history: [GPULoadSample] = []
     public init() {}
 }
 
@@ -17,7 +33,8 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
 @MainActor @Observable public final class MobileStore {
     public private(set) var servers: [MobileServer] = []
     public private(set) var readings: [UUID: ServerReading] = [:]
-    public private(set) var isRefreshing = false
+    public private(set) var refreshingServerIDs: Set<UUID> = []
+    public var isRefreshing: Bool { !refreshingServerIDs.isEmpty }
     public private(set) var generation = UUID()
     public var message: String?
     public var refreshInterval: Int {
@@ -41,7 +58,9 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
     public func isMine(_ process: GPUProcessReading, on server: MobileServer) -> Bool {
         guard highlightMine else { return false }
         if let uid = readings[server.id]?.snapshot?.sshUserID, let owner = process.userID { return uid == owner }
-        return process.user == server.username
+        let login = server.username.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !login.isEmpty else { return false }
+        return process.user?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == login
     }
 
     private func changeCollection(_ name: String, _ value: Bool) {
@@ -64,7 +83,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
     @ObservationIgnored private let loader: SnapshotLoader?
     @ObservationIgnored private var transferState = MobileTransferState()
     @ObservationIgnored private var revision = UUID()
-    @ObservationIgnored private var refreshTask: Task<Void, Never>?
+    @ObservationIgnored private var refreshBatch: (task: Task<Void, Never>, ids: Set<UUID>, revision: UUID)?
 
     public init(defaults: UserDefaults = .standard, vault: any CredentialStorage = CredentialVault(),
                 loader: SnapshotLoader? = nil) {
@@ -359,22 +378,29 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         }
     }
 
-    public func refresh() async {
+    public func refresh(serverID: UUID? = nil) async {
         let requestedRevision = revision
-        if let previous = refreshTask, previous.isCancelled {
-            await previous.value
-            guard revision == requestedRevision else { return }
+        var requested = Set(servers.filter { $0.isEnabled && (serverID == nil || $0.id == serverID) }.map(\.id))
+        // Join overlapping requests. If a full poll follows a single-server
+        // refresh, only the remaining servers need another SSH operation.
+        while !requested.isEmpty, !Task.isCancelled, revision == requestedRevision {
+            if let batch = refreshBatch {
+                await batch.task.value
+                if !batch.task.isCancelled, batch.revision == requestedRevision {
+                    requested.subtract(batch.ids)
+                }
+                continue
+            }
+            let ids = requested
+            refreshingServerIDs = ids
+            let work = Task {
+                defer { refreshingServerIDs.removeAll(); refreshBatch = nil }
+                await collect(ids: ids)
+            }
+            refreshBatch = (work, ids, requestedRevision)
+            await withTaskCancellationHandler { await work.value } onCancel: { work.cancel() }
+            return
         }
-        guard !isRefreshing, !Task.isCancelled else { return }
-        isRefreshing = true
-        let work = Task {
-            defer { isRefreshing = false; refreshTask = nil }
-            await collect()
-        }
-        refreshTask = work
-        await withTaskCancellationHandler {
-            await work.value
-        } onCancel: { work.cancel() }
     }
 
     private func discardSession(_ id: UUID) {
@@ -383,19 +409,19 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
 
     public func suspend() {
         revision = UUID()
-        refreshTask?.cancel()
+        refreshBatch?.task.cancel()
         resetBaselines()
         for id in Array(sessions.keys) { discardSession(id) }
     }
 
-    private func collect() async {
+    private func collect(ids: Set<UUID>) async {
         guard !Task.isCancelled else { return }
         let revision = revision
         let loader = loader
         let options = HostMetricsOptions(cpu: collectsCPU, memory: collectsMemory, network: collectsNetwork)
         // Resolve device-only credentials on the main actor; workers receive values.
         var jobs: [(MobileServer, MobileCredential, SSHTransport)] = []
-        for server in servers where server.isEnabled {
+        for server in servers where server.isEnabled && ids.contains(server.id) {
             do {
                 let value = try credential(for: server)
                 let reusable = server.reusesConnection && server.pinnedHostKey != nil && loader == nil
@@ -403,7 +429,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
                 if reusable { sessions[server.id] = transport }
                 jobs.append((server, value, transport))
             }
-            catch { record(error, for: server.id) }
+            catch { record(error, for: server.id); refreshingServerIDs.remove(server.id) }
         }
         await withTaskGroup(of: (UUID, Result<GPUSnapshot, any Error>).self) { group in
             var iterator = jobs.makeIterator()
@@ -422,6 +448,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
             for _ in 0..<4 { if let job = iterator.next() { enqueue(job) } }
             while let (id, result) = await group.next() {
                 guard !Task.isCancelled, self.revision == revision else { group.cancelAll(); continue }
+                refreshingServerIDs.remove(id)
                 switch result {
                 case .success(var snapshot):
                     var reading = ServerReading()
@@ -440,6 +467,12 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
                             networkSamples[id] = network
                         }
                     } else { networkSamples[id] = nil }
+                    let previous = readings[id]
+                    if let previous, previous.error == nil, let last = previous.history.last {
+                        let elapsed = snapshot.takenAt.timeIntervalSince(last.time)
+                        if elapsed > 0 && elapsed <= maximum { reading.history = Array(previous.history.suffix(19)) }
+                    }
+                    reading.history.append(GPULoadSample(snapshot))
                     reading.snapshot = snapshot
                     readings[id] = reading
                 case .failure(let error):
@@ -504,7 +537,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         // Process ownership is optional; a failed metadata lookup preserves GPU data.
         do {
             let pidList = pids.map(String.init).joined(separator: ",")
-            let output = try await transport.execute("printf 'uid=%s\\n' \"$(id -u 2>/dev/null)\"; ps -ww -p \(pidList) -o pid=,uid=,user=,args= 2>/dev/null || true")
+            let output = try await transport.execute("printf 'uid=%s\\n' \"$(id -u 2>/dev/null)\"; ps -ww -p \(pidList) -o pid=,uid=,user:64=,args= 2>/dev/null || ps -p \(pidList) -o pid= -o uid= -o user= -o args= 2>/dev/null || true")
             guard output.exitStatus == 0 else { return snapshot }
             let parts = output.standardOutput.split(separator: "\n", maxSplits: 1)
             let hasUIDLine = parts.first?.hasPrefix("uid=") == true

@@ -2,7 +2,14 @@
 
 ## Implemented
 
-- Native SwiftUI server list, per-server dashboard and settings. Choose **Edit**
+- The Monitor overview summarizes available GPUs, average utilization and processes
+  across reporting servers. Each server shows its enabled host metrics (CPU, RAM,
+  configured swap and network rates) above the average GPU and total VRAM bars.
+  Expanding a server adds every GPU below those bars. The detail view shows each
+  process's owner, PID and GPU memory usage. On
+  wider screens, selecting a server opens it beside the list. The refresh arrow
+  and the detail pull gesture query that server; pulling the list refreshes all
+  enabled servers. Choose **Edit**
   on Monitor to select servers for deletion or drag their reorder handles. Order
   is saved as you move rows. Deleting the server being viewed returns to Monitor.
   Confirming deletion removes the selected profiles and their local credentials.

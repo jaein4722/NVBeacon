@@ -419,58 +419,9 @@ private struct GPUListRow: View {
                 .help(isWatchingIdle ? t("Disable GPU idle alert", "GPU idle 알림 해제") : t("Enable GPU idle alert", "GPU idle 알림 받기"))
 
                 Button(action: toggleExpansion) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("GPU \(gpu.index)")
-                                .font(.headline)
-
-                            Text(gpu.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-
-                            Spacer(minLength: 8)
-
-                            Text("\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .monospacedDigit()
-
-                            if hasCurrentUserProcess {
-                                Text(t("Mine", "내 프로세스"))
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.green)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule(style: .continuous)
-                                            .fill(Color.green.opacity(0.12))
-                                    )
-                            }
-
-                            Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(isExpanded ? .orange : .secondary)
-                        }
-
-                        HStack(spacing: 10) {
-                            ThinMetricBar(
-                                title: "Util",
-                                valueText: "\(gpu.utilization)%",
-                                ratio: gpu.utilizationRatio,
-                                tint: Color(red: 0.93, green: 0.45, blue: 0.15)
-                            )
-
-                            ThinMetricBar(
-                                title: "Memory",
-                                valueText: "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB",
-                                ratio: gpu.memoryUsageRatio,
-                                tint: Color(red: 0.12, green: 0.54, blue: 0.94)
-                            )
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+                    GPUCardSummary(gpu: gpu, mine: hasCurrentUserProcess, badge: Text(t("Mine", "내 프로세스")),
+                                   expanded: isExpanded, expandable: true)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -527,20 +478,7 @@ private struct GPUListRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill((hasCurrentUserProcess ? Color.green : Color(nsColor: .controlBackgroundColor)).opacity(hasCurrentUserProcess ? 0.08 : 1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(
-                    isExpanded ? Color.orange.opacity(0.42) : (hasCurrentUserProcess ? Color.green.opacity(0.26) : Color.primary.opacity(0.05)),
-                    lineWidth: 1
-                )
-        )
+        .gpuCardSurface(mine: hasCurrentUserProcess, expanded: isExpanded)
     }
 }
 
@@ -766,54 +704,6 @@ private struct UpdatedPill: View {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return "\(minutes)m \(remainingSeconds)s"
-    }
-}
-
-private struct ThinMetricBar: View {
-    let title: String
-    let valueText: String
-    let ratio: Double
-    let tint: Color
-
-    private var clampedRatio: Double {
-        min(max(ratio, .zero), 1.0)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 4)
-
-                Text(valueText)
-                    .font(.caption2.monospacedDigit())
-                    .lineLimit(1)
-            }
-
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule(style: .continuous)
-                        .fill(Color.primary.opacity(0.08))
-
-                    if clampedRatio > 0 {
-                        Capsule(style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [tint.opacity(0.72), tint],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(8, proxy.size.width * clampedRatio))
-                    }
-                }
-            }
-            .frame(height: 6)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

@@ -10,6 +10,7 @@ struct RootView: View {
     @AppStorage("interfaceAppearance") private var appearance = "system"
     @State private var editor: MobileServer?
     @State private var path: [UUID] = []
+    @State private var expandedServers: Set<UUID> = []
     @State private var editMode = EditMode.inactive
     @State private var selected: Set<UUID> = []
     @State private var deletionRequest: Set<UUID> = []
@@ -128,25 +129,21 @@ struct RootView: View {
     private var serverList: some View {
         let selection: Binding<Set<UUID>>? = editMode.isEditing ? $selected : nil
         return List(selection: selection) {
+            if !editMode.isEditing {
+                Section { FleetOverview(store: store) }
+            }
             Section {
                 ForEach(store.servers) { server in
                     if editMode.isEditing {
-                        ServerRow(server: server, reading: store.readings[server.id], store: store)
-                            .tag(server.id)
-                    } else if sizeClass == .regular {
-                        Button {
-                            path = [server.id]
-                        } label: {
-                            ServerRow(server: server, reading: store.readings[server.id], store: store)
-                        }
-                        .buttonStyle(.plain)
-                        .listRowBackground(path.last == server.id ? Color.accentColor.opacity(0.12) : nil)
-                        .moveDisabled(true)
+                        Label(server.displayName, systemImage: "server.rack").tag(server.id)
                     } else {
-                        NavigationLink(value: server.id) {
-                            ServerRow(server: server, reading: store.readings[server.id], store: store)
-                        }
-                        .moveDisabled(true)
+                        ServerMonitorRow(store: store, server: server, expanded: expandedServers.contains(server.id),
+                                         showsInlineDetails: sizeClass != .regular,
+                                         toggle: {
+                                             if !expandedServers.insert(server.id).inserted { expandedServers.remove(server.id) }
+                                         }, open: { path = [server.id] })
+                            .listRowBackground(sizeClass == .regular && path.last == server.id ? Color.accentColor.opacity(0.12) : nil)
+                            .moveDisabled(true)
                     }
                 }
                 .onMove(perform: moveServers)
@@ -246,6 +243,7 @@ struct RootView: View {
         .onChange(of: store.servers.map(\.id)) { _, ids in
             let remaining = Set(ids)
             selected.formIntersection(remaining)
+            expandedServers.formIntersection(remaining)
             path.removeAll { !remaining.contains($0) }
             if ids.isEmpty { editMode = .inactive }
         }
@@ -270,6 +268,12 @@ struct RootView: View {
         }
         .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
         .navigationTitle("NVBeacon")
+        .navigationBarTitleDisplayMode(.inline)
+#if NVBEACON_DESIGN_LAB && targetEnvironment(simulator)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            if !editMode.isEditing { DesignLabSwitcher() }
+        }
+#endif
         .toolbar { monitorTools }
     }
 
@@ -284,38 +288,6 @@ struct RootView: View {
 
 extension ServerSettingsBackup: @retroactive Identifiable {
     public var id: String { servers.map(\.sshTarget).joined(separator: "\n") }
-}
-
-struct ServerRow: View {
-    let server: MobileServer
-    let reading: ServerReading?
-    let store: MobileStore
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Image(systemName: "server.rack").foregroundStyle(.green)
-                Text(server.displayName).font(.headline)
-                Spacer()
-                if !server.isEnabled { Text("Disabled").font(.caption).foregroundStyle(.secondary) }
-                else if reading?.error != nil { Image(systemName: "exclamationmark.circle.fill").foregroundStyle(.orange) }
-            }
-            if server.isEnabled, let snapshot = reading?.snapshot {
-                HStack {
-                    Text("\(snapshot.gpus.filter { store.isBusy($0) }.count)/\(snapshot.gpus.count) busy")
-                    Text("·")
-                    Text("\(snapshot.averageUtilization)% utilization")
-                    Spacer()
-                    Text(snapshot.takenAt, style: .time)
-                }.font(.caption).foregroundStyle(.secondary).monospacedDigit()
-                if snapshot.gpus.contains(where: { $0.processes.contains { store.isMine($0, on: server) } }) {
-                    Label("My jobs", systemImage: "person.fill").font(.caption).foregroundStyle(.tint)
-                }
-            } else {
-                Text(LocalizedStringKey(!server.isEnabled ? "Review connection settings to start monitoring" : reading?.error ?? "Waiting for first update…"))
-                    .font(.caption).foregroundStyle(.secondary).lineLimit(2)
-            }
-        }.padding(.vertical, 6)
-    }
 }
 
 struct ServerArchiveDocument: FileDocument {

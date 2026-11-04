@@ -5,7 +5,11 @@ import NVBeaconMobile
 struct NVBeaconApp: App {
     @AppStorage("interfaceLanguage") private var language = "system"
     @AppStorage("interfaceAppearance") private var appearance = "system"
+#if NVBEACON_DESIGN_LAB && targetEnvironment(simulator)
+    @State private var store = DesignLabFixtures.store()
+#else
     @State private var store = MobileStore()
+#endif
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
