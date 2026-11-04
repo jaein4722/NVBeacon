@@ -4,7 +4,7 @@ import Foundation
 /// watches, process data or application-private defaults are serialized.
 public struct ServerSettingsBackup: Codable, Equatable, Sendable {
     public static let formatName = "NVBeacon.servers"
-    public static let currentVersion = 1
+    public static let currentVersion = 2
     public static let maximumFileBytes = 1_048_576
     public static let maximumServers = 100
 
@@ -17,11 +17,12 @@ public struct ServerSettingsBackup: Codable, Equatable, Sendable {
         public let sshConnectionReuseMode: SSHConnectionReuseMode
         public let remoteCommand: String
         public let memoryCommand: String
+        public let hostCommand: String
 
         public init(name: String, sshTarget: String, sshPort: String,
                     sshIdentityFilePath: String, sshAuthenticationMode: SSHAuthenticationMode,
                     sshConnectionReuseMode: SSHConnectionReuseMode,
-                    remoteCommand: String, memoryCommand: String) {
+                    remoteCommand: String, memoryCommand: String, hostCommand: String? = nil) {
             self.name = name
             self.sshTarget = sshTarget
             self.sshPort = sshPort
@@ -30,6 +31,27 @@ public struct ServerSettingsBackup: Codable, Equatable, Sendable {
             self.sshConnectionReuseMode = sshConnectionReuseMode
             self.remoteCommand = remoteCommand
             self.memoryCommand = memoryCommand
+            self.hostCommand = RemoteMetricCommands.resolveHostCommand(hostCommand, legacyMemoryCommand: memoryCommand)
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case name, sshTarget, sshPort, sshIdentityFilePath, sshAuthenticationMode
+            case sshConnectionReuseMode, remoteCommand, memoryCommand, hostCommand
+        }
+
+        public init(from decoder: Decoder) throws {
+            let values = try decoder.container(keyedBy: CodingKeys.self)
+            self.init(
+                name: try values.decode(String.self, forKey: .name),
+                sshTarget: try values.decode(String.self, forKey: .sshTarget),
+                sshPort: try values.decode(String.self, forKey: .sshPort),
+                sshIdentityFilePath: try values.decode(String.self, forKey: .sshIdentityFilePath),
+                sshAuthenticationMode: try values.decode(SSHAuthenticationMode.self, forKey: .sshAuthenticationMode),
+                sshConnectionReuseMode: try values.decode(SSHConnectionReuseMode.self, forKey: .sshConnectionReuseMode),
+                remoteCommand: try values.decode(String.self, forKey: .remoteCommand),
+                memoryCommand: try values.decodeIfPresent(String.self, forKey: .memoryCommand) ?? RemoteMetricCommands.defaultMemoryCommand,
+                hostCommand: try values.decodeIfPresent(String.self, forKey: .hostCommand)
+            )
         }
 
         public var displayName: String { name.isEmpty ? sshTarget : name }
@@ -63,7 +85,7 @@ public struct ServerSettingsBackup: Codable, Equatable, Sendable {
     }
 
     public func validate() throws {
-        guard format == Self.formatName, version == Self.currentVersion else {
+        guard format == Self.formatName, (1...Self.currentVersion).contains(version) else {
             throw BackupError.unsupportedFormat
         }
         guard (1...Self.maximumServers).contains(servers.count) else { throw BackupError.invalidServerCount }
@@ -83,7 +105,7 @@ public struct ServerSettingsBackup: Codable, Equatable, Sendable {
         try validate()
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        let data = try encoder.encode(self)
+        let data = try encoder.encode(Self(servers: servers))
         guard data.count <= Self.maximumFileBytes else { throw BackupError.fileTooLarge }
         return data
     }

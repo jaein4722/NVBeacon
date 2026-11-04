@@ -11,9 +11,9 @@ struct PollingConfiguration: Equatable, Sendable {
         let authentication: SSHAuthenticationMode
         let connectionReuse: SSHConnectionReuseMode
         let gpuCommand: String
-        let memoryCommand: String
+        let hostCommand: String
 
-        init(_ server: ServerConfig) {
+        init(_ server: ServerConfig, hostMetrics: HostMetricsOptions) {
             id = server.id
             target = server.sshTarget
             port = server.sshPort
@@ -21,17 +21,27 @@ struct PollingConfiguration: Equatable, Sendable {
             authentication = server.sshAuthenticationMode
             connectionReuse = server.sshConnectionReuseMode
             gpuCommand = server.remoteCommand
-            memoryCommand = server.memoryCommand
+            if hostMetrics.isEmpty {
+                hostCommand = ""
+            } else if !hostMetrics.memory && server.hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: server.memoryCommand) {
+                // A migrated memory-only edit is irrelevant while memory is off.
+                hostCommand = RemoteMetricCommands.defaultHostCommand
+            } else {
+                hostCommand = server.hostCommand
+            }
         }
     }
 
     let interval: Int
     let highlightsMyProcesses: Bool
+    let hostMetrics: HostMetricsOptions
     let servers: [Server]
 
     init(_ settings: AppSettings) {
+        let hostMetrics = settings.hostMetricsOptions
         interval = settings.pollIntervalSeconds
         highlightsMyProcesses = settings.highlightsMyProcesses
-        servers = settings.pollableServers.map(Server.init).sorted { $0.id < $1.id }
+        self.hostMetrics = hostMetrics
+        servers = settings.pollableServers.map { Server($0, hostMetrics: hostMetrics) }.sorted { $0.id < $1.id }
     }
 }

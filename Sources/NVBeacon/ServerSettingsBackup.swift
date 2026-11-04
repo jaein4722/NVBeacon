@@ -21,7 +21,7 @@ extension ServerSettingsBackup {
                 settings: server.connectionSettings(from: settings),
                 prefersPasswordAuth: server.sshAuthenticationMode == .passwordBased,
                 remoteCommand: RemoteMetricCommands.summary(
-                    summaryCommand: server.remoteCommand, memoryCommand: server.memoryCommand
+                    summaryCommand: server.remoteCommand, memoryCommand: server.memoryCommand, hostCommand: server.hostCommand
                 )
             )
             let output = try await ProcessCommandRunner().run(
@@ -48,7 +48,7 @@ extension ServerSettingsBackup {
                 sshIdentityFilePath: entry.sshIdentityFilePath,
                 sshAuthenticationMode: entry.sshAuthenticationMode,
                 sshConnectionReuseMode: entry.sshConnectionReuseMode,
-                remoteCommand: entry.remoteCommand, memoryCommand: entry.memoryCommand
+                remoteCommand: entry.remoteCommand, memoryCommand: entry.memoryCommand, hostCommand: entry.hostCommand
             ))
         }
         let archive = Self(servers: entries)
@@ -94,7 +94,7 @@ extension ServerSettingsBackup.Entry {
                   sshIdentityFilePath: server.sshIdentityFilePath,
                   sshAuthenticationMode: server.sshAuthenticationMode,
                   sshConnectionReuseMode: server.sshConnectionReuseMode,
-                  remoteCommand: server.remoteCommand, memoryCommand: server.memoryCommand)
+                  remoteCommand: server.remoteCommand, memoryCommand: server.memoryCommand, hostCommand: server.hostCommand)
     }
 
     func makeServer() -> ServerConfig {
@@ -109,6 +109,7 @@ extension ServerSettingsBackup.Entry {
             sshConnectionReuseMode: sshConnectionReuseMode,
             remoteCommand: remoteCommand,
             memoryCommand: memoryCommand,
+            hostCommand: hostCommand,
             isEnabled: false
         ).normalized()
     }

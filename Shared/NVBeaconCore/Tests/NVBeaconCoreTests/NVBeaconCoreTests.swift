@@ -43,11 +43,20 @@ private let gpuCSV = "0, NVIDIA Fixture, GPU-fixture, 50, 100, 1000, 45"
                          processes: [process, process])
     let memory = HostMemoryReading(totalKiB: 1000, availableKiB: 250, swapTotalKiB: 0, swapFreeKiB: 0)
     let old = GPUSnapshot(takenAt: Date(timeIntervalSince1970: 10), gpus: [gpu])
-    let current = GPUSnapshot(takenAt: Date(timeIntervalSince1970: 20), gpus: [gpu], hostMemory: memory)
+    let cpu = HostCPUSample(takenAt: Date(timeIntervalSince1970: 20), total: 1000, idle: 800, bootTime: 100)
+    let network = NetworkSample(takenAt: cpu.takenAt, interfaces: [.init(name: "eth0", receivedBytes: 1000, transmittedBytes: 2000)])
+    let current = GPUSnapshot(takenAt: cpu.takenAt, gpus: [gpu], hostMemory: memory,
+                              hostCPU: 20, networkSample: network, hostCPUSample: cpu)
     let merged = current.mergingResolvedProcessMetadata(from: old)
     #expect(merged.hostMemory == memory)
     #expect(merged.takenAt == current.takenAt)
     #expect(merged.applyingResolvedProcessMetadata([process, process]).hostMemory == memory)
+    #expect(merged.hostCPUSample == cpu)
+    #expect(merged.networkSample == network)
+    let resolved = merged.applyingResolvedProcessMetadata([process, process])
+    #expect(resolved.hostCPU == 20)
+    #expect(resolved.hostCPUSample == cpu)
+    #expect(resolved.networkSample == network)
 }
 
 @Test func portableDataFormatDoesNotResolveLocalSSHPathsOrAliases() throws {

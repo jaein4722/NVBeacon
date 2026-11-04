@@ -32,6 +32,7 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Which process is running on that GPU?
 - Did my training job finish?
 - Has a watched GPU stayed idle long enough to reuse?
+- How fast is the server's network while the job runs?
 
 ## Screenshots
 
@@ -48,6 +49,10 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 
 <p align="center"><em>Detailed light and dark mode popovers with per-GPU status, process details, and job notification controls</em></p>
 
+## Host monitoring
+
+Each server can show Linux CPU utilization, RAM usage, configured swap, and network throughput in one collapsible section. CPU and network rates use consecutive polls over the existing SSH connection, without an extra sampling delay. See [Host Information](#host-information) for collection controls.
+
 ## Features
 
 - Native macOS menu bar UI with compact status text or icon-only mode
@@ -55,6 +60,8 @@ It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and tur
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
 - Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
+- Per-server CPU usage, grouped host information, and saved expand/collapse state
+- Per-server network usage with download and upload rates plus total transferred bytes
 - On-demand process details with user, PID, memory, and command preview
 - Automatic detection and highlighting of your own remote SSH user processes and GPUs
 - Job completion alerts through macOS Notification Center when watched GPU processes exit
@@ -107,13 +114,33 @@ Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722
 
 All settings apply automatically. There is no separate apply button.
 
-## Memory Monitoring
+## Host Information
 
-Each server's popover shows RAM used / total, available RAM, and Swap used / total. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
+Each server groups CPU, memory (RAM / Swap), and network metrics in one **Host Information** section. All items are enabled and expanded by default. Collapse an entire server using the chevron next to its name, or collapse only its host information section. Both states are saved separately per server across popover openings and app restarts. Reopening a server keeps the previous host section state.
+
+In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. The individual switches appear only while host collection is enabled. These choices apply to all servers. Disabled probes are not executed by the default host script, and their output is not parsed. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
+
+Enabled host metrics share the existing GPU polling SSH call. CPU and network rates use the difference between ordinary polls, without an extra connection or a sampling delay. They become available after the second successful sample and show the average over the measured interval; long gaps and counter resets start a new baseline.
+
+### Memory Monitoring
+
+Each server's popover shows RAM used / total and Swap used / total when swap is configured. Unconfigured swap is hidden. Hover over the RAM bar to see available RAM. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
 
 RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
 
-In `Advanced` settings, `GPU Query Command` and `Memory Query Command` apply to the server selected in `General`. The memory command defaults to `cat /proc/meminfo`; a custom command must return the same field names and `kB` units (`MemTotal`, `MemAvailable`, and optionally `SwapTotal` / `SwapFree`). An empty command restores the default. The memory query runs once per server within the existing SSH refresh, not once per GPU or in an extra SSH connection. A failed memory command leaves GPU monitoring available.
+In **Advanced** settings, **GPU Query Command** and **Host Information Query Command** apply to the server selected in **General**. Both commands use the same single-line input field. The host command collects CPU, RAM/Swap, and network counters together in the same SSH refresh. Saved multiline scripts are shown as an equivalent executable single-line command; their original contents are preserved until edited. An empty command restores the complete default host script. Existing custom memory commands are migrated into that script's memory section.
+
+Custom host commands must preserve these output sections:
+
+| Section marker | Output |
+| --- | --- |
+| `__NVBEACON_CPU_SECTION__` | One aggregate `cpu` line and a `btime` line from `/proc/stat` |
+| `__NVBEACON_MEMORY_SECTION__` | `/proc/meminfo` fields in `kB`: `MemTotal`, `MemAvailable`, optionally `SwapTotal` and `SwapFree` |
+| `__GPUUSAGE_NETWORK_SECTION__` | One `interface received_bytes transmitted_bytes` line per included interface |
+
+The app exports `NVBEACON_COLLECT_CPU`, `NVBEACON_COLLECT_MEMORY`, and `NVBEACON_COLLECT_NETWORK` as `1` or `0`. Keep the default script's conditional guards, or honor these switches in your own script, so disabled items are not collected. Turning host collection off entirely skips the whole script. Missing, failed, or malformed host output does not interrupt GPU monitoring.
+
+Server backup exports now use format version 2 to preserve the host command. Version 1 backups remain importable; their memory command is migrated into the complete host script. Imported servers still start disabled.
 
 The existing polling interval defaults to 10 seconds and can be set to 1 second in Settings. Actual updates also depend on SSH command duration; brief allocation peaks can be missed. Host RAM totals do not show container, cgroup, or scheduler job memory limits, and free VRAM alone does not guarantee a CUDA allocation will succeed.
 
@@ -163,6 +190,8 @@ The interface can be set to:
 ## Notes
 
 - NVBeacon uses your local SSH setup directly, including `~/.ssh/config`.
+- Network usage is read from the server's interface counters (`/sys/class/net` or `/proc/net/dev`) in the same SSH call as the GPU data, so polling stays a single round trip. Loopback, container, and overlay interfaces are skipped, and bond/bridge slaves are only counted through their aggregate device.
+- Network rates appear from the second refresh on, because a rate needs two counter readings. Turn **Network** off under **General > Host Information** to stop reading network counters entirely. Interface filtering is heuristic; unusual network topologies or unavailable topology data can affect aggregation.
 - In key-based mode, background polling does not read from Keychain.
 - SSH command attempts have a 15-second timeout and an 8 MiB combined output limit. Output is drained while commands run, and cancellation terminates and reaps the owned SSH process.
 - In password-based mode, each server password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.

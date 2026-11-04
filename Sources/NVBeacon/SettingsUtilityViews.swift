@@ -74,8 +74,8 @@ struct ServerImportReviewView: View {
                                 }
                                 Text(t("GPU command", "GPU 명령")).font(.caption.weight(.semibold))
                                 Text(server.remoteCommand).font(.caption.monospaced()).textSelection(.enabled)
-                                Text(t("Memory command", "메모리 명령")).font(.caption.weight(.semibold))
-                                Text(server.memoryCommand).font(.caption.monospaced()).textSelection(.enabled)
+                                Text(t("Host information command", "호스트 정보 수집 명령")).font(.caption.weight(.semibold))
+                                Text(server.hostCommand).font(.caption.monospaced()).textSelection(.enabled)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(6)

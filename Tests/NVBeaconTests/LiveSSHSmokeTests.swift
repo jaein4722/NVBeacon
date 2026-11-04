@@ -13,7 +13,8 @@ func liveSSHCollectionWithTheSharedCore() async throws {
     #expect(!servers.isEmpty)
     for (index, server) in servers.enumerated() {
         do {
-            let snapshot = try await SSHMetricsFetcher().fetchSummary(settings: server.connectionSettings(from: settings))
+            let reading = try await SSHMetricsFetcher().fetchSummary(settings: server.connectionSettings(from: settings))
+            let snapshot = reading.snapshot
             #expect(!snapshot.gpus.isEmpty)
             print("Live SSH smoke server \(index + 1): GPUs=\(snapshot.gpus.count), hostRAM=\(snapshot.hostMemory != nil)")
         } catch {
