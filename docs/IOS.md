@@ -2,7 +2,10 @@
 
 ## Implemented
 
-- Native SwiftUI server list, per-server dashboard and settings.
+- Native SwiftUI server list, per-server dashboard and settings. Choose **Edit**
+  on Monitor to select servers for deletion or drag their reorder handles. Order
+  is saved as you move rows. Deleting the server being viewed returns to Monitor.
+  Confirming deletion removes the selected profiles and their local credentials.
 - Multiple servers, explicit hostname/IP, username and SSH port.
 - Password authentication and automatic detection of OpenSSH Ed25519, RSA (2048–8192-bit) and ECDSA (P-256/P-384/P-521)
   private keys, including bcrypt/AES-CTR protected keys (up to 256 rounds). Credentials use device-only, unlocked Keychain

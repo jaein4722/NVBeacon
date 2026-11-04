@@ -5,7 +5,12 @@ import NVBeaconMobile
 
 struct RootView: View {
     @Bindable var store: MobileStore
-    @State private var editorPresented = false
+    @State private var editor: MobileServer?
+    @State private var path: [UUID] = []
+    @State private var editMode = EditMode.inactive
+    @State private var selected: Set<UUID> = []
+    @State private var deletionRequest: Set<UUID> = []
+    @State private var confirmsDeletion = false
     @State private var importerPresented = false
     @State private var exporterPresented = false
     @State private var exportDocument = ServerArchiveDocument()
@@ -13,61 +18,7 @@ struct RootView: View {
 
     var body: some View {
         TabView {
-            NavigationStack {
-                Group {
-                    if store.servers.isEmpty {
-                        ContentUnavailableView {
-                            Label("Your GPUs, anywhere", systemImage: "server.rack")
-                        } description: {
-                            Text("Connect to a Linux server over SSH to see GPU utilization, memory, temperature, and running jobs.")
-                        } actions: {
-                            Button("Add Server", systemImage: "plus") { editorPresented = true }
-                                .buttonStyle(.borderedProminent)
-                            Button("Import Server Backup") { importerPresented = true }
-                        }
-                    } else {
-                        List {
-                            Section {
-                                ForEach(store.servers) { server in
-                                    NavigationLink {
-                                        ServerDetailView(store: store, serverID: server.id)
-                                    } label: {
-                                        ServerRow(server: server, reading: store.readings[server.id])
-                                    }
-                                }
-                            } header: {
-                                HStack {
-                                    Text("Servers")
-                                    Spacer()
-                                    if store.isRefreshing { ProgressView().controlSize(.mini) }
-                                }
-                            } footer: {
-                                Text("Updates every \(store.refreshInterval) seconds while NVBeacon is open. Pull to refresh.")
-                            }
-                        }
-                        .refreshable { await store.refresh() }
-                    }
-                }
-                .navigationTitle("NVBeacon")
-                .toolbar {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button("Add Server", systemImage: "plus") { editorPresented = true }
-                    }
-                    ToolbarItem(placement: .topBarLeading) {
-                        Menu {
-                            Button("Import Servers", systemImage: "square.and.arrow.down") { importerPresented = true }
-                            Button("Export Servers", systemImage: "square.and.arrow.up") {
-                                do {
-                                    exportDocument = ServerArchiveDocument(data: try store.exportServers())
-                                    exporterPresented = true
-                                } catch { store.message = error.localizedDescription }
-                            }.disabled(store.servers.isEmpty)
-                        } label: {
-                            Label("Server Backups", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
-                        }
-                    }
-                }
-            }
+            monitor
             .tabItem { Label("Monitor", systemImage: "waveform.path.ecg") }
 
             NavigationStack {
@@ -95,7 +46,7 @@ struct RootView: View {
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
         }
-        .sheet(isPresented: $editorPresented) { ServerEditor(store: store, server: MobileServer()) }
+        .sheet(item: $editor) { ServerEditor(store: store, server: $0) }
         .fileImporter(isPresented: $importerPresented, allowedContentTypes: [.json]) { result in
             do {
                 let data = try readDocument(try result.get(), maximumBytes: ServerSettingsBackup.maximumFileBytes)
@@ -136,6 +87,132 @@ struct RootView: View {
             Button("OK") { store.message = nil }
         } message: { Text(store.message ?? "") }
     }
+
+    private var serverList: some View {
+        let selection: Binding<Set<UUID>>? = editMode.isEditing ? $selected : nil
+        return List(selection: selection) {
+            Section {
+                ForEach(store.servers) { server in
+                    if editMode.isEditing {
+                        ServerRow(server: server, reading: store.readings[server.id])
+                            .tag(server.id)
+                    } else {
+                        NavigationLink(value: server.id) {
+                            ServerRow(server: server, reading: store.readings[server.id])
+                        }
+                        .moveDisabled(true)
+                    }
+                }
+                .onMove(perform: moveServers)
+            } header: {
+                HStack {
+                    Text("Servers")
+                    Spacer()
+                    if store.isRefreshing { ProgressView().controlSize(.mini) }
+                }
+            } footer: {
+                Text("Updates every \(store.refreshInterval) seconds while NVBeacon is open. Pull to refresh.")
+            }
+        }
+        .refreshable { await store.refresh() }
+        .environment(\.editMode, $editMode)
+    }
+
+    @ToolbarContentBuilder private var monitorTools: some ToolbarContent {
+        if !store.servers.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                EditButton().environment(\.editMode, $editMode)
+            }
+        }
+        if editMode.isEditing {
+            ToolbarItem(placement: .topBarLeading) {
+                Button(selected.count == store.servers.count ? "Deselect All" : "Select All") {
+                    selected = selected.count == store.servers.count ? [] : Set(store.servers.map(\.id))
+                }
+            }
+            ToolbarItem(placement: .bottomBar) {
+                Button("Delete (\(selected.count))", role: .destructive) {
+                    deletionRequest = selected
+                    confirmsDeletion = true
+                }
+                .disabled(selected.isEmpty)
+                .confirmationDialog(
+                    deletionRequest.count == 1 ? "Delete selected server?" : "Delete \(deletionRequest.count) selected servers?",
+                    isPresented: $confirmsDeletion, titleVisibility: .visible
+                ) {
+                    Button("Delete", role: .destructive) {
+                        do {
+                            try store.deleteServers(deletionRequest)
+                            editMode = .inactive
+                        } catch { store.message = error.localizedDescription }
+                    }
+                    Button("Cancel", role: .cancel) {}
+                } message: {
+                    Text("Their saved credentials will also be deleted from this device.")
+                }
+            }
+        } else {
+            ToolbarItem(placement: .primaryAction) {
+                Button("Add Server", systemImage: "plus") { editor = MobileServer() }
+            }
+            ToolbarItem(placement: .topBarLeading) {
+                Menu {
+                    Button("Import Servers", systemImage: "square.and.arrow.down") { importerPresented = true }
+                    Button("Export Servers", systemImage: "square.and.arrow.up") {
+                        do {
+                            exportDocument = ServerArchiveDocument(data: try store.exportServers())
+                            exporterPresented = true
+                        } catch { store.message = error.localizedDescription }
+                    }.disabled(store.servers.isEmpty)
+                } label: {
+                    Label("Server Backups", systemImage: "ellipsis.circle").labelStyle(.iconOnly)
+                }
+            }
+        }
+    }
+
+    private var monitor: some View {
+        NavigationStack(path: $path) {
+            Group {
+                if store.servers.isEmpty {
+                    ContentUnavailableView {
+                        Label("Your GPUs, anywhere", systemImage: "server.rack")
+                    } description: {
+                        Text("Connect to a Linux server over SSH to see GPU utilization, memory, temperature, and running jobs.")
+                    } actions: {
+                        Button("Add Server", systemImage: "plus") { editor = MobileServer() }
+                            .buttonStyle(.borderedProminent)
+                        Button("Import Server Backup") { importerPresented = true }
+                    }
+                } else {
+                    serverList
+                }
+            }
+            .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
+            .navigationTitle("NVBeacon")
+            .navigationDestination(for: UUID.self) { id in
+                ServerDetailView(store: store, serverID: id) { editor = $0 }
+            }
+            .toolbar { monitorTools }
+        }
+        .onChange(of: editMode) { _, mode in
+            if !mode.isEditing { selected.removeAll() }
+        }
+        .onChange(of: store.servers.map(\.id)) { _, ids in
+            let remaining = Set(ids)
+            selected.formIntersection(remaining)
+            path.removeAll { !remaining.contains($0) }
+            if ids.isEmpty { editMode = .inactive }
+        }
+    }
+
+    private func moveServers(from offsets: IndexSet, to destination: Int) {
+        var ids = store.servers.map(\.id)
+        ids.move(fromOffsets: offsets, toOffset: destination)
+        do { try store.reorderServers(ids) }
+        catch { store.message = error.localizedDescription }
+    }
+
 }
 
 extension ServerSettingsBackup: @retroactive Identifiable {

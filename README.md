@@ -186,7 +186,7 @@ A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reus
 ./scripts/build_ios.sh
 ```
 
-The preview monitors while the app is in the foreground; macOS job alerts and continuous background monitoring have not been ported. See the [iOS development and porting guide](docs/IOS.md) for device setup, tests, architecture and remaining work.
+On Monitor, choose **Edit** to reorder servers or delete a selection with its saved credentials. The preview monitors while the app is in the foreground; macOS job alerts and continuous background monitoring have not been ported. See the [iOS development and porting guide](docs/IOS.md) for device setup, tests, architecture and remaining work.
 
 ## License
 

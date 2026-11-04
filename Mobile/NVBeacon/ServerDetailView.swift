@@ -5,7 +5,7 @@ import NVBeaconMobile
 struct ServerDetailView: View {
     @Bindable var store: MobileStore
     let serverID: UUID
-    @State private var editorPresented = false
+    let edit: (MobileServer) -> Void
     @State private var trustPresented = false
 
     private var server: MobileServer? { store.servers.first { $0.id == serverID } }
@@ -97,12 +97,11 @@ struct ServerDetailView: View {
                 }
                 .refreshable { await store.refresh() }
                 .navigationTitle(server.displayName)
-                .toolbar { Button("Edit", systemImage: "slider.horizontal.3") { editorPresented = true } }
-                .sheet(isPresented: $editorPresented) { ServerEditor(store: store, server: server) }
+                .toolbar { Button("Edit", systemImage: "slider.horizontal.3") { edit(server) } }
                 .sheet(isPresented: $trustPresented) {
                     HostTrustView(store: store, server: server, reading: reading)
                 }
-            } else { ContentUnavailableView("Server Removed", systemImage: "server.rack") }
+            }
         }
     }
 }

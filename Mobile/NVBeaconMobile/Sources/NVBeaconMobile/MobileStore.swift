@@ -64,9 +64,24 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
     }
 
     public func delete(_ server: MobileServer) throws {
-        try vault.delete(server.id)
-        try persist(servers.filter { $0.id != server.id })
-        readings[server.id] = nil
+        try deleteServers([server.id])
+    }
+
+    public func deleteServers(_ ids: Set<UUID>) throws {
+        // Persist each successful removal before moving on to the next Keychain item.
+        // On failure the remaining rows are still selectable for retry.
+        for server in servers where ids.contains(server.id) {
+            try vault.delete(server.id)
+            try persist(servers.filter { $0.id != server.id })
+            readings[server.id] = nil
+        }
+    }
+
+    public func reorderServers(_ ids: [UUID]) throws {
+        let current = servers.map(\.id)
+        guard ids != current, ids.count == current.count, Set(ids) == Set(current) else { return }
+        let byID = Dictionary(uniqueKeysWithValues: servers.map { ($0.id, $0) })
+        try persist(ids.compactMap { byID[$0] }, affectsMonitoring: false)
     }
 
     public func trustHost(for server: MobileServer, key: String) throws {
@@ -92,12 +107,14 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         try ServerSettingsBackup(servers: servers.map(\.backupEntry)).encoded()
     }
 
-    private func persist(_ next: [MobileServer]) throws {
+    private func persist(_ next: [MobileServer], affectsMonitoring: Bool = true) throws {
         let data = try JSONEncoder().encode(next)
         defaults.set(data, forKey: "mobileServers")
         servers = next
-        revision = UUID()
-        generation = UUID()
+        if affectsMonitoring {
+            revision = UUID()
+            generation = UUID()
+        }
     }
 
     public func monitor() async {

@@ -135,3 +135,43 @@ private actor DelayedResponse {
     #expect(store.readings[server.id]?.error == nil)
     #expect(!store.isRefreshing)
 }
+
+@Test @MainActor func reorderingAndBulkRemovalPersistWithoutRestartingPollingForMoves() throws {
+    let name = "NVBeaconMobileTests.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let original = (0..<4).map { index in
+        var server = MobileServer()
+        server.name = "Fixture \(index)"
+        return server
+    }
+    defaults.set(try JSONEncoder().encode(original), forKey: "mobileServers")
+    let store = MobileStore(defaults: defaults, vault: TestCredentials())
+    let generation = store.generation
+    let order = [original[3], original[0], original[2], original[1]]
+    try store.reorderServers(order.map(\.id))
+    #expect(store.generation == generation)
+    #expect(MobileStore(defaults: defaults).servers == order)
+    try store.deleteServers([original[0].id, original[1].id])
+    #expect(store.generation != generation)
+    #expect(MobileStore(defaults: defaults).servers == [original[3], original[2]])
+}
+
+@Test @MainActor func keychainFailureDuringBulkRemovalLeavesFailedAndLaterProfilesAvailable() throws {
+    struct FailingVault: CredentialStorage {
+        let failingID: UUID
+        func read(_ id: UUID) throws -> MobileCredential? { nil }
+        func write(_ credential: MobileCredential, for id: UUID) throws {}
+        func delete(_ id: UUID) throws {
+            if id == failingID { throw MobileError.keychain(-1) }
+        }
+    }
+    let name = "NVBeaconMobileTests.\(UUID())"
+    let defaults = try #require(UserDefaults(suiteName: name))
+    defer { defaults.removePersistentDomain(forName: name) }
+    let servers = [MobileServer(), MobileServer(), MobileServer()]
+    defaults.set(try JSONEncoder().encode(servers), forKey: "mobileServers")
+    let store = MobileStore(defaults: defaults, vault: FailingVault(failingID: servers[1].id))
+    #expect(throws: MobileError.keychain(-1)) { try store.deleteServers(Set(servers.map(\.id))) }
+    #expect(MobileStore(defaults: defaults).servers == Array(servers.dropFirst()))
+}
