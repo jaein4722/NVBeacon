@@ -2,12 +2,15 @@
 
 ## Development Strategy
 
-This repository should stay simple. Prefer trunk-based development over GitFlow.
+This repository follows GitHub Flow.
 
-- `master` is the release-ready trunk branch.
-- Keep feature branches short-lived.
-- Do not add a long-lived `develop` branch unless the project grows substantially.
-- Tag releases from `master`.
+- `master` is the release-ready default branch.
+- Create a short-lived, descriptive branch from the latest `master` for each change.
+- Push the branch and open a pull request targeting `master`.
+- Run the relevant checks and review the change before merging the pull request.
+- Delete the feature branch after it has been merged and is no longer needed.
+- Tag releases from the verified commit on `master`.
+- Do not introduce long-lived `develop`, `release/*`, or `hotfix/*` branches. Urgent fixes use the same branch-and-pull-request flow.
 
 Recommended branch naming:
 
@@ -16,7 +19,9 @@ Recommended branch naming:
 - `chore/<topic>` for tooling, build, or cleanup work
 - `docs/<topic>` for README or documentation-only changes
 
-Use `release/<version>` or `hotfix/<version>` only if an already-published version must be maintained separately. For this project, avoid those branches by default.
+Keep unrelated work on separate branches and use separate worktrees when another branch has uncommitted changes. References fetched from contributor forks are review inputs; integrate accepted changes through a feature branch and pull request.
+
+When integrating contributor code, preserve the original commits and authorship where practical. Put adaptations and fixes in follow-up commits, and identify the original contribution in the pull request. If commits must be cherry-picked, use `-x` to record their source; if squashing, retain contributor credit with `Co-authored-by` trailers.
 
 ## Release Strategy
 
@@ -28,7 +33,7 @@ Use lightweight semantic versioning:
 
 Release flow:
 
-1. Merge or commit the final release candidate into `master`.
+1. Merge the final release candidate, including its `CHANGELOG.md` entry, into `master` through a pull request.
 2. Verify `swift test` passes.
 3. Create a tag in the form `vX.Y.Z`.
 4. Push the tag.
@@ -46,14 +51,17 @@ Release page guidance:
 
 Before starting work:
 
-1. Update local trunk with `git pull --ff-only origin master`.
-2. Create a short-lived branch if the change is larger than a tiny fix.
+1. Check the current branch and working tree. Preserve any existing uncommitted work.
+2. From a clean `master` worktree, update it with `git pull --ff-only origin master`.
+3. Create a short-lived branch from the updated `master`. If another worktree has in-progress changes, fetch `origin/master` and create a separate branch/worktree from it instead.
+4. Commit focused changes on that branch and open a pull request targeting `master`.
 
 Before merging or tagging:
 
 1. Run `swift test`.
 2. Run `./scripts/package_app.sh` if packaging changed.
 3. Update `README.md` when user-facing behavior, setup, or release steps changed.
+4. Confirm the pull request checks pass and review is complete before merging.
 
 ## Test App Rule
 

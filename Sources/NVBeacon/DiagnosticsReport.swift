@@ -44,7 +44,7 @@ enum DiagnosticsReport {
                 "  SSH reuse: " + server.sshConnectionReuseMode.rawValue,
                 "  Identity file configured: " + String(!server.sshIdentityFilePath.isEmpty),
                 "  GPU command: " + (server.remoteCommand == AppSettings.defaultRemoteCommand ? "Default" : "Custom (omitted)"),
-                "  Memory command: " + (server.memoryCommand == AppSettings.defaultMemoryCommand ? "Default" : "Custom (omitted)"),
+                "  Host command: " + (server.hostCommand == AppSettings.defaultHostCommand ? "Default" : "Custom (omitted)"),
                 "  Refreshing: " + String(state.isRefreshing),
                 "  Error category: " + errorCategory(state.lastErrorMessage),
             ]

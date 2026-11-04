@@ -10,6 +10,8 @@ public enum MetricsParseError: Error, Equatable, Sendable {
 public enum MetricsParser {
     private static let processSectionSeparator = RemoteMetricCommands.processSectionSeparator
     private static let psSectionSeparator = RemoteMetricCommands.psSectionSeparator
+    private static let cpuSectionSeparator = RemoteMetricCommands.cpuSectionSeparator
+    private static let networkSectionSeparator = RemoteMetricCommands.networkSectionSeparator
     private static let memorySectionSeparator = RemoteMetricCommands.memorySectionSeparator
 
     public static func parse(_ output: String) throws -> [GPUReading] {
@@ -56,6 +58,74 @@ public enum MetricsParser {
                 processes: gpu.uuid.flatMap { processesByGPU[$0] } ?? []
             )
         }
+    }
+
+    public static func parseHostCPU(_ output: String) -> Int? {
+        let lines = section(named: cpuSectionSeparator, from: output).split(whereSeparator: \.isNewline)
+        guard lines.count == 2 else { return nil }
+        guard let first = cpuCounters(lines[0]), let second = cpuCounters(lines[1]),
+              second.total > first.total, second.idle >= first.idle else { return nil }
+        let total = second.total - first.total
+        let idle = second.idle - first.idle
+        guard idle <= total else { return nil }
+        return Int((100 * Double(total - idle) / Double(total)).rounded())
+    }
+
+    private static func cpuCounters(_ line: Substring) -> (total: UInt64, idle: UInt64)? {
+        let fields = line.split(whereSeparator: \.isWhitespace)
+        guard fields.count >= 5, fields[0] == "cpu" else { return nil }
+        let numbers = fields.dropFirst().prefix(8).compactMap { UInt64($0) }
+        guard numbers.count == min(fields.count - 1, 8), numbers.count >= 4 else { return nil }
+        var total: UInt64 = 0
+        for number in numbers {
+            let (sum, overflow) = total.addingReportingOverflow(number)
+            guard !overflow else { return nil }
+            total = sum
+        }
+        let (idle, overflow) = numbers[3].addingReportingOverflow(numbers.count > 4 ? numbers[4] : 0)
+        guard !overflow else { return nil }
+        return (total, idle)
+    }
+
+    public static func parseHostCPUSample(_ output: String, takenAt: Date) -> HostCPUSample? {
+        let lines = section(named: cpuSectionSeparator, from: output).split(whereSeparator: \.isNewline)
+        let cpuLines = lines.filter { $0.split(whereSeparator: \.isWhitespace).first == "cpu" }
+        guard cpuLines.count == 1, let counters = cpuCounters(cpuLines[0]) else { return nil }
+        let bootLines = lines.filter { $0.split(whereSeparator: \.isWhitespace).first == "btime" }
+        guard bootLines.count <= 1 else { return nil }
+        var bootTime: UInt64?
+        if let bootLine = bootLines.first {
+            let fields = bootLine.split(whereSeparator: \.isWhitespace)
+            guard fields.count == 2, let value = UInt64(fields[1]) else { return nil }
+            bootTime = value
+        }
+        return HostCPUSample(takenAt: takenAt, total: counters.total, idle: counters.idle, bootTime: bootTime)
+    }
+
+    public static func networkSection(_ output: String) -> String {
+        section(named: networkSectionSeparator, from: output)
+    }
+
+    public static func parseNetworkSection(_ output: String) -> [NetworkInterfaceReading] {
+        output
+            .split(whereSeparator: \.isNewline)
+            .compactMap { line in
+                let columns = line.split(separator: " ", omittingEmptySubsequences: true)
+
+                guard
+                    columns.count >= 3,
+                    let receivedBytes = UInt64(columns[1]),
+                    let transmittedBytes = UInt64(columns[2])
+                else {
+                    return nil
+                }
+
+                return NetworkInterfaceReading(
+                    name: String(columns[0]),
+                    receivedBytes: receivedBytes,
+                    transmittedBytes: transmittedBytes
+                )
+            }
     }
 
     public static func parseHostMemory(_ output: String) -> HostMemoryReading? {
@@ -205,7 +275,7 @@ public enum MetricsParser {
     }
 
     private static func section(named name: String?, from output: String) -> String {
-        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator]
+        let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator, cpuSectionSeparator, networkSectionSeparator, RemoteMetricCommands.hostSectionSeparator]
 
         if let name {
             guard let startRange = output.range(of: name) else {

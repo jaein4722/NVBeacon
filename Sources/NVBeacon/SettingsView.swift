@@ -319,6 +319,19 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle(t("Collect host information", "호스트 정보 수집"), isOn: $draft.collectsHostInfo)
+                if draft.collectsHostInfo {
+                    Toggle("CPU", isOn: $draft.collectsHostCPU)
+                    Toggle(t("Memory (RAM / Swap)", "메모리 (RAM / Swap)"), isOn: $draft.collectsHostMemory)
+                    Toggle(t("Network", "네트워크"), isOn: $draft.showsNetworkUsage)
+                }
+            } header: {
+                Text(t("Host Information", "호스트 정보"))
+            } footer: {
+                Text(t("These settings apply to all servers. Disabled items are not collected. Collapsing a server's host information only hides it; collection continues.", "모든 서버에 적용됩니다. 끈 항목은 수집하지 않습니다. 호스트 정보를 접으면 화면에서만 숨겨지고 수집은 계속됩니다."))
+            }
+
+            Section {
                 Toggle(
                     t("Launch NVBeacon at login", "로그인 시 NVBeacon 자동 시작"),
                     isOn: Binding(
@@ -541,27 +554,29 @@ struct SettingsView: View {
     private var advancedPane: some View {
         Form {
             Section {
-                TextField("", text: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand), prompt: Text(AppSettings.defaultRemoteCommand))
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
-                    .disabled(selectedServer == nil)
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand),
+                    defaultCommand: AppSettings.defaultRemoteCommand,
+                    title: t("GPU Query Command", "GPU 조회 명령"),
+                    isEnabled: selectedServer != nil
+                )
             } header: {
                 Text(t("GPU Query Command", "GPU 조회 명령"))
             } footer: {
-                Text(t("Applies to the selected server. Only change this if you need a custom command.", "선택된 서버에 적용됩니다. 커스텀 명령이 필요할 때만 변경하세요."))
+                Text(t("Applies to the selected server. Leave empty to restore the default command.", "선택된 서버에 적용됩니다. 비워두면 기본 명령으로 돌아갑니다."))
             }
 
             Section {
-                TextField("", text: selectedServerStringBinding(\.memoryCommand, defaultValue: AppSettings.defaultMemoryCommand), prompt: Text(AppSettings.defaultMemoryCommand))
-                    .labelsHidden()
-                    .textFieldStyle(.roundedBorder)
-                    .multilineTextAlignment(.leading)
-                    .disabled(selectedServer == nil)
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand),
+                    defaultCommand: AppSettings.defaultHostCommand,
+                    title: t("Host Information Query Command", "호스트 정보 수집 명령"),
+                    isEnabled: selectedServer != nil
+                )
             } header: {
-                Text(t("Memory Query Command", "메모리 조회 명령"))
+                Text(t("Host Information Query Command", "호스트 정보 수집 명령"))
             } footer: {
-                Text(t("Applies to the selected server in the same SSH refresh. Output must use Linux /proc/meminfo format with kB units. Leave empty to restore the default command.", "선택된 서버의 같은 SSH 새로고침에서 실행됩니다. 출력은 kB 단위의 Linux /proc/meminfo 형식이어야 합니다. 비워두면 기본 명령으로 돌아갑니다."))
+                Text(t("Collects CPU, RAM/Swap, and network for the selected server in the same SSH refresh. Keep the section markers and collection switches when customizing. Leave empty to restore the default command.", "선택된 서버의 CPU·RAM/Swap·네트워크를 같은 SSH 새로고침에서 수집합니다. 수정할 때 영역 구분자와 항목별 수집 조건을 유지하세요. 비워두면 기본 명령으로 돌아갑니다."))
             }
 
             Section {
@@ -854,6 +869,7 @@ struct SettingsView: View {
             draft.sshIdentityFilePath = ""
             draft.remoteCommand = AppSettings.defaultRemoteCommand
             draft.memoryCommand = AppSettings.defaultMemoryCommand
+            draft.hostCommand = AppSettings.defaultHostCommand
         }
     }
 
@@ -1414,6 +1430,35 @@ private struct NumericStepperField: View {
         .onChange(of: value) { _, newValue in
             if !isInputFocused { inputText = String(newValue) }
         }
+    }
+}
+
+private struct QueryCommandField: View {
+    @Binding var command: String
+    let defaultCommand: String
+    let title: String
+    let isEnabled: Bool
+
+    private var displayedCommand: Binding<String> {
+        Binding(
+            get: { RemoteMetricCommands.singleLineCommand(command) },
+            set: { value in
+                // Merely focusing a field must not rewrite a saved script.
+                if value != RemoteMetricCommands.singleLineCommand(command) {
+                    command = value
+                }
+            }
+        )
+    }
+
+    var body: some View {
+        TextField("", text: displayedCommand, prompt: Text(RemoteMetricCommands.singleLineCommand(defaultCommand)))
+            .labelsHidden()
+            .textFieldStyle(.roundedBorder)
+            .multilineTextAlignment(.leading)
+            .lineLimit(1)
+            .accessibilityLabel(title)
+            .disabled(!isEnabled)
     }
 }
 

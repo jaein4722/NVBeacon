@@ -65,6 +65,8 @@ struct StatusMenuView: View {
         .frame(width: CGFloat(store.settings.resolvedPopoverWidth), alignment: .top)
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
+        .animation(.spring(response: 0.26, dampingFraction: 0.86), value: store.collapsedHostServerIDs)
+        .animation(.spring(response: 0.26, dampingFraction: 0.86), value: store.collapsedServerIDs)
         .onChange(of: snapshotGPUIds) { _, newValue in
             expandedGPUIds.formIntersection(Set(newValue))
         }
@@ -183,8 +185,24 @@ struct StatusMenuView: View {
     private func serverSection(_ state: ServerRuntimeState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Label(state.server.displayName, systemImage: state.server.isEnabled ? "server.rack" : "pause.circle")
-                    .font(.subheadline.weight(.semibold))
+                Button {
+                    store.setServerExpanded(!store.isServerExpanded(for: state.id), for: state.id)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 10, weight: .semibold))
+                            .rotationEffect(.degrees(store.isServerExpanded(for: state.id) ? 90 : 0))
+                        Label(state.server.displayName, systemImage: state.server.isEnabled ? "server.rack" : "pause.circle")
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(store.isServerExpanded(for: state.id)
+                      ? t("Collapse this server", "이 서버 접기")
+                      : t("Expand this server", "이 서버 펼치기"))
+                .accessibilityValue(store.isServerExpanded(for: state.id) ? t("Expanded", "펼침") : t("Collapsed", "접힘"))
 
                 if !state.server.isEnabled {
                     Text(t("Disabled", "비활성"))
@@ -199,6 +217,20 @@ struct StatusMenuView: View {
                 }
 
                 Spacer(minLength: 8)
+
+                if !store.isServerExpanded(for: state.id) {
+                    if let snapshot = state.snapshot {
+                        Text("GPU \(snapshot.busyCount(using: store.settings))/\(snapshot.gpus.count) · \(snapshot.averageUtilization)%")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
+                    if state.server.isEnabled, let error = state.lastErrorMessage {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundStyle(.orange)
+                            .help(error)
+                    }
+                }
 
                 if state.server.isPollable {
                     Button {
@@ -218,6 +250,20 @@ struct StatusMenuView: View {
                 }
             }
 
+            if store.isServerExpanded(for: state.id) {
+                serverDetails(state)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        )
+    }
+
+    private func serverDetails(_ state: ServerRuntimeState) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
             if let snapshot = state.snapshot {
                 HStack(spacing: 6) {
                     SummaryPill(title: t("Avg", "평균"), value: "\(snapshot.averageUtilization)%")
@@ -226,7 +272,19 @@ struct StatusMenuView: View {
                     UpdatedPill(date: snapshot.takenAt, language: language)
                 }
 
-                HostMemoryView(memory: snapshot.hostMemory, language: language)
+                if !store.settings.hostMetricsOptions.isEmpty {
+                    HostInformationView(
+                        snapshot: snapshot,
+                        networkUsage: state.networkUsage,
+                        options: store.settings.hostMetricsOptions,
+                        isExpanded: Binding(
+                            get: { store.isHostInfoExpanded(for: state.id) },
+                            set: { store.setHostInfoExpanded($0, for: state.id) }
+                        ),
+                        language: language
+                    )
+                }
+
                 gpuList(state, snapshot: snapshot)
             } else if state.server.isEnabled {
                 Text(state.lastErrorMessage ?? t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다."))
@@ -253,12 +311,6 @@ struct StatusMenuView: View {
                 .foregroundStyle(.green)
             }
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(nsColor: .controlBackgroundColor))
-        )
     }
 
     private func gpuList(_ state: ServerRuntimeState, snapshot: GPUSnapshot) -> some View {
@@ -504,6 +556,63 @@ private func memoryUsageNotice(ratio: Double, language: AppInterfaceLanguage) ->
     return ""
 }
 
+private struct HostInformationView: View {
+    let snapshot: GPUSnapshot
+    let networkUsage: NetworkUsage?
+    let options: HostMetricsOptions
+    @Binding var isExpanded: Bool
+    let language: AppInterfaceLanguage
+
+    var body: some View {
+        DisclosureGroup(isExpanded: $isExpanded) {
+            VStack(alignment: .leading, spacing: 10) {
+                if options.cpu {
+                    HostCPUView(cpu: snapshot.hostCPU, isMeasuring: snapshot.hostCPUSample != nil, language: language)
+                }
+                if options.memory {
+                    if options.cpu { Divider() }
+                    HostMemoryView(memory: snapshot.hostMemory, language: language)
+                }
+                if options.network {
+                    if options.cpu || options.memory { Divider() }
+                    if let networkUsage {
+                        NetworkUsageRow(usage: networkUsage, language: language)
+                    } else {
+                        Text(language.text("Network: Unavailable", "네트워크: 확인 불가"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+            .padding(.top, 6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } label: {
+            Label(language.text("Host Information", "호스트 정보"), systemImage: "desktopcomputer")
+                .font(.caption.weight(.semibold))
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+}
+
+private struct HostCPUView: View {
+    let cpu: Int?
+    let isMeasuring: Bool
+    let language: AppInterfaceLanguage
+
+    var body: some View {
+        if let cpu {
+            ThinMetricBar(title: "CPU", valueText: "\(cpu)%", ratio: Double(cpu) / 100, tint: .orange)
+        } else {
+            Text(isMeasuring
+                 ? language.text("CPU: Measuring…", "CPU: 측정 중…")
+                 : language.text("CPU: Unavailable", "CPU: 확인 불가"))
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
 private struct HostMemoryView: View {
     let memory: HostMemoryReading?
     let language: AppInterfaceLanguage
@@ -512,22 +621,15 @@ private struct HostMemoryView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let memory {
                 ThinMetricBar(
-                    title: language.text("Server RAM", "서버 RAM"),
+                    title: "RAM",
                     valueText: "\(memory.usagePercent)% · \(HostMemoryReading.capacityText(kibibytes: memory.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: memory.totalKiB))",
                     ratio: memory.usageRatio,
                     tint: memoryTint(ratio: memory.usageRatio)
                 )
-
-                Text(language.text("Available: ", "사용 가능: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
-                    .font(.caption2.monospacedDigit())
-                    .foregroundStyle(memoryTint(ratio: memory.usageRatio))
+                .help(language.text("Available: ", "사용 가능: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
 
                 if let swapTotal = memory.swapTotalKiB, let swapUsed = memory.swapUsedKiB, let swapRatio = memory.swapUsageRatio {
-                    if swapTotal == 0 {
-                        Text(language.text("Swap: Not configured", "Swap: 설정되지 않음"))
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    } else {
+                    if swapTotal > 0 {
                         ThinMetricBar(
                             title: "Swap",
                             valueText: "\(HostMemoryReading.capacityText(kibibytes: swapUsed)) / \(HostMemoryReading.capacityText(kibibytes: swapTotal))",
@@ -541,13 +643,82 @@ private struct HostMemoryView: View {
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(language.text("Server RAM / Swap: Unavailable", "서버 RAM / Swap: 확인 불가"))
+                Text(language.text("RAM / Swap: Unavailable", "RAM / Swap: 확인 불가"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(10)
-        .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.primary.opacity(0.04)))
+    }
+}
+
+private struct NetworkUsageRow: View {
+    let usage: NetworkUsage
+    let language: AppInterfaceLanguage
+
+    private func t(_ english: String, _ korean: String) -> String {
+        language.text(english, korean)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 12) {
+                Label(t("Network", "네트워크"), systemImage: "network")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 4)
+                NetworkRateLabel(
+                    systemImage: "arrow.down",
+                    value: NetworkUsageFormatter.rateText(usage.receivedBytesPerSecond),
+                    tint: Color(red: 0.12, green: 0.54, blue: 0.94)
+                )
+                NetworkRateLabel(
+                    systemImage: "arrow.up",
+                    value: NetworkUsageFormatter.rateText(usage.transmittedBytesPerSecond),
+                    tint: Color(red: 0.93, green: 0.45, blue: 0.15)
+                )
+            }
+
+            Text("\(t("Total since boot", "부팅 후 누적")) \(usage.totalSummary)")
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .help(helpText)
+    }
+
+    private var helpText: String {
+        var lines = [String]()
+
+        if usage.interfaceNames.isEmpty {
+            lines.append(t("The server did not report any network interface.", "서버에서 네트워크 인터페이스 정보를 가져오지 못했습니다."))
+        } else {
+            lines.append("\(t("Interfaces", "인터페이스")): \(usage.interfaceNames.joined(separator: ", "))")
+        }
+
+        lines.append("\(t("Total since boot", "부팅 후 누적")): \(usage.totalSummary)")
+
+        if !usage.hasRates {
+            lines.append(t("The transfer rate is measured from the next refresh on.", "전송 속도는 다음 새로고침부터 표시됩니다."))
+        }
+
+        return lines.joined(separator: "\n")
+    }
+}
+
+private struct NetworkRateLabel: View {
+    let systemImage: String
+    let value: String
+    let tint: Color
+
+    var body: some View {
+        HStack(spacing: 4) {
+            Image(systemName: systemImage)
+                .font(.system(size: 9, weight: .bold))
+                .foregroundStyle(tint)
+
+            Text(value)
+                .font(.caption.monospacedDigit().weight(.semibold))
+        }
     }
 }
 

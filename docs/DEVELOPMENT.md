@@ -2,6 +2,36 @@
 
 This document is for contributors and maintainers of NVBeacon.
 
+## GitHub Flow
+
+NVBeacon follows GitHub Flow. `master` is the release-ready default branch.
+
+1. Update a clean local `master` with `git pull --ff-only origin master`.
+2. Create a short-lived branch for the change: `feat/<topic>`, `fix/<topic>`,
+   `chore/<topic>`, or `docs/<topic>`.
+3. Commit focused changes, push the branch, and open a pull request targeting
+   `master`. Link the related issue when there is one.
+4. Run the relevant tests and complete review before merging the pull request.
+   Squash intermediate commits when practical.
+5. Delete the merged branch when it is no longer needed. Create release tags
+   from verified commits on `master` using the release workflow below.
+
+Urgent fixes follow the same process on a `fix/<topic>` branch. Do not introduce
+long-lived `develop`, `release/*`, or `hotfix/*` branches.
+
+Keep unrelated work separate. If the current worktree contains in-progress
+changes, preserve it, fetch `origin/master`, and create a separate branch and
+worktree from that ref. Do not switch or pull over uncommitted work to start an
+unrelated change. Code fetched from a contributor fork can be reviewed separately;
+accepted changes go through a feature branch and pull request, with credit to
+the contributor.
+
+Preserve original contributor commits and authorship when integrating forked
+work. Keep adaptations and fixes in follow-up commits and describe both the
+original contribution and the adjustments in the pull request. Use `git
+cherry-pick -x` if replaying a commit is necessary. When squashing a contribution,
+retain the contributor's credit with a `Co-authored-by` trailer.
+
 ## Prerequisites
 
 - macOS 14 or later
@@ -36,6 +66,41 @@ and CI, does not read passwords or change configuration, and logs counts only:
 ```bash
 NVBEACON_LIVE_SSH_SMOKE=1 swift test --build-system native --filter liveSSHCollectionWithTheSharedCore
 ```
+
+### Host Metrics Overhead Benchmark
+
+Run a manual, read-only comparison against enabled, key-authenticated servers in
+an existing app settings domain:
+
+```bash
+bash scripts/benchmark_host_metrics.sh \
+  --settings-domain com.leejaein.NVBeacon \
+  --samples 12 --max-servers 2 --parse-iterations 300 \
+  --output dist/benchmarks/host-metrics-overhead.json
+```
+
+Use the test app's bundle identifier as the settings domain to measure its
+configured servers instead. The benchmark does not change settings, read
+passwords from Keychain, install remote software, or run in normal tests/CI.
+It performs additional monitoring queries, so run it when that temporary load
+is acceptable.
+
+The helper compiles the current core collector and macOS process runner with
+optimization. After warm-up, it alternates GPU-only and all-host SSH polls and
+records wall time, local process CPU time, and script/response sizes. Replaying
+the captured responses in memory separates collection/parsing cost from SSH.
+If Python 3 is already available remotely, a standard-library helper also
+measures generated command wall/child CPU time and isolated CPU, memory, and
+network probes in shuffled order. An empty-shell control estimates shell
+startup overhead. Python helper CPU is excluded from child CPU measurements.
+
+Only numerical results with anonymous server indices are saved under the
+ignored `dist/` directory. Endpoints, usernames, identity paths, custom commands,
+and raw process/GPU responses are not saved. Payload sizes exclude SSH framing
+and encryption. Normal app polling and remote workloads remain running;
+end-to-end differences can include workload/network noise. This benchmark
+does not measure GUI rendering, persistent app memory, or the separate SSH
+master process's CPU usage.
 
 ## Test App Workflow
 
@@ -155,9 +220,9 @@ NVBeacon uses tag-based GitHub Releases.
 
 Typical release sequence:
 
-1. commit the final release candidate to `master`
-2. run `swift test`
-3. update `CHANGELOG.md`
+1. prepare the final release candidate and update `CHANGELOG.md` on a short-lived branch
+2. merge it into `master` through a reviewed pull request with passing checks
+3. verify `swift test` passes on the release commit on `master`
 4. create and push a version tag
 
 Example:

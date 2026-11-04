@@ -1,6 +1,12 @@
 import Foundation
 
+struct ServerReading: Sendable {
+    let snapshot: GPUSnapshot
+    let networkSample: NetworkSample?
+}
+
 struct SSHMetricsFetcher: Sendable {
+    static let networkSampleCommand = RemoteMetricCommands.networkSampleCommand
     static let processDetailsCommand = RemoteMetricCommands.processDetailsCommand
     private static let controlSocketPath = "/tmp/nvbeacon-ssh-%C.sock"
 
@@ -43,7 +49,7 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    func fetchSummary(settings: AppSettings, password: String? = nil) async throws -> GPUSnapshot {
+    func fetchSummary(settings: AppSettings, password: String? = nil) async throws -> ServerReading {
         let normalized = settings.normalized()
         guard normalized.isConfigured else {
             throw FetchError.missingTarget
@@ -51,7 +57,10 @@ struct SSHMetricsFetcher: Sendable {
 
         let collector = MetricsCollector(transport: Transport(settings: normalized, password: password))
         do {
-            return try await collector.fetchSummary(gpuCommand: normalized.remoteCommand, memoryCommand: normalized.memoryCommand)
+            let snapshot = try await collector.fetchSummary(gpuCommand: normalized.remoteCommand,
+                                                           hostMetrics: normalized.hostMetricsOptions,
+                                                           hostCommand: normalized.hostCommand)
+            return ServerReading(snapshot: snapshot, networkSample: snapshot.networkSample)
         } catch {
             throw Self.localizedCollectionError(error)
         }
@@ -152,6 +161,18 @@ struct SSHMetricsFetcher: Sendable {
 
     static func parseSnapshot(_ output: String) throws -> [GPUReading] {
         try parsing { try MetricsParser.parseSnapshot(output) }
+    }
+
+    static func parseReading(_ output: String) throws -> ServerReading {
+        let takenAt = Date()
+        let interfaces = MetricsParser.parseNetworkSection(MetricsParser.networkSection(output))
+        let sample = interfaces.isEmpty ? nil : NetworkSample(takenAt: takenAt, interfaces: interfaces)
+        let snapshot = GPUSnapshot(takenAt: takenAt, gpus: try parseSnapshot(output), hostMemory: MetricsParser.parseHostMemory(output), hostCPU: MetricsParser.parseHostCPU(output), networkSample: sample, hostCPUSample: MetricsParser.parseHostCPUSample(output, takenAt: takenAt))
+        return ServerReading(snapshot: snapshot, networkSample: sample)
+    }
+
+    static func parseHostCPU(_ output: String) -> Int? {
+        MetricsParser.parseHostCPU(output)
     }
 
     static func parseHostMemory(_ output: String) -> HostMemoryReading? {
@@ -322,8 +343,8 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
-    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand) -> String {
-        RemoteMetricCommands.summary(summaryCommand: summaryCommand, memoryCommand: memoryCommand)
+    static func buildSummaryRemoteCommand(summaryCommand: String, memoryCommand: String = AppSettings.defaultMemoryCommand, includesNetworkUsage: Bool = true, hostCommand: String? = nil) -> String {
+        RemoteMetricCommands.summary(summaryCommand: summaryCommand, memoryCommand: memoryCommand, includesNetworkUsage: includesNetworkUsage, hostCommand: hostCommand)
     }
 
     private static func buildPSLookupCommand(pids: [Int]) -> String {
