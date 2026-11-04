@@ -11,6 +11,7 @@ struct ServerEditor: View {
     @State private var keyImporterPresented = false
     @State private var deletePresented = false
     @State private var resetTrustPresented = false
+    @State private var keyInfo: ImportedSSHKey?
     @State private var loaded = false
     @Environment(\.dismiss) private var dismiss
     private var isExisting: Bool { store.servers.contains { $0.id == server.id } }
@@ -33,18 +34,18 @@ struct ServerEditor: View {
                         Text("SSH Key").tag(SSHAuthenticationMode.keyBased)
                         Text("Password").tag(SSHAuthenticationMode.passwordBased)
                     }
-                    .onChange(of: server.authentication) { _, _ in credential = MobileCredential() }
+                    .onChange(of: server.authentication) { _, _ in credential = MobileCredential(); keyInfo = nil }
                     if server.authentication == .passwordBased {
                         SecureField("SSH password", text: $credential.secret)
                     } else {
-                        Button(credential.secret.isEmpty ? "Import Ed25519 Private Key" : "Replace Imported Key", systemImage: "key") {
+                        Button(credential.secret.isEmpty ? "Import Private Key" : "Replace Imported Key", systemImage: "key") {
                             keyImporterPresented = true
                         }
-                        if !credential.secret.isEmpty { Label("Private key ready", systemImage: "checkmark.circle").foregroundStyle(.green) }
-                        SecureField("Key passphrase (if encrypted)", text: $credential.passphrase)
+                        if !credential.secret.isEmpty { Label("\(keyInfo?.algorithm ?? "SSH") key selected", systemImage: "checkmark.circle").foregroundStyle(.green) }
+                        if keyInfo?.requiresPassphrase == true { SecureField("Key passphrase", text: $credential.passphrase) }
                     }
                 } header: { Text("Credentials") } footer: {
-                    Text("Stored only in this device’s Keychain. SSH keys must use the OpenSSH Ed25519 format. Password authentication requires the server to allow it; interactive MFA is not supported.")
+                    Text("Stored only in this device’s Keychain. OpenSSH Ed25519, RSA and ECDSA keys are detected automatically. Password authentication requires the server to allow it; interactive MFA is not supported.")
                 }
                 Section {
                     DisclosureGroup("Remote commands") {
@@ -74,14 +75,19 @@ struct ServerEditor: View {
             }
             .task {
                 guard !loaded else { return }
-                do { credential = try store.credential(for: server); loaded = true }
+                do {
+                    credential = try store.credential(for: server)
+                    if server.authentication == .keyBased { keyInfo = try? ImportedSSHKey(credential.secret) }
+                    loaded = true
+                }
                 catch { self.error = error.localizedDescription }
             }
             .fileImporter(isPresented: $keyImporterPresented, allowedContentTypes: [.data, .plainText]) { result in
                 do {
                     let data = try readDocument(try result.get(), maximumBytes: 65_536)
-                    guard let key = String(data: data, encoding: .utf8), key.contains("BEGIN OPENSSH PRIVATE KEY") else { throw MobileError.unsupportedKey }
-                    credential.secret = key
+                    guard let key = String(data: data, encoding: .utf8) else { throw MobileError.unsupportedKey }
+                    keyInfo = try ImportedSSHKey(key)
+                    credential = MobileCredential(secret: key)
                     error = nil
                 } catch { self.error = error.localizedDescription }
             }

@@ -7,6 +7,71 @@ extension ServerSettingsBackup {
         self.init(servers: settings.normalized().configuredServers.map(Entry.init))
     }
 
+    /// Resolve at export time so normal monitoring continues to follow OpenSSH aliases.
+    static func portableExport(settings: AppSettings, configFile: URL? = nil) async throws -> Self {
+        let servers = settings.normalized().configuredServers
+        try Self(servers: servers.map(Entry.init)).validate()
+        var entries: [Entry] = []
+        for server in servers {
+            let entry = Entry(server)
+            var arguments = ["-G"]
+            if let configFile { arguments += ["-F", configFile.path] }
+            // Match rules may depend on the command/session type as well as the host.
+            arguments += SSHMetricsFetcher.buildSSHArguments(
+                settings: server.connectionSettings(from: settings),
+                prefersPasswordAuth: server.sshAuthenticationMode == .passwordBased,
+                remoteCommand: RemoteMetricCommands.summary(
+                    summaryCommand: server.remoteCommand, memoryCommand: server.memoryCommand
+                )
+            )
+            let output = try await ProcessCommandRunner().run(
+                executable: URL(fileURLWithPath: "/usr/bin/ssh"),
+                arguments: arguments, timeout: 5, outputLimit: 1_048_576
+            )
+            guard output.exitStatus == 0 else { throw ExportError.unresolved(entry.displayName) }
+            var fields: [String: String] = [:]
+            for line in output.standardOutput.split(whereSeparator: \.isNewline) {
+                let parts = line.split(maxSplits: 1, whereSeparator: \.isWhitespace)
+                if parts.count == 2 { fields[String(parts[0])] = String(parts[1]) }
+            }
+            for option in ["proxyjump", "proxycommand"] {
+                if let value = fields[option], value.lowercased() != "none" {
+                    throw ExportError.requiresProxy(entry.displayName, option)
+                }
+            }
+            guard let user = fields["user"], !user.contains("@"),
+                  let host = fields["hostname"], !host.contains("@"),
+                  let port = fields["port"], let number = Int(port), (1...65535).contains(number)
+            else { throw ExportError.unresolved(entry.displayName) }
+            entries.append(Entry(
+                name: entry.displayName, sshTarget: "\(user)@\(host)", sshPort: port,
+                sshIdentityFilePath: entry.sshIdentityFilePath,
+                sshAuthenticationMode: entry.sshAuthenticationMode,
+                sshConnectionReuseMode: entry.sshConnectionReuseMode,
+                remoteCommand: entry.remoteCommand, memoryCommand: entry.memoryCommand
+            ))
+        }
+        let archive = Self(servers: entries)
+        try archive.validate()
+        return archive
+    }
+
+    enum ExportError: Error, Equatable {
+        case unresolved(String)
+        case requiresProxy(String, String)
+
+        func message(in language: AppInterfaceLanguage) -> String {
+            switch self {
+            case .unresolved(let name):
+                language.text("Could not resolve the SSH endpoint for \(name). Check the SSH configuration.",
+                              "\(name)의 SSH 주소를 확인할 수 없습니다. SSH 설정을 확인하세요.")
+            case .requiresProxy(let name, let option):
+                language.text("\(name) requires \(option). The backup format cannot store that route.",
+                              "\(name) 연결에는 \(option) 설정이 필요합니다. 이 경유 경로는 백업 형식에 저장할 수 없습니다.")
+            }
+        }
+    }
+
     static func read(from url: URL) throws -> Self {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }

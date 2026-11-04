@@ -51,9 +51,7 @@ public actor SSHTransport: RemoteCommandExecuting {
     }
 
     nonisolated public static func validatePrivateKey(_ credential: MobileCredential) throws {
-        let passphrase = credential.passphrase.isEmpty ? nil : Data(credential.passphrase.utf8)
-        do { _ = try Curve25519.Signing.PrivateKey(sshEd25519: credential.secret, decryptionKey: passphrase) }
-        catch { throw MobileError.unsupportedKey }
+        _ = try ImportedSSHKey(credential.secret).authentication(username: "", passphrase: credential.passphrase)
     }
 
     public func execute(_ command: String) async throws -> RemoteCommandOutput {
@@ -112,11 +110,8 @@ public actor SSHTransport: RemoteCommandExecuting {
             let credential = credential
             makeAuthentication = { .passwordBased(username: server.username, password: credential.secret) }
         case .keyBased:
-            // Parse once before opening a socket; credentials never enter preferences.
-            let decryptionKey = credential.passphrase.isEmpty ? nil : Data(credential.passphrase.utf8)
-            guard let key = try? Curve25519.Signing.PrivateKey(sshEd25519: credential.secret, decryptionKey: decryptionKey)
-            else { throw MobileError.unsupportedKey }
-            makeAuthentication = { .ed25519(username: server.username, privateKey: key) }
+            makeAuthentication = try ImportedSSHKey(credential.secret)
+                .authentication(username: server.username, passphrase: credential.passphrase)
         }
         let loop = MultiThreadedEventLoopGroup.singleton.next()
         let authenticated = loop.makePromise(of: Void.self)

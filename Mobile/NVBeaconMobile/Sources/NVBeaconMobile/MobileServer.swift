@@ -77,6 +77,7 @@ public struct MobileCredential: Codable, Equatable, Sendable {
 
 public enum MobileError: LocalizedError, Equatable, Sendable {
     case invalidServer, missingCredential, unsupportedKey, timedOut, outputTooLarge, connectionClosed, invalidMetrics, authenticationFailed
+    case invalidKeyFile, unsupportedKeyProtection, unsupportedRSAKeySize, keyPassphraseRequired, cannotUnlockKey
     case hostKeyRequired(key: String, fingerprint: String)
     case hostKeyChanged(fingerprint: String)
     case keychain(Int32)
@@ -86,7 +87,12 @@ public enum MobileError: LocalizedError, Equatable, Sendable {
         switch self {
         case .invalidServer: "Enter a hostname or IP address, username, valid port, and GPU command. OpenSSH aliases must be replaced with a reachable address."
         case .missingCredential: "Add this server’s password or OpenSSH private key in Edit Server."
-        case .unsupportedKey: "Could not open the private key. Use an Ed25519 OpenSSH key and check its passphrase. Other key formats are not supported yet."
+        case .unsupportedKey: "Choose an Ed25519, RSA or ECDSA private key in OpenSSH format."
+        case .invalidKeyFile: "The private key is invalid or damaged."
+        case .unsupportedKeyProtection: "Unsupported OpenSSH key protection. Use AES-CTR and bcrypt with up to 256 rounds."
+        case .unsupportedRSAKeySize: "Use an RSA key between 2048 and 8192 bits."
+        case .keyPassphraseRequired: "Enter the passphrase for this private key."
+        case .cannotUnlockKey: "Could not unlock the private key. Check its passphrase and contents."
         case .timedOut: "The SSH request timed out. Check the server address and VPN connection."
         case .outputTooLarge: "SSH output exceeded the 2 MiB limit."
         case .connectionClosed: "The SSH connection closed before the command completed."

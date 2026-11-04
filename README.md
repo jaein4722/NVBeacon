@@ -142,7 +142,7 @@ Appearance changes, server renaming/reordering, and alert thresholds do not rest
 
 ### Server Settings Backup
 
-Use `Advanced` → `Export Servers…` to save server connection settings as a versioned JSON file. The backup includes host names, ports, local key-file paths, authentication/reuse modes and custom GPU/memory commands. It excludes Keychain passwords, private-key contents, notification watches and application appearance preferences. Treat connection details and custom commands as private.
+Use `Advanced` → `Export Servers…` to save server connection settings as a versioned JSON file. Export evaluates each target with OpenSSH at save time and records its effective username, hostname and port. DNS hostnames remain hostnames. If a target requires ProxyJump or ProxyCommand, export stops before writing a partial backup. Normal monitoring continues to use the saved SSH target. The backup includes the saved local key-file paths, authentication/reuse modes and custom GPU/memory commands. It excludes Keychain passwords, private-key contents, notification watches and application appearance preferences. Treat connection details and custom commands as private.
 
 `Import Servers…` previews the file before adding servers. Imports preserve existing servers and preferences, assign fresh server IDs, and start the added servers disabled. Check their local key paths and commands, then enable the servers you want to monitor. Importing does not install keys or restore passwords. Backups are limited to 100 servers and 1 MB.
 
@@ -180,7 +180,7 @@ The platform-independent models, parser, query format and server archive schema 
 
 ### iOS Preview
 
-A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, host-key verification, GPU/process/RAM dashboards and reviewed server backup import. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
+A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, automatic OpenSSH Ed25519/RSA/ECDSA key detection, host-key verification, GPU/process/RAM dashboards and reviewed server backup import. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
 
 ```bash
 ./scripts/build_ios.sh

@@ -4,8 +4,8 @@
 
 - Native SwiftUI server list, per-server dashboard and settings.
 - Multiple servers, explicit hostname/IP, username and SSH port.
-- Password authentication and imported OpenSSH Ed25519 private keys, including
-  passphrase-protected keys. Credentials use device-only, unlocked Keychain
+- Password authentication and automatic detection of OpenSSH Ed25519, RSA (2048–8192-bit) and ECDSA (P-256/P-384/P-521)
+  private keys, including bcrypt/AES-CTR protected keys (up to 256 rounds). Credentials use device-only, unlocked Keychain
   items and are excluded from server backups and application preferences.
 - Explicit first-connection host fingerprint review before authentication.
   The accepted key is pinned to the exact hostname and port. Key changes block
@@ -26,7 +26,7 @@
 From the repository root:
 
 ```bash
-# Unsigned simulator build; does not require an installed simulator runtime.
+# Simulator build with Xcode’s local signing for Keychain access.
 ./scripts/build_ios.sh
 
 # Compile for a physical iPhone/iPad without provisioning or installing.
@@ -45,7 +45,15 @@ It uses the unversioned `iphoneos` / `iphonesimulator` SDK selector so that the
 newest SDK in the selected Xcode is used. Set `DEVELOPER_DIR` if you have multiple
 Xcode installations. Build products and dependency clones stay in ignored
 `.build/ios` and `.build/ios-packages` directories. SwiftPM and the Xcode project
-have committed dependency lockfiles; Citadel is pinned to 0.12.1.
+have dependency lockfiles. For RSA user authentication the preview uses the
+andrewkomkov Citadel and NIOSSH forks at revisions `e039002` and `ca4d82b`.
+The wire key blob stays `ssh-rsa` and the authentication signature uses
+`rsa-sha2-256`. These are fork revisions rather than upstream releases.
+Recheck [Citadel #131](https://github.com/orlandos-nl/Citadel/pull/131) and
+[NIOSSH #3](https://github.com/Wellz26/swift-nio-ssh/pull/3) when upgrading.
+On macOS, `./scripts/test_ios_ssh_keys.sh` generates temporary keys and exercises the
+mobile transport against a loopback OpenSSH daemon using plain and passphrase-protected
+Ed25519, RSA and ECDSA P-256/P-384/P-521 files. RSA authentication is restricted to SHA-256.
 
 The manual **iOS** GitHub Actions workflow chooses the newest installed SDK and
 runs mobile tests and both platform builds. It intentionally fails when the
@@ -55,21 +63,21 @@ a runner image providing that toolchain; macOS release checks are unchanged.
 For interactive testing, install an iOS simulator runtime through Xcode Settings
 → Components, choose an iPhone or iPad, and Run. For a physical device, choose
 your development team under Signing & Capabilities and a bundle identifier
-available to that team. The command-line script disables signing for compile
+available to that team. The command-line script disables signing for physical-device compile
 checks; use Xcode Run or Archive for signed builds.
 
 ## Connect a server
 
 1. Add a reachable DNS hostname or IP and an explicit username. For internal
    servers, enable your VPN first and allow local-network access if prompted.
-2. Import an Ed25519 OpenSSH private key from Files, or select password
+2. Import an Ed25519, RSA or ECDSA OpenSSH private key from Files, or select password
    authentication if the SSH server supports it. Enter the key passphrase if
    needed. Save the server.
 3. Open the server, choose **Verify Host Key**, compare the SHA256 fingerprint
    against a trusted source, then choose **Trust and Connect**.
 4. Confirm GPU/RAM readings and expand a process to see its command line.
 
-macOS backups may contain aliases such as `lab-gpu` and key paths such as
+Older macOS backups may contain aliases such as `lab-gpu` and key paths such as
 `~/.ssh/id_ed25519`. iOS cannot read the Mac's SSH config, key files or agent.
 Replace aliases with reachable endpoints and register credentials on the device
 before enabling each imported server. Custom commands execute under the SSH
@@ -147,7 +155,7 @@ This is a foreground-monitoring preview, not full macOS feature parity.
 - GPU-idle watches, PID-exit watches, notification history, widgets and Live
   Activities have not been ported.
 - OpenSSH aliases, ProxyJump, SSH agents, interactive keyboard authentication/MFA,
-  RSA/ECDSA client keys and connection reuse are not supported in the preview.
+  legacy PEM/PKCS#8 containers, RSA-SHA512-only servers and connection reuse are not supported in the preview.
 - English UI only; localization and fuller iPad layouts remain follow-up work.
 
 Suggested next milestone: validate the first device connection, then port

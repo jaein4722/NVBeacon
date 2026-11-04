@@ -84,7 +84,7 @@ struct RootView: View {
                     }
                     Section("Connecting") {
                         Text("Use a reachable hostname or IP address and an explicit SSH username. Connect your VPN first for private servers. Mac SSH aliases, ProxyJump, and SSH agent connections are not imported.")
-                        Text("Passwords and imported Ed25519 OpenSSH private keys stay in this device’s Keychain. Verify the host fingerprint on your first connection.")
+                        Text("Passwords and imported SSH private keys stay in this device’s Keychain. Verify the host fingerprint on your first connection.")
                     }.font(.footnote)
                     Section("About") {
                         LabeledContent("NVBeacon for iOS", value: "Preview")

@@ -252,7 +252,7 @@ struct SSHMetricsFetcher: Sendable {
         return stdout
     }
 
-    private static func buildSSHArguments(
+    static func buildSSHArguments(
         settings: AppSettings,
         prefersPasswordAuth: Bool,
         remoteCommand: String

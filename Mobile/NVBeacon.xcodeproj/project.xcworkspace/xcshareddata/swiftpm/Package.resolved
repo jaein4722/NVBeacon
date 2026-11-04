@@ -13,10 +13,9 @@
     {
       "identity" : "citadel",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/orlandos-nl/Citadel.git",
+      "location" : "https://github.com/andrewkomkov/Citadel.git",
       "state" : {
-        "revision" : "ae8562f895de06ccb86fdb1cbb65fd99c8976e12",
-        "version" : "0.12.1"
+        "revision" : "e03900270579c155d4d63b42467e5e065a3a2e84"
       }
     },
     {
@@ -76,10 +75,10 @@
     {
       "identity" : "swift-nio-ssh",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/Wellz26/swift-nio-ssh.git",
+      "location" : "https://github.com/andrewkomkov/swift-nio-ssh.git",
       "state" : {
-        "revision" : "d88989f3d3bb1dfb2a38ce4af598afbf7fc3095c",
-        "version" : "0.3.7"
+        "branch" : "gantry-fixes",
+        "revision" : "ca4d82bf480040d8720d2a67a091f23482767c3a"
       }
     },
     {

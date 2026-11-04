@@ -7,9 +7,9 @@ let package = Package(
     products: [.library(name: "NVBeaconMobile", targets: ["NVBeaconMobile"])],
     dependencies: [
         .package(path: "../../Shared/NVBeaconCore"),
-        .package(url: "https://github.com/orlandos-nl/Citadel.git", exact: "0.12.1"),
+        .package(url: "https://github.com/andrewkomkov/Citadel.git", revision: "e03900270579c155d4d63b42467e5e065a3a2e84"),
         .package(url: "https://github.com/apple/swift-nio.git", from: "2.81.0"),
-        .package(url: "https://github.com/Wellz26/swift-nio-ssh.git", "0.3.4"..<"0.4.0"),
+        .package(url: "https://github.com/andrewkomkov/swift-nio-ssh.git", branch: "gantry-fixes"),
         .package(url: "https://github.com/apple/swift-crypto.git", "3.12.3"..<"4.0.0"),
     ],
     targets: [
@@ -19,6 +19,7 @@ let package = Package(
             .product(name: "NIO", package: "swift-nio"),
             .product(name: "NIOSSH", package: "swift-nio-ssh"),
             .product(name: "Crypto", package: "swift-crypto"),
+            .product(name: "_CryptoExtras", package: "swift-crypto"),
         ]),
         .testTarget(name: "NVBeaconMobileTests", dependencies: [
             "NVBeaconMobile", .product(name: "NIOEmbedded", package: "swift-nio"),

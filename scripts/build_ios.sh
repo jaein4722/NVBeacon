@@ -4,8 +4,14 @@ set -euo pipefail
 repo_dir="$(cd "$(dirname "$0")/.." && pwd)"
 sdk="${SDK:-iphonesimulator}"
 case "$sdk" in
-  iphonesimulator) destination="${DESTINATION:-generic/platform=iOS Simulator}" ;;
-  iphoneos) destination="${DESTINATION:-generic/platform=iOS}" ;;
+  iphonesimulator)
+    destination="${DESTINATION:-generic/platform=iOS Simulator}"
+    signing=YES # Embed simulator entitlements for Keychain access.
+    ;;
+  iphoneos)
+    destination="${DESTINATION:-generic/platform=iOS}"
+    signing=NO
+    ;;
   *) echo "SDK must be iphoneos or iphonesimulator." >&2; exit 1 ;;
 esac
 sdk_version="$(xcrun --sdk "$sdk" --show-sdk-version)"
@@ -20,4 +26,4 @@ xcodebuild -project "$repo_dir/Mobile/NVBeacon.xcodeproj" -scheme NVBeacon \
   -configuration "${BUILD_CONFIGURATION:-Debug}" -sdk "$sdk" -destination "$destination" \
   -derivedDataPath "$repo_dir/.build/ios" \
   -clonedSourcePackagesDirPath "$repo_dir/.build/ios-packages" \
-  CODE_SIGNING_ALLOWED=NO build "$@"
+  CODE_SIGNING_ALLOWED="$signing" build "$@"
