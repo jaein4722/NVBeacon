@@ -33,9 +33,11 @@ import NVBeaconCore
 @Test func aliasesWithoutUserMustBeEditedBeforeConnecting() {
     var server = MobileServer()
     server.host = "lab-alias"
+    #expect(server.firstInvalidField == .username)
     #expect(throws: MobileError.invalidServer) { try server.validated() }
     server.username = "researcher"
     server.port = 65536
+    #expect(server.firstInvalidField == .port)
     #expect(throws: MobileError.invalidServer) { try server.validated() }
 }
 

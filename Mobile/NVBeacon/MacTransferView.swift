@@ -64,29 +64,32 @@ struct MacTransferView: View {
                     }.padding()
                 case .review(let batch, let review):
                     List {
-                        Section {
-                            Text("\(review.added) new · \(review.filled) to complete · \(review.skipped) kept")
-                            Text("After saving, you can review host fingerprints and connect the imported servers together.")
-                                .font(.footnote).foregroundStyle(.secondary)
-                        }
-                        ForEach(review.rows) { row in
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(row.name).font(.headline)
-                                Text(row.address).font(.caption)
-                                switch row.action {
-                                case .add: Text("Add disabled server")
-                                case .fill: Text("Add credentials to existing server")
-                                case .skip: Text("Keep existing server")
+                        Group {
+                            Section {
+                                Text("\(review.added) new · \(review.filled) to complete · \(review.skipped) kept")
+                                Text("After saving, you can review host fingerprints and connect the imported servers together.")
+                                    .font(.footnote).foregroundStyle(.secondary)
+                            }
+                            ForEach(review.rows) { row in
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(row.name).font(.headline)
+                                    Text(row.address).font(.caption)
+                                    switch row.action {
+                                    case .add: Text("Add disabled server")
+                                    case .fill: Text("Add credentials to existing server")
+                                    case .skip: Text("Keep existing server")
+                                    }
+                                    if let credential = row.credentialLabel {
+                                        Label(LocalizedStringKey(credential), systemImage: "key").font(.caption)
+                                    }
+                                    if let note = row.note { Text(LocalizedStringKey(note)).font(.caption).foregroundStyle(.secondary) }
                                 }
-                                if let credential = row.credentialLabel {
-                                    Label(LocalizedStringKey(credential), systemImage: "key").font(.caption)
-                                }
-                                if let note = row.note { Text(LocalizedStringKey(note)).font(.caption).foregroundStyle(.secondary) }
+                            }
+                            Section {
+                                Button("Import All", action: { finish(batch, review: review) })
                             }
                         }
-                        Section {
-                            Button("Import All", action: { finish(batch, review: review) })
-                        }
+                        .monitorRowInsets()
                     }
                 case .acknowledging(let summary):
                     ProgressView("Saved. Notifying your Mac…").accessibilityHint(summary)
@@ -108,7 +111,7 @@ struct MacTransferView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Close") { dismiss() }.disabled(acknowledging)
+                    Button("Close", systemImage: "xmark") { dismiss() }.disabled(acknowledging)
                 }
             }
         }
@@ -272,44 +275,47 @@ private struct TransferConnectionsView: View {
 
     var body: some View {
         List {
-            Section {
-                Label("Transfer Complete", systemImage: "checkmark.circle")
-                Text(LocalizedStringKey(summary))
-            } footer: {
-                Text("Compare the fingerprints with your servers’ SSH host keys. Selected servers will be trusted and monitoring will start.")
-            }
-            Section("Imported Servers") {
-                ForEach(servers) { server in
-                    VStack(alignment: .leading, spacing: 5) {
-                        if let hostKey = keys[server.id] {
-                            Toggle(server.displayName, isOn: Binding(
-                                get: { !excluded.contains(server.id) },
-                                set: { if $0 { excluded.remove(server.id) } else { excluded.insert(server.id) } }))
-                            Text(server.endpoint).font(.caption)
-                            Text(hostKey.fingerprint).font(.caption.monospaced()).textSelection(.enabled)
-                        } else {
-                            Text(server.displayName)
-                            if let issue = server.transferSetupIssue ?? failures[server.id] {
-                                Text(LocalizedStringKey(issue)).font(.caption).foregroundStyle(.secondary)
-                            } else { ProgressView("Looking up host key…").font(.caption) }
+            Group {
+                Section {
+                    Label("Transfer Complete", systemImage: "checkmark.circle")
+                    Text(LocalizedStringKey(summary))
+                } footer: {
+                    Text("Compare the fingerprints with your servers’ SSH host keys. Selected servers will be trusted and monitoring will start.")
+                }
+                Section("Imported Servers") {
+                    ForEach(servers) { server in
+                        VStack(alignment: .leading, spacing: 5) {
+                            if let hostKey = keys[server.id] {
+                                Toggle(server.displayName, isOn: Binding(
+                                    get: { !excluded.contains(server.id) },
+                                    set: { if $0 { excluded.remove(server.id) } else { excluded.insert(server.id) } }))
+                                Text(server.endpoint).font(.caption)
+                                Text(hostKey.fingerprint).font(.caption.monospaced()).textSelection(.enabled)
+                            } else {
+                                Text(server.displayName)
+                                if let issue = server.transferSetupIssue ?? failures[server.id] {
+                                    Text(LocalizedStringKey(issue)).font(.caption).foregroundStyle(.secondary)
+                                } else { ProgressView("Looking up host key…").font(.caption) }
+                            }
                         }
                     }
                 }
-            }
-            Section {
-                let selected = servers.compactMap { excluded.contains($0.id) ? nil : keys[$0.id] }
-                Button("Trust and Connect (\(selected.count))") {
-                    do {
-                        try store.trustAndConnectTransferred(selected)
-                        dismiss()
-                    } catch { self.error = error.localizedDescription }
-                }.disabled(selected.isEmpty)
-                if !failures.isEmpty {
-                    Button("Retry Unreachable Servers") { failures.removeAll(); attempt += 1 }
+                Section {
+                    let selected = servers.compactMap { excluded.contains($0.id) ? nil : keys[$0.id] }
+                    Button("Trust and Connect (\(selected.count))") {
+                        do {
+                            try store.trustAndConnectTransferred(selected)
+                            dismiss()
+                        } catch { self.error = error.localizedDescription }
+                    }.disabled(selected.isEmpty)
+                    if !failures.isEmpty {
+                        Button("Retry Unreachable Servers") { failures.removeAll(); attempt += 1 }
+                    }
+                    Button("Done") { dismiss() }
+                    if let error { Text(LocalizedStringKey(error)).foregroundStyle(.secondary) }
                 }
-                Button("Done") { dismiss() }
-                if let error { Text(LocalizedStringKey(error)).foregroundStyle(.secondary) }
             }
+            .monitorRowInsets()
         }
         .task(id: "\(attempt)-\(scenePhase == .active)") {
             guard scenePhase == .active else { return }

@@ -15,42 +15,53 @@ struct FleetOverview: View {
             return reading.snapshot
         }
         let gpus = snapshots.flatMap(\.gpus)
-        VStack(alignment: .leading, spacing: 10) {
-            ViewThatFits(in: .horizontal) {
-                HStack {
-                    Text("Fleet overview").font(.headline)
-                    Spacer()
-                    Text("\(snapshots.count)/\(enabled.count) servers reporting").font(.caption).foregroundStyle(.secondary)
-                }
-                VStack(alignment: .leading) {
-                    Text("Fleet overview").font(.headline)
-                    Text("\(snapshots.count)/\(enabled.count) servers reporting").font(.caption).foregroundStyle(.secondary)
-                }
-            }
-            if !gpus.isEmpty {
-                GPUFigures(store: store, gpus: gpus)
-            }
+        let busy = gpus.filter { store.isBusy($0) }.count
+        let average = gpus.isEmpty ? nil : Int((Double(gpus.reduce(0) { $0 + $1.utilization }) / Double(gpus.count)).rounded())
+        let processes = gpus.reduce(0) { $0 + $1.processes.count }
+        MonitorSummaryGrid {
+            MonitorSummaryTile("Average GPU", Text(verbatim: average.map { "\($0)%" } ?? "—"))
+            MonitorSummaryTile("Available GPUs", Text(verbatim: snapshots.isEmpty ? "—" : "\(gpus.count - busy)/\(gpus.count)"))
+            MonitorSummaryTile("Processes", Text(verbatim: snapshots.isEmpty ? "—" : processes.formatted()))
+            MonitorUpdatedTile(date: snapshots.map(\.takenAt).max())
         }
-        .padding(.vertical, 3)
     }
 }
 
-struct GPUFigures: View {
-    let store: MobileStore
-    let gpus: [GPUReading]
+struct MonitorSummaryGrid<Content: View>: View {
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @ViewBuilder let content: Content
 
     var body: some View {
-        let busy = gpus.filter { store.isBusy($0) }.count
-        let average = gpus.isEmpty ? 0 : Int((Double(gpus.reduce(0) { $0 + $1.utilization }) / Double(gpus.count)).rounded())
-        let processes = gpus.reduce(0) { $0 + $1.processes.count }
-        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: typeSize.isAccessibilitySize ? 1 : 3), alignment: .leading, spacing: 5) {
-            MonitorSummaryTile("Available GPUs", Text(verbatim: "\(gpus.count - busy)/\(gpus.count)"))
-            MonitorSummaryTile("Average GPU", Text("\(average)%"))
-            MonitorSummaryTile("GPU processes", Text("\(processes)"))
+        if typeSize.isAccessibilitySize {
+            grid(columns: 2)
+        } else {
+            ViewThatFits(in: .horizontal) {
+                grid(columns: 4).frame(minWidth: 320)
+                grid(columns: 2)
+            }
         }
     }
 
-    @Environment(\.dynamicTypeSize) private var typeSize
+    private func grid(columns: Int) -> some View {
+        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: columns), spacing: 5) {
+            content
+        }
+    }
+}
+
+struct MonitorUpdatedTile: View {
+    let date: Date?
+
+    var body: some View {
+        if let date {
+            TimelineView(.periodic(from: .now, by: 1)) { tick in
+                let age = max(0, Int(tick.date.timeIntervalSince(date)))
+                MonitorSummaryTile("Updated", Text(verbatim: age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"))
+            }
+        } else {
+            MonitorSummaryTile("Updated", Text(verbatim: "—"))
+        }
+    }
 }
 
 struct MonitorSummaryTile: View {
@@ -110,7 +121,9 @@ struct ServerMonitorRow: View {
             HStack(spacing: 2) {
                 Button(action: canExpand ? toggle : open) {
                     HStack(spacing: 5) {
-                        Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
+                        if showsInlineDetails {
+                            Image(systemName: expanded ? "chevron.down" : "chevron.right").font(.caption2)
+                        }
                         Text(server.displayName).font(.headline).foregroundStyle(Color.primary)
                         Spacer(minLength: 2)
                         if !server.isEnabled { Text("Disabled").font(.caption) }

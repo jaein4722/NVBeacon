@@ -24,19 +24,29 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
     public var endpoint: String { "[\(host.lowercased())]:\(port)" }
     public var pinnedHostKey: String? { trustedEndpoint == endpoint ? trustedHostKey : nil }
 
+    public enum InvalidField: Hashable, Sendable {
+        case host, username, port, gpuCommand
+    }
+
+    public var firstInvalidField: InvalidField? {
+        let host = host.trimmingCharacters(in: .whitespacesAndNewlines)
+        let username = username.trimmingCharacters(in: .whitespacesAndNewlines)
+        let forbidden = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)
+        if host.isEmpty || host.hasPrefix("-") || host.contains("@") || host.contains("/")
+            || host.unicodeScalars.contains(where: forbidden.contains) { return .host }
+        if username.isEmpty || username.hasPrefix("-")
+            || username.unicodeScalars.contains(where: forbidden.contains) { return .username }
+        if !(1...65535).contains(port) { return .port }
+        if gpuCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return .gpuCommand }
+        return nil
+    }
+
     public func validated() throws -> Self {
+        guard firstInvalidField == nil else { throw MobileError.invalidServer }
         var result = self
         result.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
         result.host = host.trimmingCharacters(in: .whitespacesAndNewlines)
         result.username = username.trimmingCharacters(in: .whitespacesAndNewlines)
-        let forbidden = CharacterSet.whitespacesAndNewlines.union(.controlCharacters)
-        guard !result.host.isEmpty, !result.host.hasPrefix("-"),
-              !result.host.contains("@"), !result.host.contains("/"),
-              !result.host.unicodeScalars.contains(where: forbidden.contains),
-              !result.username.isEmpty, !result.username.hasPrefix("-"),
-              !result.username.unicodeScalars.contains(where: forbidden.contains),
-              (1...65535).contains(port), !gpuCommand.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        else { throw MobileError.invalidServer }
         if result.trustedEndpoint != result.endpoint {
             result.trustedHostKey = nil
             result.trustedEndpoint = nil

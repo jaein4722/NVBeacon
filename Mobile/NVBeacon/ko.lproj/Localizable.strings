@@ -225,3 +225,12 @@
 "Expanded" = "펼쳐짐";
 "Collapsed" = "접힘";
 "Processes" = "프로세스";
+
+"Temperature: %lld°C" = "온도: 섭씨 %lld도";
+
+"Enter a hostname or IP address without a username or path." = "사용자 이름이나 경로를 제외한 호스트 이름 또는 IP 주소를 입력하세요.";
+"Enter an SSH username without spaces." = "공백 없이 SSH 사용자 이름을 입력하세요.";
+"Enter a port between 1 and 65535." = "1에서 65535 사이의 포트 번호를 입력하세요.";
+"Enter the GPU query command." = "GPU 조회 명령을 입력하세요.";
+"Enter the SSH password." = "SSH 비밀번호를 입력하세요.";
+"Import the private key for this server." = "이 서버에 사용할 개인 키를 가져오세요.";

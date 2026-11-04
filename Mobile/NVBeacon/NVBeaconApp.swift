@@ -18,6 +18,7 @@ struct NVBeaconApp: App {
                 .environment(\.locale, language == "system" ? .autoupdatingCurrent : Locale(identifier: language))
                 .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
                 .tint(.green)
+                .buttonBorderShape(.roundedRectangle(radius: 10))
                 .task(id: MonitorIdentity(active: scenePhase == .active, generation: store.generation)) {
                     if scenePhase == .active { await store.monitor() }
                 }

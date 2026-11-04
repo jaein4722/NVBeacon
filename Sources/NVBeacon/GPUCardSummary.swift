@@ -19,28 +19,27 @@ struct GPUCardSummary: View {
                 status
             }
 #else
-            if typeSize.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 4) { identity; status }
-            } else {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 6) {
                     identity
-                    Spacer(minLength: 2)
-                    status.fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 4)
+                    disclosureIcon
                 }
+                status
             }
 #endif
 #if os(iOS)
-            let horizontal = AnyLayout(GPUMetricColumns())
+            let layout = VStackLayout(alignment: .leading, spacing: 6)
 #else
-            let horizontal = AnyLayout(HStackLayout(alignment: .bottom, spacing: 10))
+            let layout = typeSize.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 7))
+                : AnyLayout(HStackLayout(alignment: .bottom, spacing: 10))
 #endif
-            let layout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 7)) : horizontal
             layout {
                 ThinMetricBar(title: "Util", valueText: "\(gpu.utilization)%", ratio: gpu.utilizationRatio,
                               tint: Color(red: 0.93, green: 0.45, blue: 0.15))
-                ThinMetricBar(title: memoryLabel, valueText: "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB",
-                              ratio: gpu.memoryUsageRatio, tint: Color(red: 0.12, green: 0.54, blue: 0.94),
-                              compactValue: compactMemory)
+                ThinMetricBar(title: memoryLabel, valueText: memoryValue,
+                              ratio: gpu.memoryUsageRatio, tint: Color(red: 0.12, green: 0.54, blue: 0.94))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -55,11 +54,15 @@ struct GPUCardSummary: View {
 #endif
     }
 
-    private var compactMemory: String {
-        func gib(_ mib: Int) -> String {
-            (Double(mib) / 1024).formatted(.number.precision(.fractionLength(0...1)))
-        }
-        return "\(gpu.memoryUsagePercent)% · \(gib(gpu.memoryUsedMB))/\(gib(gpu.memoryTotalMB)) GiB"
+    private var memoryValue: String {
+#if os(iOS)
+        let total = GPUCapacityText.format(gpu.memoryTotalMB)
+        let used = GPUCapacityText.format(gpu.memoryUsedMB)
+        let sameUnit = used.unit == total.unit
+        return "\(gpu.memoryUsagePercent)% · \(used.value)\(sameUnit ? "" : " " + used.unit) / \(total.value) \(total.unit)"
+#else
+        return "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB"
+#endif
     }
 
     private var identity: some View {
@@ -74,61 +77,79 @@ struct GPUCardSummary: View {
         }
     }
 
+    @ViewBuilder private var disclosureIcon: some View {
+        if expandable {
+            Image(systemName: expanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundStyle(expanded ? Color.orange : .secondary)
+                .accessibilityHidden(true)
+        }
+    }
+
     private var status: some View {
         HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Text(verbatim: "\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
 #if os(iOS)
-                .font(.caption2.weight(.semibold)).monospacedDigit()
+            if let temperature = gpu.temperatureCelsius {
+                Label {
+                    Text(verbatim: "\(temperature)°C")
+                } icon: {
+                    Image(systemName: "thermometer.medium")
+                }
+                .accessibilityLabel(Text("Temperature: \(temperature)°C"))
+            }
+            Label {
+                Text(gpu.processes.count, format: .number)
+            } icon: {
+                Image(systemName: "list.bullet.rectangle")
+            }
+            .accessibilityLabel(Text("\(gpu.processes.count) processes"))
 #else
+            Text(verbatim: "\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
                 .font(.caption.weight(.semibold)).monospacedDigit()
 #endif
             if mine {
                 badge.font(.caption2.weight(.semibold)).foregroundStyle(.green)
-                    .padding(.horizontal, 6).padding(.vertical, 2).background(.green.opacity(0.12), in: Capsule())
+                    .padding(.horizontal, 6)
+#if os(macOS)
+                    .padding(.vertical, 2)
+#endif
+                    .background(.green.opacity(0.12), in: Capsule())
             }
-            if expandable {
-                Image(systemName: expanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(expanded ? Color.orange : .secondary)
-                    .accessibilityHidden(true)
-            }
+#if os(macOS)
+            disclosureIcon
+#endif
         }
+#if os(iOS)
+        .font(.caption2.weight(.medium)).monospacedDigit()
+        .foregroundStyle(.secondary)
+#endif
     }
 }
 
 #if os(iOS)
-/// The two tracks share one scale, regardless of the length of the counter labels.
-private struct GPUMetricColumns: Layout {
-    private let gap: CGFloat = 10
-
-    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let width = proposal.width ?? (2 * (subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0) + gap)
-        let column = ProposedViewSize(width: max(0, width - gap) / 2, height: nil)
-        return CGSize(width: width, height: subviews.map { $0.sizeThatFits(column).height }.max() ?? 0)
-    }
-
-    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let width = max(0, bounds.width - gap) / 2
-        for (index, view) in subviews.enumerated() {
-            view.place(at: CGPoint(x: bounds.minX + CGFloat(index) * (width + gap), y: bounds.maxY),
-                       anchor: .bottomLeading, proposal: .init(width: width, height: nil))
-        }
+enum GPUCapacityText {
+    static func format(_ mib: Int) -> (value: String, unit: String) {
+        guard mib >= 1024 else { return (mib.formatted(), "MiB") }
+        return ((Double(mib) / 1024).formatted(.number.precision(.fractionLength(0...1))), "GiB")
     }
 }
+
 #endif
 
 extension View {
     func gpuCardSurface(mine: Bool, expanded: Bool) -> some View {
 #if os(macOS)
+        let corner: CGFloat = 14
         let background = Color(nsColor: .controlBackgroundColor)
 #else
+        let corner: CGFloat = 12
         let background = Color(uiColor: .secondarySystemGroupedBackground)
 #endif
         return self.padding(.horizontal, 10).padding(.vertical, 8)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background((mine ? Color.green.opacity(0.08) : background), in: RoundedRectangle(cornerRadius: 14))
+            .background((mine ? Color.green.opacity(0.08) : background), in: RoundedRectangle(cornerRadius: corner, style: .continuous))
             .overlay {
-                RoundedRectangle(cornerRadius: 14)
+                RoundedRectangle(cornerRadius: corner, style: .continuous)
                     .strokeBorder(expanded ? Color.orange.opacity(0.42) : mine ? .green.opacity(0.26) : .primary.opacity(0.05))
                     .allowsHitTesting(false)
             }
@@ -140,7 +161,6 @@ struct ThinMetricBar: View {
     let valueText: String
     let ratio: Double
     let tint: Color
-    var compactValue: String? = nil
 
     private var clampedRatio: Double {
         min(max(ratio, .zero), 1.0)
@@ -156,12 +176,8 @@ struct ThinMetricBar: View {
                 Spacer(minLength: 4)
 
 #if os(iOS)
-                ViewThatFits(in: .horizontal) {
-                    Text(verbatim: valueText).fixedSize()
-                    Text(verbatim: compactValue ?? valueText).multilineTextAlignment(.trailing)
-                        .fixedSize(horizontal: false, vertical: true)
-                }.font(.caption2.monospacedDigit())
-                    .accessibilityLabel(valueText)
+                Text(verbatim: valueText).font(.caption2.monospacedDigit())
+                    .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
 #else
                 Text(valueText).font(.caption2.monospacedDigit()).lineLimit(1)
 #endif
