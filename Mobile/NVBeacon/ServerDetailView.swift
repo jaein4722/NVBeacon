@@ -18,6 +18,9 @@ struct ServerDetailView: View {
                     if !server.isEnabled {
                         Section { Label("Monitoring is disabled. Edit this server to enable it.", systemImage: "pause.circle") }
                     }
+                    if let issue = server.transferSetupIssue {
+                        Section("Mac Transfer") { Text(issue) }
+                    }
                     if let error = reading?.error {
                         Section {
                             Label(error, systemImage: "exclamationmark.triangle").foregroundStyle(.orange)

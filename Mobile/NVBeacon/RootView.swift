@@ -12,6 +12,7 @@ struct RootView: View {
     @State private var deletionRequest: Set<UUID> = []
     @State private var confirmsDeletion = false
     @State private var importerPresented = false
+    @State private var transferPresented = false
     @State private var exporterPresented = false
     @State private var exportDocument = ServerArchiveDocument()
     @State private var pendingImport: ServerSettingsBackup?
@@ -46,6 +47,7 @@ struct RootView: View {
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
         }
+        .sheet(isPresented: $transferPresented) { MacTransferView(store: store) }
         .sheet(item: $editor) { ServerEditor(store: store, server: $0) }
         .fileImporter(isPresented: $importerPresented, allowedContentTypes: [.json]) { result in
             do {
@@ -157,6 +159,7 @@ struct RootView: View {
             }
             ToolbarItem(placement: .topBarLeading) {
                 Menu {
+                    Button("Transfer from Mac", systemImage: "qrcode.viewfinder") { transferPresented = true }
                     Button("Import Servers", systemImage: "square.and.arrow.down") { importerPresented = true }
                     Button("Export Servers", systemImage: "square.and.arrow.up") {
                         do {
@@ -182,6 +185,7 @@ struct RootView: View {
                     } actions: {
                         Button("Add Server", systemImage: "plus") { editor = MobileServer() }
                             .buttonStyle(.borderedProminent)
+                        Button("Transfer from Mac", systemImage: "qrcode.viewfinder") { transferPresented = true }
                         Button("Import Server Backup") { importerPresented = true }
                     }
                 } else {

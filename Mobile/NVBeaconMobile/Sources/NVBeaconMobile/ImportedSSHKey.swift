@@ -1,4 +1,5 @@
 import Foundation
+import NVBeaconTransfer
 import NIO
 import CCitadelBcrypt
 import _CryptoExtras
@@ -18,7 +19,8 @@ public struct ImportedSSHKey {
 
     public init(_ text: String) throws {
         guard text.utf8.count <= 65_536 else { throw MobileError.unsupportedKey }
-        let lines = text.split(whereSeparator: \.isNewline)
+        guard let normalized = try? TransferPrivateKey.openSSH(text) else { throw MobileError.unsupportedKey }
+        let lines = normalized.split(whereSeparator: \.isNewline)
         guard lines.first == "-----BEGIN OPENSSH PRIVATE KEY-----",
               lines.last == "-----END OPENSSH PRIVATE KEY-----",
               let data = Data(base64Encoded: lines.dropFirst().dropLast().joined()) else {

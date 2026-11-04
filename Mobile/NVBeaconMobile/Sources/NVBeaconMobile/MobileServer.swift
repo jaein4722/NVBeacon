@@ -11,6 +11,8 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
     public var isEnabled = true
     public var gpuCommand = RemoteMetricCommands.defaultGPUCommand
     public var memoryCommand = RemoteMetricCommands.defaultMemoryCommand
+    public var hostCommand: String?
+    public var transferSetupIssue: String?
     // Trust is scoped to this exact endpoint. It is never exported or imported.
     public var trustedHostKey: String?
     public var trustedEndpoint: String?
@@ -54,6 +56,8 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
         server.authentication = entry.sshAuthenticationMode
         server.gpuCommand = entry.remoteCommand
         server.memoryCommand = entry.memoryCommand
+        server.hostCommand = entry.hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: entry.memoryCommand)
+            ? nil : entry.hostCommand
         server.isEnabled = false
         return server
     }
@@ -62,7 +66,7 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
         .init(name: name, sshTarget: username.isEmpty ? host : "\(username)@\(host)", sshPort: String(port),
               sshIdentityFilePath: "", sshAuthenticationMode: authentication,
               sshConnectionReuseMode: .newConnectionEachRefresh,
-              remoteCommand: gpuCommand, memoryCommand: memoryCommand)
+              remoteCommand: gpuCommand, memoryCommand: memoryCommand, hostCommand: hostCommand)
     }
 }
 
@@ -86,8 +90,8 @@ public enum MobileError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .invalidServer: "Enter a hostname or IP address, username, valid port, and GPU command. OpenSSH aliases must be replaced with a reachable address."
-        case .missingCredential: "Add this server’s password or OpenSSH private key in Edit Server."
-        case .unsupportedKey: "Choose an Ed25519, RSA or ECDSA private key in OpenSSH format."
+        case .missingCredential: "Add this server’s password or SSH private key in Edit Server."
+        case .unsupportedKey: "Choose an OpenSSH private key or an unencrypted RSA, ECDSA or Ed25519 PEM private key."
         case .invalidKeyFile: "The private key is invalid or damaged."
         case .unsupportedKeyProtection: "Unsupported OpenSSH key protection. Use AES-CTR and bcrypt with up to 256 rounds."
         case .unsupportedRSAKeySize: "Use an RSA key between 2048 and 8192 bits."

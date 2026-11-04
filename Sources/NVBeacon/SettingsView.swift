@@ -204,6 +204,8 @@ struct SettingsView: View {
                     importServers: { importServerBackup(backup) },
                     cancel: { utilitySheet = nil }
                 )
+            case .transfer:
+                IPhoneTransferView(settings: draft, language: language) { utilitySheet = nil }
             case .diagnostics(let report):
                 DiagnosticsPreviewView(report: report, language: language, close: { utilitySheet = nil })
             }
@@ -583,11 +585,13 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Button(t("Export Servers…", "서버 내보내기…"), action: exportServerBackup)
-                        .disabled(draft.configuredServers.isEmpty || isPreparingExport || isReadingBackup)
+                        .disabled(draft.configuredServers.isEmpty || isReadingBackup || isPreparingExport)
                     Button(t("Import Servers…", "서버 가져오기…")) { showsServerImporter = true }
                         .disabled(isReadingBackup || isPreparingExport)
                     if isReadingBackup || isPreparingExport { ProgressView().controlSize(.small) }
                 }
+                Button(t("Transfer All Servers to iPhone…", "iPhone으로 모든 서버 전송…")) { utilitySheet = .transfer }
+                    .disabled(draft.configuredServers.isEmpty || isReadingBackup || isPreparingExport)
                 if let utilityNotice {
                     Text(utilityNotice).font(.caption).foregroundStyle(.secondary)
                 }
@@ -595,8 +599,8 @@ struct SettingsView: View {
                 Text(t("Server Settings Backup", "서버 설정 백업"))
             } footer: {
                 Text(t(
-                    "Exports resolved SSH addresses, usernames, ports, saved key-file paths and remote commands. Keychain passwords, private-key contents and notification watches are excluded. Imports add disabled servers without replacing existing settings.",
-                    "SSH 설정을 반영한 주소·사용자명·포트와 저장된 키 경로·원격 명령을 내보냅니다. Keychain 비밀번호·개인 키 내용·알림 감시는 제외됩니다. 가져온 서버는 비활성 상태로 추가되며 기존 설정을 덮어쓰지 않습니다."
+                    "Exports host names, key-file paths and remote commands. Keychain passwords, private-key contents and notification watches are excluded. Imports add disabled servers without replacing existing settings.",
+                    "호스트·키 파일 경로·원격 명령을 내보냅니다. Keychain 비밀번호·개인 키 내용·알림 감시는 제외됩니다. 가져온 서버는 비활성 상태로 추가되며 기존 설정을 덮어쓰지 않습니다."
                 ))
             }
 

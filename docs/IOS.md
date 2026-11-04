@@ -20,7 +20,7 @@
   simultaneous server collections, cancellation on scene deactivation, and
   reconnection on return. Failed refreshes retain the last successful snapshot
   with an error and its timestamp. Edits invalidate in-flight results.
-- Reviewed import/export of the existing `NVBeacon.servers` v1 JSON format.
+- Reviewed import/export of the `NVBeacon.servers` JSON format (v2 export, v1/v2 import).
   Imported servers receive new IDs and start disabled; local credentials,
   desktop identity-file paths and host trust are never restored from a backup.
 
@@ -126,6 +126,36 @@ port, authentication type and GPU/memory commands. Replace Mac SSH aliases with
 reachable hosts, enter an explicit username and register device credentials
 before enabling. Import does not restore passwords, private keys or host trust.
 
+## One-time transfer from Mac
+
+Use **Transfer from Mac** and scan the Mac app’s QR with a camera-equipped iPhone.
+Allow Camera and Local Network access. The devices discover each other using
+Bonjour on the local network. Verify the six-digit comparison on both devices
+and authorize sending on Mac before importing on iPhone. Settings-only rows
+show which endpoints or credentials need attention.
+
+The Mac transfer and Files importer also accept unencrypted PEM keys: RSA PKCS#1,
+ECDSA SEC1 and PKCS#8 for Ed25519, RSA and ECDSA. Conversion happens in memory.
+After saving, review the SSH host fingerprints of the servers just added or
+completed. **Trust and Connect** pins the displayed keys and enables monitoring
+only for the selected servers. Skipped profiles are excluded.
+
+The shared `NVBeaconTransfer` package uses a fresh 256-bit QR secret and TLS
+1.2 ECDHE-PSK with ChaCha20-Poly1305. Role-specific proofs and the comparison
+code are bound to the TLS connection. The sender closes discovery after pairing
+one receiver and waits for an encrypted receipt after storage. Local server
+metadata contains recovery and replay information. Credential values go to
+device-only Keychain items. Copying an SSH key creates a second usable copy;
+revoke it on the SSH server when needed.
+
+Run the shared protocol tests, including Bonjour, with
+`NVBEACON_TEST_BONJOUR=1 swift test --package-path Shared/NVBeaconTransfer --jobs 2`.
+To review the installed Mac app’s current configuration without loading secrets,
+run `NVBEACON_TRANSFER_PREFLIGHT=1 swift test --filter installedMacTransferPreflight`.
+On 2026-11-04, the user verified the full flow on an iPhone running iOS 27.2:
+QR pairing, transfer of credentials for two Oracle VMs, bulk host trust, and
+monitoring with the transferred credentials.
+
 ## Architecture
 
 ```text
@@ -158,12 +188,11 @@ This is a foreground-monitoring preview, not full macOS feature parity.
 - GPU-idle watches, PID-exit watches, notification history, widgets and Live
   Activities have not been ported.
 - OpenSSH aliases, ProxyJump, SSH agents, interactive keyboard authentication/MFA,
-  legacy PEM/PKCS#8 containers, RSA-SHA512-only servers and connection reuse are not supported in the preview.
+  passphrase-encrypted PEM/PKCS#8 containers, RSA-SHA512-only servers and connection reuse are not supported in the preview.
 - English UI only; localization and fuller iPad layouts remain follow-up work.
 
-Suggested next milestone: validate the first device connection, then port
-foreground watch behavior with explicit iOS lifecycle semantics before choosing
-a background notification architecture.
+Individual credential transfers remain a separate milestone. Foreground watches
+and background notification delivery are also outside the initial port.
 
 ## Initial validation (2026-11-02)
 

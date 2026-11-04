@@ -173,6 +173,28 @@ Use `Advanced` → `Export Servers…` to save server connection settings as a v
 
 `Import Servers…` previews the file before adding servers. Imports preserve existing servers and preferences, assign fresh server IDs, and start the added servers disabled. Check their local key paths and commands, then enable the servers you want to monitor. Importing does not install keys or restore passwords. Backups are limited to 100 servers and 1 MB.
 
+### Transfer all servers to iPhone
+
+On the same local network, open **Advanced → Transfer All Servers to iPhone…**
+on Mac and review the credential source for each server. Choose a key file if
+the suggested identity is missing or ambiguous. Show the QR code. In the iPhone
+app choose **Transfer from Mac**, scan the code, and compare the six digits on
+both screens. Approve the matching code and authenticate on the Mac. Review and
+import the batch on iPhone. The Mac receives confirmation after storage completes.
+
+The Mac can send OpenSSH keys and unencrypted PEM files (RSA PKCS#1, ECDSA SEC1
+and PKCS#8 for RSA, ECDSA and Ed25519). After import, the iPhone looks up SSH host
+keys for the servers just added or completed. Review the fingerprints together,
+then choose **Trust and Connect** to start monitoring the selected servers.
+
+The QR expires after three minutes. Each pairing transfers the full server list
+once. Available passwords and supported key files travel over the encrypted
+connection; JSON backups continue to exclude them. Keys held only by an SSH
+agent or hardware token require separate setup. A protected key can be unlocked
+with its passphrase on iPhone. New profiles start disabled. Existing profiles
+with credentials are kept; matching disabled, untrusted profiles with an empty
+credential slot can receive the missing credential after review.
+
 ### Diagnostic Information
 
 Use `Advanced` → `Copy Diagnostic Information…` to preview and copy the current app/OS version, collection settings, server/GPU summaries, sample age and categorized connection errors. Reports omit server names/addresses, users, key paths, custom command text, process details and raw error messages. Reports are generated from the current local snapshot without additional SSH queries; copying does not submit anything externally.

@@ -31,11 +31,13 @@ struct ServerBackupDocument: FileDocument {
 enum SettingsUtilitySheet: Identifiable {
     case importServers(ServerSettingsBackup, String)
     case diagnostics(String)
+    case transfer
 
     var id: String {
         switch self {
         case .importServers: "import"
         case .diagnostics: "diagnostics"
+        case .transfer: "transfer"
         }
     }
 }

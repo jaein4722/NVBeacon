@@ -21,7 +21,30 @@ for variant in ed25519 rsa 256 384 521; do
     cat "$fixture/$variant.pub" >> "$fixture/authorized_keys"
     cp "$fixture/$variant" "$fixture/$variant-plain"
     ssh-keygen -q -p -P fixture-only -N '' -f "$fixture/$variant-plain" >/dev/null
+    if [[ "$variant" != ed25519 ]]; then
+        cp "$fixture/$variant-plain" "$fixture/$variant-pem"
+        ssh-keygen -q -p -m PEM -P '' -N '' -f "$fixture/$variant-pem" >/dev/null
+        openssl pkcs8 -topk8 -nocrypt -in "$fixture/$variant-pem" -out "$fixture/$variant-pkcs8"
+    fi
 done
+# RFC 8410 encodes an Ed25519 private seed inside a nested OCTET STRING.
+python3 - "$fixture" <<'ED25519'
+import base64, pathlib, struct, sys
+root = pathlib.Path(sys.argv[1])
+def field(data):
+    size = struct.unpack(">I", data[:4])[0]
+    return data[4:4+size], data[4+size:]
+blob = base64.b64decode("".join((root/"ed25519-plain").read_text().splitlines()[1:-1]))[15:]
+for _ in range(3): _, blob = field(blob)
+_, blob = field(blob[4:])
+record, _ = field(blob)
+_, record = field(record[8:])
+_, record = field(record)
+secret, _ = field(record)
+assert len(secret) == 64
+der = bytes.fromhex("302e020100300506032b657004220420") + secret[:32]
+(root/"ed25519-pkcs8").write_text("-----BEGIN PRIVATE KEY-----\n"+base64.b64encode(der).decode()+"\n-----END PRIVATE KEY-----\n")
+ED25519
 cat > "$fixture/config" <<CONFIG
 ListenAddress 127.0.0.1
 Port $port

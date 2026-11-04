@@ -10,6 +10,7 @@ let package = Package(
     ],
     dependencies: [
         .package(path: "Shared/NVBeaconCore"),
+        .package(path: "Shared/NVBeaconTransfer"),
         .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.7.3"),
     ],
     targets: [
@@ -17,6 +18,7 @@ let package = Package(
             name: "NVBeacon",
             dependencies: [
                 .product(name: "NVBeaconCore", package: "NVBeaconCore"),
+                .product(name: "NVBeaconTransfer", package: "NVBeaconTransfer"),
                 .product(name: "Sparkle", package: "Sparkle"),
             ],
             linkerSettings: [

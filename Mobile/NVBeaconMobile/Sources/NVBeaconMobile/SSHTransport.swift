@@ -5,6 +5,31 @@ import NIO
 @preconcurrency import NIOSSH
 import NVBeaconCore
 
+public struct TransferHostKey: Sendable {
+    public let server: MobileServer
+    let key: String
+    public let fingerprint: String
+
+    public static func lookup(_ server: MobileServer) async throws -> Self {
+        guard !server.isEnabled, server.trustedHostKey == nil, server.transferSetupIssue == nil else {
+            throw MacTransferImportError.changed
+        }
+        let transport = SSHTransport(server: server, credential: .init(), requestTimeout: .seconds(12))
+        do { _ = try await transport.request(command: nil) }
+        catch MobileError.hostKeyRequired(let key, let fingerprint) {
+            return Self(server: server, key: key, fingerprint: fingerprint)
+        }
+        throw MobileError.connectionClosed
+    }
+}
+
+private struct NoUserAuthentication: NIOSSHClientUserAuthenticationDelegate {
+    func nextAuthenticationType(availableMethods: NIOSSHAvailableUserAuthenticationMethods,
+                                nextChallengePromise: EventLoopPromise<NIOSSHUserAuthenticationOffer?>) {
+        nextChallengePromise.succeed(nil)
+    }
+}
+
 struct PinnedHostValidator: NIOSSHClientServerAuthenticationDelegate {
     let expectedKey: String?
     func validateHostKey(hostKey: NIOSSHPublicKey, validationCompletePromise promise: EventLoopPromise<Void>) {
@@ -55,6 +80,10 @@ public actor SSHTransport: RemoteCommandExecuting {
     }
 
     public func execute(_ command: String) async throws -> RemoteCommandOutput {
+        try await request(command: command)
+    }
+
+    fileprivate func request(command: String?) async throws -> RemoteCommandOutput {
         try Task.checkCancellation()
         let id = UUID()
         // Callers use a separate transport per refresh; reject overlapping requests.
@@ -101,21 +130,25 @@ public actor SSHTransport: RemoteCommandExecuting {
         try? await connection?.close()
     }
 
-    private func run(_ command: String) async throws -> RemoteCommandOutput {
+    private func run(_ command: String?) async throws -> RemoteCommandOutput {
         let server = try server.validated()
-        guard !credential.secret.isEmpty else { throw MobileError.missingCredential }
         let makeAuthentication: @Sendable () -> SSHAuthenticationMethod
-        switch server.authentication {
-        case .passwordBased:
-            let credential = credential
-            makeAuthentication = { .passwordBased(username: server.username, password: credential.secret) }
-        case .keyBased:
-            makeAuthentication = try ImportedSSHKey(credential.secret)
-                .authentication(username: server.username, passphrase: credential.passphrase)
+        if command == nil {
+            makeAuthentication = { .custom(NoUserAuthentication()) }
+        } else {
+            guard !credential.secret.isEmpty else { throw MobileError.missingCredential }
+            switch server.authentication {
+            case .passwordBased:
+                let credential = credential
+                makeAuthentication = { .passwordBased(username: server.username, password: credential.secret) }
+            case .keyBased:
+                makeAuthentication = try ImportedSSHKey(credential.secret)
+                    .authentication(username: server.username, passphrase: credential.passphrase)
+            }
         }
         let loop = MultiThreadedEventLoopGroup.singleton.next()
         let authenticated = loop.makePromise(of: Void.self)
-        let validator = PinnedHostValidator(expectedKey: server.pinnedHostKey)
+        let validator = PinnedHostValidator(expectedKey: command == nil ? nil : server.pinnedHostKey)
         // Install the pipeline before connecting. Citadel 0.12.1's connect(on:)
         // performs synchronous pipeline mutation outside the channel event loop.
         // Owning setup here also prevents losing an early server banner and lets
@@ -143,6 +176,7 @@ public actor SSHTransport: RemoteCommandExecuting {
         try Task.checkCancellation()
         if timedOut { throw MobileError.timedOut }
         try await authenticated.futureResult.get()
+        guard let command else { throw MobileError.connectionClosed }
         // Capture at the NIO channel boundary. An unbounded AsyncStream can queue
         // arbitrary output before an async consumer gets a chance to enforce a cap.
         let promise = connection.eventLoop.makePromise(of: RemoteCommandOutput.self)

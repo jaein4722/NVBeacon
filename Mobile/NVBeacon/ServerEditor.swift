@@ -45,11 +45,13 @@ struct ServerEditor: View {
                         if keyInfo?.requiresPassphrase == true { SecureField("Key passphrase", text: $credential.passphrase) }
                     }
                 } header: { Text("Credentials") } footer: {
-                    Text("Stored only in this device’s Keychain. OpenSSH Ed25519, RSA and ECDSA keys are detected automatically. Password authentication requires the server to allow it; interactive MFA is not supported.")
+                    Text("Stored only in this device’s Keychain. Ed25519, RSA and ECDSA keys are detected automatically in OpenSSH and unencrypted PEM files. Password authentication requires the server to allow it; interactive MFA is not supported.")
                 }
                 Section {
                     DisclosureGroup("Remote commands") {
                         TextField("GPU command", text: $server.gpuCommand, axis: .vertical).font(.caption.monospaced())
+                        TextField("Host info command (optional)", text: Binding(get: { server.hostCommand ?? "" },
+                            set: { server.hostCommand = $0.isEmpty ? nil : $0 }), axis: .vertical).font(.caption.monospaced())
                         TextField("Memory command", text: $server.memoryCommand, axis: .vertical).font(.caption.monospaced())
                     }
                     if server.pinnedHostKey != nil {
