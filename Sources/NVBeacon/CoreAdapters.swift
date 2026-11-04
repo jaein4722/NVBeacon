@@ -1,6 +1,7 @@
 import Foundation
 import NVBeaconCore
 
+typealias BusyDetectionMode = NVBeaconCore.BusyDetectionMode
 typealias GPUReading = NVBeaconCore.GPUReading
 typealias HostMemoryReading = NVBeaconCore.HostMemoryReading
 typealias HostMetricsOptions = NVBeaconCore.HostMetricsOptions
@@ -27,16 +28,8 @@ typealias MetricsCollector<Transport: RemoteCommandExecuting> = NVBeaconCore.Met
 
 extension GPUReading {
     func isBusy(using settings: AppSettings) -> Bool {
-        switch settings.busyDetectionMode {
-        case .activeProcess:
-            return !processes.isEmpty
-        case .memoryThreshold:
-            return memoryUsedMB > settings.busyMemoryThresholdMB
-        case .activeProcessOrMemoryThreshold:
-            return !processes.isEmpty || memoryUsedMB > settings.busyMemoryThresholdMB
-        case .utilizationThreshold:
-            return utilization >= settings.busyUtilizationThresholdPercent
-        }
+        isBusy(mode: settings.busyDetectionMode, memoryThresholdMB: settings.busyMemoryThresholdMB,
+               utilizationThreshold: settings.busyUtilizationThresholdPercent)
     }
 }
 

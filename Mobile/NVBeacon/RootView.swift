@@ -5,6 +5,9 @@ import NVBeaconMobile
 
 struct RootView: View {
     @Bindable var store: MobileStore
+    @Environment(\.horizontalSizeClass) private var sizeClass
+    @AppStorage("interfaceLanguage") private var language = "system"
+    @AppStorage("interfaceAppearance") private var appearance = "system"
     @State private var editor: MobileServer?
     @State private var path: [UUID] = []
     @State private var editMode = EditMode.inactive
@@ -29,6 +32,37 @@ struct RootView: View {
                             ForEach([5, 10, 15, 30, 60, 120, 300], id: \.self) { Text("\($0) seconds").tag($0) }
                         }
                     }
+                    Section("Host metrics") {
+                        Toggle("CPU", isOn: $store.collectsCPU)
+                        Toggle("RAM and swap", isOn: $store.collectsMemory)
+                        Toggle("Network traffic", isOn: $store.collectsNetwork)
+                    }
+                    Section("Busy GPU detection") {
+                        Toggle("Highlight my jobs", isOn: $store.highlightMine)
+                        Picker("Count a GPU as busy by", selection: $store.busyMode) {
+                            Text("Active process").tag(BusyDetectionMode.activeProcess)
+                            Text("VRAM usage").tag(BusyDetectionMode.memoryThreshold)
+                            Text("Process or VRAM").tag(BusyDetectionMode.activeProcessOrMemoryThreshold)
+                            Text("GPU utilization").tag(BusyDetectionMode.utilizationThreshold)
+                        }
+                        if [.memoryThreshold, .activeProcessOrMemoryThreshold].contains(store.busyMode) {
+                            Stepper("Above \(store.memoryThreshold) MB", value: $store.memoryThreshold, in: 0...10240, step: 50)
+                        } else if store.busyMode == .utilizationThreshold {
+                            Stepper("At least \(store.utilizationThreshold)%", value: $store.utilizationThreshold, in: 0...100)
+                        }
+                    }
+                    Section("Appearance") {
+                        Picker("Language", selection: $language) {
+                            Text("System").tag("system")
+                            Text(verbatim: "English").tag("en")
+                            Text(verbatim: "한국어").tag("ko")
+                        }
+                        Picker("Theme", selection: $appearance) {
+                            Text("System").tag("system")
+                            Text("Light").tag("light")
+                            Text("Dark").tag("dark")
+                        }
+                    }
                     Section {
                         Label("Foreground monitoring", systemImage: "iphone")
                         Text("iOS pauses SSH polling when you leave the app or lock your device. Open NVBeacon to reconnect and refresh. Continuous background monitoring and job notifications are not available in this first iOS version.")
@@ -40,6 +74,7 @@ struct RootView: View {
                     }.font(.footnote)
                     Section("About") {
                         LabeledContent("NVBeacon for iOS", value: "Preview")
+                        NavigationLink("Diagnostics") { MobileDiagnosticsView(store: store) }
                         Link("Project on GitHub", destination: URL(string: "https://github.com/jaein4722/NVBeacon")!)
                     }
                 }
@@ -87,7 +122,7 @@ struct RootView: View {
         }
         .alert("NVBeacon", isPresented: Binding(get: { store.message != nil }, set: { if !$0 { store.message = nil } })) {
             Button("OK") { store.message = nil }
-        } message: { Text(store.message ?? "") }
+        } message: { Text(LocalizedStringKey(store.message ?? "")) }
     }
 
     private var serverList: some View {
@@ -96,11 +131,20 @@ struct RootView: View {
             Section {
                 ForEach(store.servers) { server in
                     if editMode.isEditing {
-                        ServerRow(server: server, reading: store.readings[server.id])
+                        ServerRow(server: server, reading: store.readings[server.id], store: store)
                             .tag(server.id)
+                    } else if sizeClass == .regular {
+                        Button {
+                            path = [server.id]
+                        } label: {
+                            ServerRow(server: server, reading: store.readings[server.id], store: store)
+                        }
+                        .buttonStyle(.plain)
+                        .listRowBackground(path.last == server.id ? Color.accentColor.opacity(0.12) : nil)
+                        .moveDisabled(true)
                     } else {
                         NavigationLink(value: server.id) {
-                            ServerRow(server: server, reading: store.readings[server.id])
+                            ServerRow(server: server, reading: store.readings[server.id], store: store)
                         }
                         .moveDisabled(true)
                     }
@@ -175,29 +219,26 @@ struct RootView: View {
     }
 
     private var monitor: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if store.servers.isEmpty {
-                    ContentUnavailableView {
-                        Label("Your GPUs, anywhere", systemImage: "server.rack")
-                    } description: {
-                        Text("Connect to a Linux server over SSH to see GPU utilization, memory, temperature, and running jobs.")
-                    } actions: {
-                        Button("Add Server", systemImage: "plus") { editor = MobileServer() }
-                            .buttonStyle(.borderedProminent)
-                        Button("Transfer from Mac", systemImage: "qrcode.viewfinder") { transferPresented = true }
-                        Button("Import Server Backup") { importerPresented = true }
+        Group {
+            if sizeClass == .regular {
+                NavigationSplitView {
+                    monitorList
+                } detail: {
+                    NavigationStack {
+                        if let id = path.last {
+                            ServerDetailView(store: store, serverID: id) { editor = $0 }
+                        } else {
+                            ContentUnavailableView("Select a server", systemImage: "server.rack")
+                        }
                     }
-                } else {
-                    serverList
+                }
+            } else {
+                NavigationStack(path: $path) {
+                    monitorList.navigationDestination(for: UUID.self) { id in
+                        ServerDetailView(store: store, serverID: id) { editor = $0 }
+                    }
                 }
             }
-            .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
-            .navigationTitle("NVBeacon")
-            .navigationDestination(for: UUID.self) { id in
-                ServerDetailView(store: store, serverID: id) { editor = $0 }
-            }
-            .toolbar { monitorTools }
         }
         .onChange(of: editMode) { _, mode in
             if !mode.isEditing { selected.removeAll() }
@@ -208,6 +249,28 @@ struct RootView: View {
             path.removeAll { !remaining.contains($0) }
             if ids.isEmpty { editMode = .inactive }
         }
+    }
+
+    private var monitorList: some View {
+        Group {
+            if store.servers.isEmpty {
+                ContentUnavailableView {
+                    Label("Your GPUs, anywhere", systemImage: "server.rack")
+                } description: {
+                    Text("Connect to a Linux server over SSH to see GPU utilization, memory, temperature, and running jobs.")
+                } actions: {
+                    Button("Add Server", systemImage: "plus") { editor = MobileServer() }
+                        .buttonStyle(.borderedProminent)
+                    Button("Transfer from Mac", systemImage: "qrcode.viewfinder") { transferPresented = true }
+                    Button("Import Server Backup") { importerPresented = true }
+                }
+            } else {
+                serverList
+            }
+        }
+        .toolbar(editMode.isEditing ? .hidden : .automatic, for: .tabBar)
+        .navigationTitle("NVBeacon")
+        .toolbar { monitorTools }
     }
 
     private func moveServers(from offsets: IndexSet, to destination: Int) {
@@ -226,6 +289,7 @@ extension ServerSettingsBackup: @retroactive Identifiable {
 struct ServerRow: View {
     let server: MobileServer
     let reading: ServerReading?
+    let store: MobileStore
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
@@ -237,14 +301,17 @@ struct ServerRow: View {
             }
             if server.isEnabled, let snapshot = reading?.snapshot {
                 HStack {
-                    Text("\(snapshot.gpus.count) GPUs")
+                    Text("\(snapshot.gpus.filter { store.isBusy($0) }.count)/\(snapshot.gpus.count) busy")
                     Text("·")
                     Text("\(snapshot.averageUtilization)% utilization")
                     Spacer()
                     Text(snapshot.takenAt, style: .time)
                 }.font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                if snapshot.gpus.contains(where: { $0.processes.contains { store.isMine($0, on: server) } }) {
+                    Label("My jobs", systemImage: "person.fill").font(.caption).foregroundStyle(.tint)
+                }
             } else {
-                Text(!server.isEnabled ? "Review connection settings to start monitoring" : reading?.error ?? "Waiting for first update…")
+                Text(LocalizedStringKey(!server.isEnabled ? "Review connection settings to start monitoring" : reading?.error ?? "Waiting for first update…"))
                     .font(.caption).foregroundStyle(.secondary).lineLimit(2)
             }
         }.padding(.vertical, 6)

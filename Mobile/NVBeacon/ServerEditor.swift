@@ -6,6 +6,7 @@ import NVBeaconMobile
 struct ServerEditor: View {
     let store: MobileStore
     @State var server: MobileServer
+    @State private var hostCommandDraft: String
     @State private var credential = MobileCredential()
     @State private var error: String?
     @State private var keyImporterPresented = false
@@ -15,6 +16,13 @@ struct ServerEditor: View {
     @State private var loaded = false
     @Environment(\.dismiss) private var dismiss
     private var isExisting: Bool { store.servers.contains { $0.id == server.id } }
+
+    init(store: MobileStore, server: MobileServer) {
+        self.store = store
+        _server = State(initialValue: server)
+        _hostCommandDraft = State(initialValue: RemoteMetricCommands.resolveHostCommand(
+            server.hostCommand, legacyMemoryCommand: server.memoryCommand))
+    }
 
     var body: some View {
         NavigationStack {
@@ -48,17 +56,29 @@ struct ServerEditor: View {
                     Text("Stored only in this device’s Keychain. Ed25519, RSA and ECDSA keys are detected automatically in OpenSSH and unencrypted PEM files. Password authentication requires the server to allow it; interactive MFA is not supported.")
                 }
                 Section {
+                    Toggle("Reuse SSH connection", isOn: Binding(get: { server.reusesConnection }, set: {
+                        server.connectionReuseMode = $0 ? .reuseWhenPossible : .newConnectionEachRefresh
+                    }))
                     DisclosureGroup("Remote commands") {
-                        TextField("GPU command", text: $server.gpuCommand, axis: .vertical).font(.caption.monospaced())
-                        TextField("Host info command (optional)", text: Binding(get: { server.hostCommand ?? "" },
-                            set: { server.hostCommand = $0.isEmpty ? nil : $0 }), axis: .vertical).font(.caption.monospaced())
-                        TextField("Memory command", text: $server.memoryCommand, axis: .vertical).font(.caption.monospaced())
+                        VStack(alignment: .leading) {
+                            Text("GPU command").font(.subheadline)
+                            TextField("GPU command", text: $server.gpuCommand, axis: .vertical)
+                                .font(.caption.monospaced())
+                        }
+                        VStack(alignment: .leading) {
+                            Text("Host info command").font(.subheadline)
+                            TextField("Host info command", text: $hostCommandDraft, axis: .vertical)
+                                .font(.caption.monospaced()).lineLimit(3...8)
+                            Button("Restore default host command") {
+                                hostCommandDraft = RemoteMetricCommands.hostInfo(memoryCommand: server.memoryCommand)
+                            }.font(.footnote)
+                        }
                     }
                     if server.pinnedHostKey != nil {
                         Button("Reset Host Key Trust", role: .destructive) { resetTrustPresented = true }
                     }
                 } footer: { Text("Commands run on the remote Linux server using your SSH account.") }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { Text(LocalizedStringKey(error)).foregroundStyle(.red) } }
                 if isExisting {
                     Section { Button("Delete Server", role: .destructive) { deletePresented = true } }
                 }
@@ -70,7 +90,14 @@ struct ServerEditor: View {
                 ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") {
-                        do { try store.save(server, credential: credential); dismiss() }
+                        do {
+                            var edited = server
+                            let script = hostCommandDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                            let inherited = RemoteMetricCommands.hostInfo(memoryCommand: server.memoryCommand)
+                            edited.hostCommand = script.isEmpty || script == inherited ? nil : script
+                            try store.save(edited, credential: credential)
+                            dismiss()
+                        }
                         catch { self.error = error.localizedDescription }
                     }.disabled(!loaded)
                 }

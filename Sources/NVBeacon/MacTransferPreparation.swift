@@ -155,7 +155,8 @@ struct MacTransferPreparation {
                 host: row.endpoint?.host ?? "", username: row.endpoint?.user ?? "",
                 port: row.endpoint?.port ?? s.resolvedPort ?? 22,
                 authentication: s.sshAuthenticationMode.rawValue, gpuCommand: s.remoteCommand,
-                memoryCommand: s.memoryCommand, hostCommand: s.hostCommand, credentialID: id, setupIssue: issue))
+                memoryCommand: s.memoryCommand, hostCommand: s.hostCommand, credentialID: id, setupIssue: issue,
+                connectionReuseMode: s.sshConnectionReuseMode.rawValue))
         }
         let batch = TransferBatch(id: batchID, servers: servers, credentials: credentials)
         try batch.validate()

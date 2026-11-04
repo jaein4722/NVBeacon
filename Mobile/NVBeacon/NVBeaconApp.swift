@@ -3,12 +3,16 @@ import NVBeaconMobile
 
 @main
 struct NVBeaconApp: App {
+    @AppStorage("interfaceLanguage") private var language = "system"
+    @AppStorage("interfaceAppearance") private var appearance = "system"
     @State private var store = MobileStore()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
             RootView(store: store)
+                .environment(\.locale, language == "system" ? .autoupdatingCurrent : Locale(identifier: language))
+                .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
                 .tint(.green)
                 .task(id: MonitorIdentity(active: scenePhase == .active, generation: store.generation)) {
                     if scenePhase == .active { await store.monitor() }

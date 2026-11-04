@@ -8,6 +8,8 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
     public var username = ""
     public var port = 22
     public var authentication: SSHAuthenticationMode = .keyBased
+    public var connectionReuseMode: SSHConnectionReuseMode?
+    public var reusesConnection: Bool { connectionReuseMode != .newConnectionEachRefresh }
     public var isEnabled = true
     public var gpuCommand = RemoteMetricCommands.defaultGPUCommand
     public var memoryCommand = RemoteMetricCommands.defaultMemoryCommand
@@ -54,6 +56,7 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
         }
         server.port = Int(entry.sshPort.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 22
         server.authentication = entry.sshAuthenticationMode
+        server.connectionReuseMode = entry.sshConnectionReuseMode
         server.gpuCommand = entry.remoteCommand
         server.memoryCommand = entry.memoryCommand
         server.hostCommand = entry.hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: entry.memoryCommand)
@@ -65,7 +68,7 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
     public var backupEntry: ServerSettingsBackup.Entry {
         .init(name: name, sshTarget: username.isEmpty ? host : "\(username)@\(host)", sshPort: String(port),
               sshIdentityFilePath: "", sshAuthenticationMode: authentication,
-              sshConnectionReuseMode: .newConnectionEachRefresh,
+              sshConnectionReuseMode: connectionReuseMode ?? .reuseWhenPossible,
               remoteCommand: gpuCommand, memoryCommand: memoryCommand, hostCommand: hostCommand)
     }
 }

@@ -10,6 +10,13 @@
 - Password authentication and automatic detection of OpenSSH Ed25519, RSA (2048–8192-bit) and ECDSA (P-256/P-384/P-521)
   private keys, including bcrypt/AES-CTR protected keys (up to 256 rounds). Credentials use device-only, unlocked Keychain
   items and are excluded from server backups and application preferences.
+- Host CPU, RAM/swap and network throughput/totals share a collapsible panel. Each
+  metric can be disabled in Settings. Rates use successive foreground samples.
+- Server rows count busy GPUs by the same four rules as the Mac; detail rows identify
+  your jobs by SSH UID, falling back to the configured username. Foreground sessions
+  reuse a verified SSH connection by default, with a per-server opt-out.
+- English/Korean and light/dark/system appearance, a split server list on wider
+  screens, and a redacted diagnostic report with copy and share actions.
 - Explicit first-connection host fingerprint review before authentication.
   The accepted key is pinned to the exact hostname and port. Key changes block
   collection until the user verifies the change and resets trust.
@@ -128,9 +135,10 @@ before enabling. Import does not restore passwords, private keys or host trust.
 
 ## One-time transfer from Mac
 
-Use **Transfer from Mac** and scan the Mac app’s QR with a camera-equipped iPhone.
-Allow Camera and Local Network access. The devices discover each other using
-Bonjour on the local network. Verify the six-digit comparison on both devices
+Show the pairing QR on the Mac, then choose **Transfer from Mac** on iPhone.
+Opening the transfer screen requests Camera and Local Network access before scanning.
+The scanner opens independently of Mac discovery. Only the scanned QR identifies the Mac to connect to.
+Verify the six-digit comparison on both devices
 and authorize sending on Mac before importing on iPhone. Settings-only rows
 show which endpoints or credentials need attention.
 
@@ -167,8 +175,8 @@ Sources/NVBeacon/                 Existing macOS app and OpenSSH transport
 
 The mobile package uses Citadel's OpenSSH key parsing and authentication delegates
 with NIOSSH negotiation, and a bounded NIO child-channel handler to retain stdout,
-stderr and exit status (including exit status delivered after EOF). Each remote
-command owns a fresh TCP/SSH connection. The transport owns
+stderr and exit status (including exit status delivered after EOF). Foreground monitoring can reuse the authenticated TCP connection. Each command
+opens a new SSH child channel. Editing the server or leaving the foreground closes the session. The transport owns
 the TCP channel throughout authentication, closes it on cancellation, bounds
 connection setup to 10 seconds, applies a 25-second request deadline, and caps
 combined output at 2 MiB before buffering. A connection closed without an exit
@@ -188,8 +196,7 @@ This is a foreground-monitoring preview, not full macOS feature parity.
 - GPU-idle watches, PID-exit watches, notification history, widgets and Live
   Activities have not been ported.
 - OpenSSH aliases, ProxyJump, SSH agents, interactive keyboard authentication/MFA,
-  passphrase-encrypted PEM/PKCS#8 containers, RSA-SHA512-only servers and connection reuse are not supported in the preview.
-- English UI only; localization and fuller iPad layouts remain follow-up work.
+  passphrase-encrypted PEM/PKCS#8 containers and RSA-SHA512-only servers are not supported.
 
 Individual credential transfers remain a separate milestone. Foreground watches
 and background notification delivery are also outside the initial port.

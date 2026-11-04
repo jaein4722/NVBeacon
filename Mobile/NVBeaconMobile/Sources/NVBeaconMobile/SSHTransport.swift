@@ -53,8 +53,8 @@ struct PinnedHostValidator: NIOSSHClientServerAuthenticationDelegate {
     }
 }
 
-/// Each request owns a fresh connection, including the TCP channel during the SSH
-/// handshake. Closing that channel unblocks command, timeout and cancellation paths.
+/// A monitored server can share an authenticated session between foreground polls.
+/// Commands use separate SSH child channels and are never replayed after failure.
 public actor SSHTransport: RemoteCommandExecuting {
     private let server: MobileServer
     private let credential: MobileCredential
@@ -62,8 +62,11 @@ public actor SSHTransport: RemoteCommandExecuting {
     private var channel: (any Channel)?
     private var operation: UUID?
     private var timedOut = false
+    private let reusable: Bool
+    private var invalidated = false
 
-    public init(server: MobileServer, credential: MobileCredential) {
+    public init(server: MobileServer, credential: MobileCredential, reusable: Bool = false) {
+        self.reusable = reusable
         self.server = server
         self.credential = credential
         requestTimeout = .seconds(25)
@@ -73,6 +76,7 @@ public actor SSHTransport: RemoteCommandExecuting {
         self.server = server
         self.credential = credential
         self.requestTimeout = requestTimeout
+        reusable = false
     }
 
     nonisolated public static func validatePrivateKey(_ credential: MobileCredential) throws {
@@ -86,8 +90,7 @@ public actor SSHTransport: RemoteCommandExecuting {
     fileprivate func request(command: String?) async throws -> RemoteCommandOutput {
         try Task.checkCancellation()
         let id = UUID()
-        // Callers use a separate transport per refresh; reject overlapping requests.
-        guard operation == nil else { throw MobileError.connectionClosed }
+        guard !invalidated, operation == nil else { throw MobileError.connectionClosed }
         operation = id
         timedOut = false
         let deadline = Task {
@@ -99,7 +102,7 @@ public actor SSHTransport: RemoteCommandExecuting {
             do {
                 let result = try await run(command)
                 try Task.checkCancellation()
-                await close()
+                if !reusable { await close() }
                 return result
             } catch {
                 await close()
@@ -124,6 +127,11 @@ public actor SSHTransport: RemoteCommandExecuting {
         await close()
     }
 
+    func invalidate() async {
+        invalidated = true
+        await close()
+    }
+
     private func close() async {
         let connection = channel
         channel = nil
@@ -131,6 +139,9 @@ public actor SSHTransport: RemoteCommandExecuting {
     }
 
     private func run(_ command: String?) async throws -> RemoteCommandOutput {
+        if let command, let channel, channel.isActive, reusable {
+            return try await execute(command, on: channel)
+        }
         let server = try server.validated()
         let makeAuthentication: @Sendable () -> SSHAuthenticationMethod
         if command == nil {
@@ -173,10 +184,15 @@ public actor SSHTransport: RemoteCommandExecuting {
             throw error
         }
         channel = connection
+        guard !invalidated else { throw CancellationError() }
         try Task.checkCancellation()
         if timedOut { throw MobileError.timedOut }
         try await authenticated.futureResult.get()
         guard let command else { throw MobileError.connectionClosed }
+        return try await execute(command, on: connection)
+    }
+
+    private func execute(_ command: String, on connection: any Channel) async throws -> RemoteCommandOutput {
         // Capture at the NIO channel boundary. An unbounded AsyncStream can queue
         // arbitrary output before an async consumer gets a chance to enforce a cap.
         let promise = connection.eventLoop.makePromise(of: RemoteCommandOutput.self)

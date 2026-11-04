@@ -6,6 +6,8 @@ import Security
 public enum PairingError: LocalizedError, Equatable {
     case invalidInvitation, expired, closed, invalidState, invalidMessage, unavailable, authentication
 
+    case localNetworkDenied, macNotFound
+
     public var errorDescription: String? {
         switch self {
         case .invalidInvitation: "Scan a valid NVBeacon pairing QR code."
@@ -15,6 +17,8 @@ public enum PairingError: LocalizedError, Equatable {
         case .invalidMessage: "The pairing data is invalid or too large."
         case .unavailable: "Could not connect. Check local network permissions and that both devices are on the same network."
         case .authentication: "The pairing session could not be authenticated."
+        case .localNetworkDenied: "Allow NVBeacon to access the local network in Settings."
+        case .macNotFound: "Show a pairing code on your Mac and connect both devices to the same local network."
         }
     }
 }
@@ -96,20 +100,38 @@ private enum Frame: UInt8 {
 @MainActor private final class PairingConnection {
     private let connection: NWConnection
     private let ready = ResultSignal<Void>()
+    private var established = false
     private var pendingFailure: ((PairingError) -> Void)?
     private(set) var error: PairingError?
     var onClose: ((PairingError) -> Void)?
 
     init(_ connection: NWConnection) { self.connection = connection }
 
-    func establish() async throws {
+    func restartIfWaiting() {
+        if !established, case .waiting = connection.state { connection.restart() }
+    }
+
+    func establish(checkLocalAccess: Bool = false) async throws {
         connection.stateUpdateHandler = { [weak self] state in
             MainActor.assumeIsolated {
+                guard let self else { return }
+                if checkLocalAccess && !self.established {
+                    switch state {
+                    case .waiting(let error), .failed(let error):
+                        let denied: Bool
+                        if case .dns(let code) = error, Int(code) == kDNSServiceErr_PolicyDenied { denied = true }
+                        else { denied = self.connection.currentPath?.unsatisfiedReason == .localNetworkDenied }
+                        if denied { self.close(.localNetworkDenied); return }
+                    default: break
+                    }
+                }
                 switch state {
-                case .ready: self?.ready.finish(.success(()))
-                case .waiting(.tls), .failed(.tls): self?.close(.authentication)
-                case .failed: self?.close(.unavailable)
-                case .cancelled: self?.close(.closed)
+                case .ready:
+                    self.established = true
+                    self.ready.finish(.success(()))
+                case .waiting(.tls), .failed(.tls): self.close(.authentication)
+                case .failed: self.close(.unavailable)
+                case .cancelled: self.close(.closed)
                 default: break
                 }
             }
@@ -336,6 +358,8 @@ private enum Frame: UInt8 {
     public init() { endpointOverride = nil }
     init(endpoint: NWEndpoint) { endpointOverride = endpoint }
 
+    public func resumeConnectionIfWaiting() { link?.restartIfWaiting() }
+
     public func receive(invitation text: String, onCode: @escaping @MainActor (String) -> Void) async throws -> Data {
         guard !used else { throw PairingError.invalidState }
         used = true
@@ -352,10 +376,23 @@ private enum Frame: UInt8 {
         return try await withTaskCancellationHandler {
             do {
                 try Task.checkCancellation()
-                try await link.establish()
+                let connecting = Task {
+                    try await Task.sleep(for: .seconds(15))
+                    link.close(.macNotFound)
+                }
+                defer { connecting.cancel() }
+                do { try await link.establish(checkLocalAccess: true) }
+                catch PairingError.unavailable { throw PairingError.macNotFound }
+                connecting.cancel()
+                let handshake = Task {
+                    try await Task.sleep(for: .seconds(15))
+                    link.close(.closed)
+                }
+                defer { handshake.cancel() }
                 try await link.write(.hello, link.proof("receiver", invitation: invitation))
                 let proof = try await link.read(.welcome, length: 32...32)
                 guard try link.verifies(proof, role: "sender", invitation: invitation) else { throw PairingError.authentication }
+                handshake.cancel()
                 onCode(try link.comparisonCode(invitation))
                 let payload = try await link.read(.payload, length: 1...TransferBatch.maximumBytes)
                 try Task.checkCancellation()

@@ -9,14 +9,18 @@ import NVBeaconTransfer
 struct MacTransferView: View {
     let store: MobileStore
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.locale) private var locale
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.openURL) private var openURL
     @State private var phase = Phase.camera
+    @State private var pendingInvitation: String?
     @State private var receiver = PairingReceiver()
     @State private var operation: Task<Void, Never>?
 
     @State private var imported: [MobileServer] = []
 
     private enum Phase {
+        case networkIssue(PairingError)
         case camera, scanning, connecting, verifying(String)
         case review(IncomingMacTransfer, MacTransferReview)
         case acknowledging(String), saved(String), failed(String)
@@ -26,14 +30,27 @@ struct MacTransferView: View {
         NavigationStack {
             Group {
                 switch phase {
+                case .networkIssue(let error):
+                    ContentUnavailableView {
+                        Label("Find your Mac", systemImage: "network")
+                    } description: { Text(LocalizedStringKey(error.localizedDescription)) } actions: {
+                        if error == .localNetworkDenied, let settings = URL(string: UIApplication.openSettingsURLString) {
+                            Button("Open Settings") { openURL(settings) }
+                        }
+                        Button("Try Again") { retryConnection() }
+                        Button("Scan New Code") { scanAgain() }
+                    }
                 case .camera:
                     ProgressView("Preparing camera…")
                 case .scanning:
                     VStack {
                         Text("On your Mac, open Transfer to iPhone, then point your camera at its QR code.")
                             .padding()
-                        MacQRScanner(found: connect) { message in
-                            if case .scanning = phase { phase = .failed(message) }
+                        if scenePhase == .active {
+                            MacQRScanner(found: connect) { message in
+                                guard case .scanning = phase, UIApplication.shared.applicationState == .active else { return }
+                                phase = .failed(message)
+                            }
                         }
                     }
                 case .connecting:
@@ -62,9 +79,9 @@ struct MacTransferView: View {
                                 case .skip: Text("Keep existing server")
                                 }
                                 if let credential = row.credentialLabel {
-                                    Label(credential, systemImage: "key").font(.caption)
+                                    Label(LocalizedStringKey(credential), systemImage: "key").font(.caption)
                                 }
-                                if let note = row.note { Text(note).font(.caption).foregroundStyle(.secondary) }
+                                if let note = row.note { Text(LocalizedStringKey(note)).font(.caption).foregroundStyle(.secondary) }
                             }
                         }
                         Section {
@@ -79,12 +96,12 @@ struct MacTransferView: View {
                     } else {
                         ContentUnavailableView {
                             Label("Transfer Complete", systemImage: "checkmark.circle")
-                        } description: { Text(detail) } actions: { Button("Done") { dismiss() } }
+                        } description: { Text(LocalizedStringKey(detail)) } actions: { Button("Done") { dismiss() } }
                     }
                 case .failed(let message):
                     ContentUnavailableView {
                         Label("Transfer Unavailable", systemImage: "exclamationmark.circle")
-                    } description: { Text(message) } actions: { Button("Close") { dismiss() } }
+                    } description: { Text(LocalizedStringKey(message)) } actions: { Button("Close") { dismiss() } }
                 }
             }
             .navigationTitle("Transfer from Mac")
@@ -96,27 +113,45 @@ struct MacTransferView: View {
             }
         }
         .interactiveDismissDisabled(acknowledging)
-        .task {
-            guard case .camera = phase else { return }
+        .task(id: scenePhase == .active) {
+            guard scenePhase == .active, case .camera = phase else { return }
             guard DataScannerViewController.isSupported else {
                 phase = .failed("Scan the Mac’s QR code on an iPhone or iPad with a supported camera.")
                 return
             }
             let granted = await AVCaptureDevice.requestAccess(for: .video)
-            guard !Task.isCancelled else { return }
+            guard !Task.isCancelled, UIApplication.shared.applicationState == .active else { return }
+            LocalNetworkPermission.requestOnEntry()
             guard granted, DataScannerViewController.isAvailable else {
                 phase = .failed("Allow camera access in Settings and check that the camera is available.")
                 return
             }
             phase = .scanning
         }
-        .onDisappear { stop(); phase = .camera }
+        .onDisappear { stop(); pendingInvitation = nil }
         .onChange(of: scenePhase) { _, status in
+            if status == .active {
+                if case .networkIssue(.localNetworkDenied) = phase { retryConnection(keepPermissionNotice: true) }
+                else { receiver.resumeConnectionIfWaiting() }
+            }
+            if status == .background {
+                switch phase {
+                case .camera, .scanning:
+                    phase = .camera
+                    return
+                default: break
+                }
+            }
+            if status == .background, case .networkIssue = phase {
+                stop()
+                return
+            }
             if status == .background {
                 stop()
+                pendingInvitation = nil
                 if case .saved = phase { return }
                 if case .acknowledging(let summary) = phase {
-                    phase = .saved("\(summary) Your Mac may not have received confirmation.")
+                    phase = .saved(String(localized: "\(summary) Your Mac may not have received confirmation.", bundle: languageBundle))
                     return
                 }
                 phase = .failed("Transfer closed. Start a new transfer on your Mac.")
@@ -126,11 +161,28 @@ struct MacTransferView: View {
 
     private func connect(_ invitation: String) {
         guard case .scanning = phase else { return }
-        phase = .connecting
+        pendingInvitation = invitation
+        retryConnection()
+    }
+
+    private func scanAgain() {
+        stop()
+        pendingInvitation = nil
+        phase = .scanning
+    }
+
+    private func retryConnection(keepPermissionNotice: Bool = false) {
+        guard let invitation = pendingInvitation else { return }
+        stop()
+        let receiver = PairingReceiver()
+        self.receiver = receiver
+        if !keepPermissionNotice { phase = .connecting }
         operation = Task { @MainActor in
             do {
                 let data = try await receiver.receive(invitation: invitation) { code in
-                    if case .connecting = phase { phase = .verifying(code) }
+                    guard !Task.isCancelled, self.receiver === receiver else { return }
+                    pendingInvitation = nil
+                    phase = .verifying(code)
                 }
                 let parse = Task.detached(priority: .userInitiated) { try IncomingMacTransfer(data: data) }
                 let incoming = try await withTaskCancellationHandler { try await parse.value } onCancel: { parse.cancel() }
@@ -143,7 +195,19 @@ struct MacTransferView: View {
             } catch {
                 guard !Task.isCancelled else { return }
                 receiver.cancel()
-                phase = .failed(error.localizedDescription)
+                if let problem = error as? PairingError, pendingInvitation != nil,
+                   problem == .localNetworkDenied || problem == .macNotFound {
+                    phase = .networkIssue(problem)
+                    if problem == .localNetworkDenied {
+                        // The OS can reject the first attempt before the permission prompt is answered.
+                        // Retry only pre-handshake attempts and only while the QR is valid.
+                        do { try await Task.sleep(for: .seconds(2)) } catch { return }
+                        if !Task.isCancelled, scenePhase == .active { retryConnection(keepPermissionNotice: true) }
+                    }
+                } else {
+                    pendingInvitation = nil
+                    phase = .failed(error.localizedDescription)
+                }
             }
         }
     }
@@ -152,11 +216,18 @@ struct MacTransferView: View {
         guard case .review = phase else { return }
         do {
             imported = try store.importTransfer(incoming, reviewed: review)
-            acknowledge("\(review.added) added, \(review.filled) completed, \(review.skipped) kept.")
+            acknowledge(String(localized: "\(review.added) added, \(review.filled) completed, \(review.skipped) kept.", bundle: languageBundle))
         } catch {
             receiver.cancel()
             phase = .failed(error.localizedDescription)
         }
+    }
+
+    private var languageBundle: Bundle {
+        let preferred = Bundle.preferredLocalizations(from: Bundle.main.localizations, forPreferences: [locale.identifier])
+        guard let language = preferred.first, let url = Bundle.main.url(forResource: language, withExtension: "lproj")
+        else { return .main }
+        return Bundle(url: url) ?? .main
     }
 
     private var acknowledging: Bool {
@@ -175,7 +246,7 @@ struct MacTransferView: View {
             }
             catch {
                 guard !Task.isCancelled else { return }
-                phase = .saved("\(summary) Your Mac could not be notified. Your saved servers are ready.")
+                phase = .saved(String(localized: "\(summary) Your Mac could not be notified. Your saved servers are ready.", bundle: languageBundle))
             }
         }
     }
@@ -203,7 +274,7 @@ private struct TransferConnectionsView: View {
         List {
             Section {
                 Label("Transfer Complete", systemImage: "checkmark.circle")
-                Text(summary)
+                Text(LocalizedStringKey(summary))
             } footer: {
                 Text("Compare the fingerprints with your servers’ SSH host keys. Selected servers will be trusted and monitoring will start.")
             }
@@ -219,7 +290,7 @@ private struct TransferConnectionsView: View {
                         } else {
                             Text(server.displayName)
                             if let issue = server.transferSetupIssue ?? failures[server.id] {
-                                Text(issue).font(.caption).foregroundStyle(.secondary)
+                                Text(LocalizedStringKey(issue)).font(.caption).foregroundStyle(.secondary)
                             } else { ProgressView("Looking up host key…").font(.caption) }
                         }
                     }
@@ -237,7 +308,7 @@ private struct TransferConnectionsView: View {
                     Button("Retry Unreachable Servers") { failures.removeAll(); attempt += 1 }
                 }
                 Button("Done") { dismiss() }
-                if let error { Text(error).foregroundStyle(.secondary) }
+                if let error { Text(LocalizedStringKey(error)).foregroundStyle(.secondary) }
             }
         }
         .task(id: "\(attempt)-\(scenePhase == .active)") {

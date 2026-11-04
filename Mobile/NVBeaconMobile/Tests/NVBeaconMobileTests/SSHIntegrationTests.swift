@@ -19,12 +19,14 @@ private final class FixtureAuthentication: NIOSSHServerUserAuthenticationDelegat
 
 private final class FixtureCommand: ChannelInboundHandler {
     typealias InboundIn = SSHChannelData
+    let session: String
+    init(session: String) { self.session = session }
     func userInboundEventTriggered(context: ChannelHandlerContext, event: Any) {
         guard let request = event as? SSHChannelRequestEvent.ExecRequest else { return }
         let channel = context.channel
         if request.wantReply { channel.triggerUserOutboundEvent(ChannelSuccessEvent(), promise: nil) }
         if request.command == "hang" { return }
-        channel.write(SSHChannelData(type: .channel, data: .byteBuffer(ByteBuffer(string: "fixture-stdout"))), promise: nil)
+        channel.write(SSHChannelData(type: .channel, data: .byteBuffer(ByteBuffer(string: request.command == "session-id" ? session : "fixture-stdout"))), promise: nil)
         channel.writeAndFlush(SSHChannelData(type: .stdErr, data: .byteBuffer(ByteBuffer(string: "fixture-stderr"))), promise: nil)
         channel.close(mode: .output).flatMap {
             channel.triggerUserOutboundEvent(SSHChannelRequestEvent.ExitStatus(exitStatus: 7))
@@ -38,13 +40,14 @@ private func withSSHFixture(_ body: (MobileServer) async throws -> Void) async t
     let hostKey = NIOSSHPrivateKey(ed25519Key: key)
     let listener = try await ServerBootstrap(group: MultiThreadedEventLoopGroup.singleton)
         .childChannelInitializer { channel in
+            let session = UUID().uuidString
             do {
                 try channel.pipeline.syncOperations.addHandler(NIOSSHHandler(
                     role: .server(.init(hostKeys: [NIOSSHPrivateKey(ed25519Key: key)], userAuthDelegate: FixtureAuthentication())),
                     allocator: channel.allocator,
                     inboundChildChannelInitializer: { child, _ in
                         do {
-                            try child.pipeline.syncOperations.addHandler(FixtureCommand())
+                            try child.pipeline.syncOperations.addHandler(FixtureCommand(session: session))
                             return child.eventLoop.makeSucceededVoidFuture()
                         } catch { return child.eventLoop.makeFailedFuture(error) }
                     }))
@@ -128,5 +131,21 @@ private func withSSHFixture(_ body: (MobileServer) async throws -> Void) async t
         do { _ = try await transport.execute("hang"); Issue.record("Hung SSH command completed") }
         catch { #expect(error as? MobileError == .timedOut) }
         #expect(startedAt.duration(to: .now) < .seconds(2))
+    }
+}
+
+@Test func foregroundReuseKeepsOneSSHSessionUntilInvalidated() async throws {
+    try await withSSHFixture { server in
+        let credential = MobileCredential(secret: "fixture-only")
+        let transport = SSHTransport(server: server, credential: credential, reusable: true)
+        let first = try await transport.execute("session-id").standardOutput
+        let second = try await transport.execute("session-id").standardOutput
+        #expect(UUID(uuidString: first) != nil && second == first)
+        await transport.invalidate()
+        await #expect(throws: MobileError.connectionClosed) { try await transport.execute("session-id") }
+        let fresh = SSHTransport(server: server, credential: credential)
+        let third = try await fresh.execute("session-id").standardOutput
+        let fourth = try await fresh.execute("session-id").standardOutput
+        #expect(first != third && third != fourth)
     }
 }

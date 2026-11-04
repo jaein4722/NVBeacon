@@ -79,8 +79,7 @@ private final class IPhoneTransfer: ObservableObject {
         operation = Task {
             do {
                 let authorized = try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason:
-                    language.text("Send the reviewed SSH credentials to the iPhone displaying the matching code.",
-                                  "확인 코드가 일치하는 iPhone에 검토한 SSH 인증정보를 전송합니다."))
+                    language.text("Send SSH credentials to your iPhone.", "iPhone으로 SSH 인증정보를 전송합니다."))
                 guard authorized else { throw CancellationError() }
                 try Task.checkCancellation()
                 let batch = try await MacTransferPreparation.materialize(reviewed, batchID: UUID())
@@ -121,52 +120,125 @@ struct IPhoneTransferView: View {
     private func t(_ en: String, _ ko: String) -> String { language.text(en, ko) }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text(t("Transfer to iPhone", "iPhone으로 전송")).font(.title2.bold())
-            switch transfer.stage {
-            case .preparing:
-                ProgressView(t("Checking servers…", "서버 확인 중…"))
-            case .review:
-                review
-            case .starting:
-                ProgressView(t("Starting pairing…", "페어링 준비 중…"))
-            case .scanning(let invitation):
-                Text(t("Connect both devices to the same local network. In NVBeacon on iPhone, choose Transfer from Mac and scan this code.",
-                       "두 기기를 같은 로컬 네트워크에 연결하세요. iPhone의 NVBeacon에서 Mac에서 가져오기를 선택하고 코드를 스캔하세요."))
-                if let image = qrImage(invitation) {
-                    Image(nsImage: image).interpolation(.none).resizable().scaledToFit()
-                        .frame(width: 230, height: 230).padding(22).background(.white)
-                        .accessibilityLabel(t("One-time pairing QR code", "일회용 페어링 QR 코드"))
-                        .frame(maxWidth: .infinity)
-                } else { Text(t("Could not display the pairing code.", "페어링 코드를 표시할 수 없습니다.")) }
-            case .confirm(let code):
-                Text(t("Compare this code with the one on your iPhone. Authorize the transfer only if they match.",
-                       "이 코드를 iPhone에 표시된 코드와 대조하세요. 두 코드가 일치할 때만 전송을 승인하세요."))
-                Text(verbatim: code).font(.system(size: 38, weight: .medium, design: .monospaced))
-                    .frame(maxWidth: .infinity).padding()
-                Button(t("Codes Match — Authorize Transfer", "코드 일치 · 전송 승인")) { transfer.approve(language: language) }
-                    .buttonStyle(.borderedProminent)
-            case .authorizing:
-                ProgressView(t("Authorizing access to credentials…", "인증정보 접근 승인 중…"))
-            case .sending:
-                ProgressView(t("Waiting for the iPhone to finish saving…", "iPhone에서 저장이 완료되기를 기다리는 중…"))
-            case .completed(let count, let needsSetup):
-                Label(t("iPhone finished reviewing \(count) servers", "iPhone에서 서버 \(count)개 처리 완료"), systemImage: "checkmark.circle")
-                if needsSetup > 0 {
-                    Text(t("\(needsSetup) transferred profiles require setup before connecting.", "전송한 프로필 중 \(needsSetup)개는 연결하기 전 추가 설정이 필요합니다."))
+        VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 16) {
+                switch transfer.stage {
+                case .confirm(let code):
+                    Label(t("Verify the code", "확인 코드 대조"), systemImage: "lock.shield")
+                        .font(.title2.bold())
+                    Text(t("Check that the six digits match the code on your iPhone before approving the transfer.",
+                           "iPhone에 표시된 여섯 자리 코드가 아래와 일치하면 전송을 승인하세요."))
+                        .foregroundStyle(.secondary)
+                    Text(verbatim: code)
+                        .font(.system(size: 36, weight: .semibold, design: .monospaced))
+                        .tracking(3)
+                        .frame(maxWidth: .infinity).padding(.vertical, 12)
+                        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 10))
+                        .accessibilityLabel(code.map(String.init).joined(separator: " "))
+                case .authorizing:
+                    waiting(t("Approve on this Mac", "Mac에서 전송 승인"),
+                            detail: t("Use Touch ID or your Mac password to send SSH credentials to your iPhone.",
+                                      "Touch ID 또는 Mac 암호로 SSH 인증정보 전송을 승인하세요."))
+                case .sending:
+                    waiting(t("Finish on your iPhone", "iPhone에서 가져오기"),
+                            detail: t("Review the servers on your iPhone and tap Import All. This window updates when saving finishes.",
+                                      "iPhone에서 서버 목록을 확인하고 ‘모두 가져오기’를 누르세요. 저장이 끝나면 여기에 결과가 표시됩니다."))
+                case .completed(let count, let needsSetup):
+                    HStack(alignment: .top, spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 30)).foregroundStyle(.green)
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text(t("Transfer complete", "전송 완료")).font(.title2.bold())
+                            Text(t("Your iPhone finished reviewing \(count) server profiles.",
+                                   "iPhone에서 서버 설정 \(count)개를 확인했습니다."))
+                            if needsSetup > 0 {
+                                Text(t("\(needsSetup) profiles need additional setup before connecting.",
+                                       "연결하기 전에 서버 \(needsSetup)개의 추가 설정이 필요합니다."))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                default:
+                    Text(t("Transfer to iPhone", "iPhone으로 전송")).font(.title2.bold())
+                    transferStep
                 }
-            case .failed(let message):
-                Text(message)
             }
-            Spacer(minLength: 0)
-            HStack {
-                Spacer()
-                Button(t("Close", "닫기")) { transfer.stop(); close() }.keyboardShortcut(.cancelAction)
-            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .padding(20)
+            footer
         }
-        .padding(22).frame(width: 590, height: 460)
+        .frame(width: 510, height: sheetHeight)
         .task { await transfer.review(settings, language: language) }
         .onDisappear { transfer.stop() }
+    }
+
+    @ViewBuilder private var footer: some View {
+        switch transfer.stage {
+        case .sending:
+            EmptyView()
+        default:
+            Divider()
+            HStack(spacing: 8) {
+                Spacer()
+                switch transfer.stage {
+                case .completed:
+                    Button(t("Done", "완료"), action: dismiss).keyboardShortcut(.defaultAction)
+                case .confirm:
+                    Button(t("Cancel", "취소"), action: dismiss).keyboardShortcut(.cancelAction)
+                    Button(t("Codes Match — Approve", "코드 일치 · 전송 승인")) { transfer.approve(language: language) }
+                        .buttonStyle(.borderedProminent)
+                case .review:
+                    Button(t("Cancel", "취소"), action: dismiss).keyboardShortcut(.cancelAction)
+                    Button(t("Show Pairing Code", "페어링 코드 표시")) { transfer.start(language: language) }
+                        .keyboardShortcut(.defaultAction)
+                case .authorizing:
+                    Button(t("Cancel", "취소"), action: dismiss).keyboardShortcut(.cancelAction)
+                default:
+                    Button(t("Close", "닫기"), action: dismiss).keyboardShortcut(.cancelAction)
+                }
+            }
+            .padding(.horizontal, 20).padding(.vertical, 12)
+        }
+    }
+
+    private var sheetHeight: CGFloat {
+        switch transfer.stage {
+        case .preparing, .review, .starting, .scanning: 440
+        case .confirm, .authorizing, .sending, .completed, .failed: 235
+        }
+    }
+
+    private func waiting(_ title: String, detail: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            ProgressView().controlSize(.small).padding(.top, 3)
+            VStack(alignment: .leading, spacing: 6) {
+                Text(title).font(.headline)
+                Text(detail).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func dismiss() { transfer.stop(); close() }
+
+    @ViewBuilder private var transferStep: some View {
+        switch transfer.stage {
+        case .preparing: ProgressView(t("Checking servers…", "서버 확인 중…"))
+        case .review: review
+        case .starting: ProgressView(t("Starting pairing…", "페어링 준비 중…"))
+        case .scanning(let invitation):
+            Text(t("Connect both devices to the same local network. In NVBeacon on iPhone, choose Transfer from Mac and scan this code.",
+                   "두 기기를 같은 로컬 네트워크에 연결하세요. iPhone의 NVBeacon에서 Mac에서 가져오기를 선택하고 코드를 스캔하세요."))
+                .fixedSize(horizontal: false, vertical: true)
+            if let image = qrImage(invitation) {
+                Image(nsImage: image).interpolation(.none).resizable().scaledToFit()
+                    .frame(width: 218, height: 218).padding(20).background(.white)
+                    .accessibilityLabel(t("One-time pairing QR code", "일회용 페어링 QR 코드"))
+                    .frame(maxWidth: .infinity)
+            } else { Text(t("Could not display the pairing code.", "페어링 코드를 표시할 수 없습니다.")) }
+        case .failed(let message): Text(message)
+        case .confirm, .authorizing, .sending, .completed: EmptyView()
+        }
     }
 
     private var review: some View {
@@ -203,11 +275,10 @@ struct IPhoneTransferView: View {
                     }
                 }
             }
+            .frame(maxHeight: .infinity)
             Text(t("Keys protected with a passphrase may need to be unlocked on iPhone. Servers arrive disabled.",
                    "암호가 걸린 키는 iPhone에서 키 암호 입력이 필요할 수 있습니다. 가져온 서버는 비활성 상태로 추가됩니다."))
                 .font(.caption).foregroundStyle(.secondary)
-            Button(t("Show Pairing Code", "페어링 코드 표시")) { transfer.start(language: language) }
-                .buttonStyle(.borderedProminent)
         }
     }
 

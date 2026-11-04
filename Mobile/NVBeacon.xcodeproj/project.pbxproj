@@ -35,7 +35,7 @@
 			buildConfigurationList = A10000000000000000000030;
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
+			knownRegions = (en, Base, ko);
 			mainGroup = A10000000000000000000005;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (A10000000000000000000023, A10000000000000000000024, A10000000000000000000027);

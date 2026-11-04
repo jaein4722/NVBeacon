@@ -1,5 +1,15 @@
 import Foundation
 
+public enum BusyDetectionMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case activeProcess
+    case memoryThreshold
+    case activeProcessOrMemoryThreshold
+    case utilizationThreshold
+
+    public var id: String { rawValue }
+
+}
+
 public struct GPUReading: Identifiable, Equatable, Sendable {
     public let index: Int
     public let name: String
@@ -54,6 +64,19 @@ public struct GPUReading: Identifiable, Equatable, Sendable {
         processes.isEmpty ? "No active processes" : "\(processes.count) active process\(processes.count == 1 ? "" : "es")"
     }
 
+    public func isBusy(mode: BusyDetectionMode, memoryThresholdMB: Int, utilizationThreshold: Int) -> Bool {
+        switch mode {
+        case .activeProcess:
+            return !processes.isEmpty
+        case .memoryThreshold:
+            return memoryUsedMB > memoryThresholdMB
+        case .activeProcessOrMemoryThreshold:
+            return !processes.isEmpty || memoryUsedMB > memoryThresholdMB
+        case .utilizationThreshold:
+            return utilization >= utilizationThreshold
+        }
+    }
+
     public func isIdle(memoryThresholdMB: Int) -> Bool {
         utilization == 0 && memoryUsedMB <= memoryThresholdMB
     }
@@ -95,15 +118,17 @@ public struct GPUSnapshot: Equatable, Sendable {
     public let takenAt: Date
     public let gpus: [GPUReading]
     public init(takenAt: Date, gpus: [GPUReading], hostMemory: HostMemoryReading? = nil,
-                hostCPU: Int? = nil, networkSample: NetworkSample? = nil, hostCPUSample: HostCPUSample? = nil) {
+                hostCPU: Int? = nil, networkSample: NetworkSample? = nil, hostCPUSample: HostCPUSample? = nil, sshUserID: Int? = nil) {
         self.takenAt = takenAt
         self.gpus = gpus
         self.hostMemory = hostMemory
         self.hostCPU = hostCPU
         self.networkSample = networkSample
         self.hostCPUSample = hostCPUSample
+        self.sshUserID = sshUserID
     }
 
+    public var sshUserID: Int? = nil
     public var hostMemory: HostMemoryReading? = nil
     public var hostCPU: Int? = nil
     public var networkSample: NetworkSample? = nil
@@ -154,7 +179,7 @@ public struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample, hostCPUSample: hostCPUSample)
+        return GPUSnapshot(takenAt: takenAt, gpus: mergedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample, hostCPUSample: hostCPUSample, sshUserID: sshUserID)
     }
 
     public func applyingResolvedProcessMetadata(_ processes: [GPUProcessReading]) -> GPUSnapshot {
@@ -182,7 +207,7 @@ public struct GPUSnapshot: Equatable, Sendable {
             )
         }
 
-        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample, hostCPUSample: hostCPUSample)
+        return GPUSnapshot(takenAt: takenAt, gpus: updatedGPUs, hostMemory: hostMemory, hostCPU: hostCPU, networkSample: networkSample, hostCPUSample: hostCPUSample, sshUserID: sshUserID)
     }
 }
 

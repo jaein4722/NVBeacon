@@ -79,10 +79,11 @@ public struct TransferServer: Codable, Sendable {
     public let hostCommand: String?
     public let credentialID: UUID?
     public let setupIssue: String?
+    public let connectionReuseMode: String?
 
     public init(id: UUID, name: String, host: String, username: String, port: Int,
                 authentication: String, gpuCommand: String, memoryCommand: String,
-                hostCommand: String?, credentialID: UUID?, setupIssue: String?) {
+                hostCommand: String?, credentialID: UUID?, setupIssue: String?, connectionReuseMode: String? = nil) {
         self.id = id
         self.name = name
         self.host = host
@@ -94,6 +95,7 @@ public struct TransferServer: Codable, Sendable {
         self.hostCommand = hostCommand
         self.credentialID = credentialID
         self.setupIssue = setupIssue
+        self.connectionReuseMode = connectionReuseMode
     }
 }
 

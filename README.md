@@ -231,7 +231,7 @@ The platform-independent models, parser, query format and server archive schema 
 
 ### iOS Preview
 
-A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, automatic OpenSSH Ed25519/RSA/ECDSA key detection, host-key verification, GPU/process/RAM dashboards and reviewed server backup import. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
+A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, automatic OpenSSH Ed25519/RSA/ECDSA key detection, host-key verification, GPU, process, CPU, memory and network dashboards, and reviewed server backup import. Foreground SSH sessions can be reused. English and Korean are available on iOS. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
 
 ```bash
 ./scripts/build_ios.sh

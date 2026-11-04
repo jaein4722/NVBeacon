@@ -221,14 +221,7 @@ enum SSHPasswordSessionState: Equatable, Sendable {
     }
 }
 
-enum BusyDetectionMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
-    case activeProcess
-    case memoryThreshold
-    case activeProcessOrMemoryThreshold
-    case utilizationThreshold
-
-    var id: String { rawValue }
-
+extension BusyDetectionMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .activeProcess:

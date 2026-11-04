@@ -5,8 +5,10 @@ import NVBeaconCore
 public struct ServerReading: Sendable {
     public var snapshot: GPUSnapshot?
     public var error: String?
+    fileprivate var errorCategory: String?
     public var hostKey: String?
     public var fingerprint: String?
+    public var networkUsage: NetworkUsage?
     public init() {}
 }
 
@@ -24,18 +26,58 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
             generation = UUID()
         }
     }
+    public var collectsCPU: Bool { didSet { changeCollection("collectsCPU", collectsCPU) } }
+    public var collectsMemory: Bool { didSet { changeCollection("collectsMemory", collectsMemory) } }
+    public var collectsNetwork: Bool { didSet { changeCollection("collectsNetwork", collectsNetwork) } }
+    public var highlightMine: Bool { didSet { defaults.set(highlightMine, forKey: "highlightMine") } }
+    public var busyMode: BusyDetectionMode { didSet { defaults.set(busyMode.rawValue, forKey: "busyMode") } }
+    public var memoryThreshold: Int { didSet { defaults.set(memoryThreshold, forKey: "busyMB") } }
+    public var utilizationThreshold: Int { didSet { defaults.set(utilizationThreshold, forKey: "busyPercent") } }
+
+    public func isBusy(_ gpu: GPUReading) -> Bool {
+        gpu.isBusy(mode: busyMode, memoryThresholdMB: memoryThreshold, utilizationThreshold: utilizationThreshold)
+    }
+
+    public func isMine(_ process: GPUProcessReading, on server: MobileServer) -> Bool {
+        guard highlightMine else { return false }
+        if let uid = readings[server.id]?.snapshot?.sshUserID, let owner = process.userID { return uid == owner }
+        return process.user == server.username
+    }
+
+    private func changeCollection(_ name: String, _ value: Bool) {
+        defaults.set(value, forKey: name)
+        resetBaselines()
+        revision = UUID()
+        generation = UUID()
+    }
+
+    private func resetBaselines() {
+        cpuSamples.removeAll()
+        networkSamples.removeAll()
+    }
+
+    @ObservationIgnored private var cpuSamples: [UUID: HostCPUSample] = [:]
+    @ObservationIgnored private var networkSamples: [UUID: NetworkSample] = [:]
+    @ObservationIgnored private var sessions: [UUID: SSHTransport] = [:]
     @ObservationIgnored private let defaults: UserDefaults
     @ObservationIgnored private let vault: any CredentialStorage
-    @ObservationIgnored private let loader: SnapshotLoader
+    @ObservationIgnored private let loader: SnapshotLoader?
     @ObservationIgnored private var transferState = MobileTransferState()
     @ObservationIgnored private var revision = UUID()
     @ObservationIgnored private var refreshTask: Task<Void, Never>?
 
     public init(defaults: UserDefaults = .standard, vault: any CredentialStorage = CredentialVault(),
-                loader: @escaping SnapshotLoader = MobileStore.loadSnapshot) {
+                loader: SnapshotLoader? = nil) {
         self.defaults = defaults
         self.vault = vault
         self.loader = loader
+        collectsCPU = defaults.object(forKey: "collectsCPU") as? Bool ?? true
+        collectsMemory = defaults.object(forKey: "collectsMemory") as? Bool ?? true
+        collectsNetwork = defaults.object(forKey: "collectsNetwork") as? Bool ?? true
+        highlightMine = defaults.object(forKey: "highlightMine") as? Bool ?? true
+        busyMode = defaults.string(forKey: "busyMode").flatMap(BusyDetectionMode.init(rawValue:)) ?? .activeProcess
+        memoryThreshold = defaults.object(forKey: "busyMB") as? Int ?? 50
+        utilizationThreshold = defaults.object(forKey: "busyPercent") as? Int ?? 10
         refreshInterval = min(300, max(5, defaults.object(forKey: "refreshInterval") as? Int ?? 10))
         if let data = defaults.data(forKey: "mobileServers") {
             do {
@@ -75,6 +117,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
             guard next.count < ServerSettingsBackup.maximumServers else { throw ServerSettingsBackup.BackupError.invalidServerCount }
             next.append(normalized)
         }
+        discardSession(server.id)
         try vault.write(credential, for: server.id)
         try persist(next)
         readings[server.id] = nil
@@ -129,6 +172,11 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         var state = transferState
         state.servers = next
         try writeState(state)
+        for old in servers where !next.contains(old) {
+            discardSession(old.id)
+            cpuSamples[old.id] = nil
+            networkSamples[old.id] = nil
+        }
         servers = next
         if affectsMonitoring {
             revision = UUID()
@@ -242,6 +290,7 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
                 server.port = remote.port
                 guard let auth = SSHAuthenticationMode(rawValue: remote.authentication) else { throw MobileError.invalidServer }
                 server.authentication = auth
+                server.connectionReuseMode = remote.connectionReuseMode.flatMap(SSHConnectionReuseMode.init(rawValue:))
                 server.gpuCommand = remote.gpuCommand
                 server.memoryCommand = remote.memoryCommand
                 server.hostCommand = remote.hostCommand == RemoteMetricCommands.hostInfo(memoryCommand: remote.memoryCommand)
@@ -311,33 +360,62 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
     }
 
     public func refresh() async {
+        let requestedRevision = revision
+        if let previous = refreshTask, previous.isCancelled {
+            await previous.value
+            guard revision == requestedRevision else { return }
+        }
         guard !isRefreshing, !Task.isCancelled else { return }
         isRefreshing = true
-        let work = Task { await collect() }
+        let work = Task {
+            defer { isRefreshing = false; refreshTask = nil }
+            await collect()
+        }
         refreshTask = work
-        defer { isRefreshing = false; refreshTask = nil }
         await withTaskCancellationHandler {
             await work.value
         } onCancel: { work.cancel() }
     }
 
-    public func suspend() { refreshTask?.cancel() }
+    private func discardSession(_ id: UUID) {
+        if let session = sessions.removeValue(forKey: id) { Task { await session.invalidate() } }
+    }
+
+    public func suspend() {
+        revision = UUID()
+        refreshTask?.cancel()
+        resetBaselines()
+        for id in Array(sessions.keys) { discardSession(id) }
+    }
 
     private func collect() async {
         guard !Task.isCancelled else { return }
         let revision = revision
         let loader = loader
+        let options = HostMetricsOptions(cpu: collectsCPU, memory: collectsMemory, network: collectsNetwork)
         // Resolve device-only credentials on the main actor; workers receive values.
-        var jobs: [(MobileServer, MobileCredential)] = []
+        var jobs: [(MobileServer, MobileCredential, SSHTransport)] = []
         for server in servers where server.isEnabled {
-            do { jobs.append((server, try credential(for: server))) }
+            do {
+                let value = try credential(for: server)
+                let reusable = server.reusesConnection && server.pinnedHostKey != nil && loader == nil
+                let transport = sessions[server.id] ?? SSHTransport(server: server, credential: value, reusable: reusable)
+                if reusable { sessions[server.id] = transport }
+                jobs.append((server, value, transport))
+            }
             catch { record(error, for: server.id) }
         }
         await withTaskGroup(of: (UUID, Result<GPUSnapshot, any Error>).self) { group in
             var iterator = jobs.makeIterator()
-            func enqueue(_ job: (MobileServer, MobileCredential)) {
+            func enqueue(_ job: (MobileServer, MobileCredential, SSHTransport)) {
+                let server = job.0
                 group.addTask {
-                    do { return (job.0.id, .success(try await loader(job.0, job.1))) }
+                    do {
+                        let snapshot: GPUSnapshot
+                        if let loader { snapshot = try await loader(server, job.1) }
+                        else { snapshot = try await Self.loadSnapshot(server: server, transport: job.2, options: options) }
+                        return (server.id, .success(snapshot))
+                    }
                     catch { return (job.0.id, .failure(error)) }
                 }
             }
@@ -345,8 +423,23 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
             while let (id, result) = await group.next() {
                 guard !Task.isCancelled, self.revision == revision else { group.cancelAll(); continue }
                 switch result {
-                case .success(let snapshot):
+                case .success(var snapshot):
                     var reading = ServerReading()
+                    let maximum = max(60, Double(refreshInterval) * 4)
+                    if let cpu = snapshot.hostCPUSample {
+                        let old = cpuSamples[id]
+                        snapshot.hostCPU = CPUUsageEvaluator.usage(previous: old, current: cpu, maximumInterval: maximum) ?? snapshot.hostCPU
+                        if old.map({ $0.bootTime != cpu.bootTime || !(0..<1).contains(cpu.takenAt.timeIntervalSince($0.takenAt)) }) ?? true {
+                            cpuSamples[id] = cpu
+                        }
+                    } else { cpuSamples[id] = nil }
+                    if let network = snapshot.networkSample {
+                        let old = networkSamples[id]
+                        reading.networkUsage = NetworkUsageEvaluator.usage(previous: old, current: network, maximumInterval: maximum)
+                        if old.map({ !(0..<1).contains(network.takenAt.timeIntervalSince($0.takenAt)) }) ?? true {
+                            networkSamples[id] = network
+                        }
+                    } else { networkSamples[id] = nil }
                     reading.snapshot = snapshot
                     readings[id] = reading
                 case .failure(let error):
@@ -367,16 +460,42 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         } else if case MobileError.hostKeyChanged(let fingerprint) = error {
             reading.fingerprint = fingerprint
         }
+        switch error as? MobileError {
+        case .hostKeyRequired: reading.errorCategory = "unverified host key"
+        case .hostKeyChanged: reading.errorCategory = "host key changed"
+        case .authenticationFailed, .missingCredential, .cannotUnlockKey, .keyPassphraseRequired: reading.errorCategory = "authentication"
+        case .timedOut: reading.errorCategory = "timeout"
+        case .invalidMetrics, .commandFailed, .outputTooLarge: reading.errorCategory = "remote metrics"
+        case .keychain: reading.errorCategory = "keychain"
+        default: reading.errorCategory = "connection or configuration"
+        }
         reading.error = error.localizedDescription
         readings[id] = reading
     }
 
+    public func diagnostics() -> String {
+        var lines = ["NVBeacon for iOS " + (Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""),
+                     "OS: " + ProcessInfo.processInfo.operatingSystemVersionString,
+                     "Refresh interval: \(refreshInterval)s. CPU: \(collectsCPU), memory: \(collectsMemory), network: \(collectsNetwork)."]
+        for (index, server) in servers.enumerated() {
+            let reading = readings[server.id]
+            let status = server.isEnabled ? reading?.errorCategory ?? (reading?.snapshot == nil ? "waiting" : "ok") : "disabled"
+            let count = reading?.snapshot.map { String($0.gpus.count) } ?? "unknown"
+            lines.append("Server \(index + 1): \(status); GPUs: \(count); SSH reuse: \(server.reusesConnection)")
+        }
+        return lines.joined(separator: "\n")
+    }
+
     nonisolated public static func loadSnapshot(server: MobileServer, credential: MobileCredential) async throws -> GPUSnapshot {
         let transport = SSHTransport(server: server, credential: credential)
+        return try await loadSnapshot(server: server, transport: transport, options: .init())
+    }
+
+    nonisolated private static func loadSnapshot(server: MobileServer, transport: SSHTransport, options: HostMetricsOptions) async throws -> GPUSnapshot {
         let snapshot: GPUSnapshot
         do {
             snapshot = try await MetricsCollector(transport: transport)
-                .fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostCommand: server.hostCommand)
+                .fetchSummary(gpuCommand: server.gpuCommand, memoryCommand: server.memoryCommand, hostMetrics: options, hostCommand: server.hostCommand)
         } catch MetricsCollectionError.commandFailed(let status, let message) {
             throw MobileError.commandFailed(status, message)
         } catch is MetricsParseError { throw MobileError.invalidMetrics }
@@ -385,16 +504,22 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         // Process ownership is optional; a failed metadata lookup preserves GPU data.
         do {
             let pidList = pids.map(String.init).joined(separator: ",")
-            let output = try await transport.execute("ps -ww -p \(pidList) -o pid=,uid=,user=,args= 2>/dev/null || true")
+            let output = try await transport.execute("printf 'uid=%s\\n' \"$(id -u 2>/dev/null)\"; ps -ww -p \(pidList) -o pid=,uid=,user=,args= 2>/dev/null || true")
             guard output.exitStatus == 0 else { return snapshot }
-            let details = try MetricsParser.parseDetailedPSSection(output.standardOutput)
+            let parts = output.standardOutput.split(separator: "\n", maxSplits: 1)
+            let hasUIDLine = parts.first?.hasPrefix("uid=") == true
+            let uid = hasUIDLine ? parts.first.flatMap { Int($0.dropFirst(4)) } : nil
+            let psOutput = hasUIDLine ? String(parts.dropFirst().first ?? "") : output.standardOutput
+            let details = try MetricsParser.parseDetailedPSSection(psOutput)
             let byPID = Dictionary(details.map { ($0.pid, $0) }, uniquingKeysWith: { _, last in last })
             let processes = snapshot.gpus.flatMap(\.processes).map { process in
                 GPUProcessReading(gpuUUID: process.gpuUUID, pid: process.pid, processName: process.processName,
                     usedGPUMemoryMB: process.usedGPUMemoryMB, userID: byPID[process.pid]?.userID,
                     user: byPID[process.pid]?.user, commandLine: byPID[process.pid]?.commandLine)
             }
-            return snapshot.applyingResolvedProcessMetadata(processes)
+            var resolved = snapshot.applyingResolvedProcessMetadata(processes)
+            resolved.sshUserID = uid
+            return resolved
         } catch is CancellationError { throw CancellationError() }
         catch { return snapshot }
     }
