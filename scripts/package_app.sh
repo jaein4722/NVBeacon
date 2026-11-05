@@ -248,6 +248,10 @@ ${ICON_PLIST_ENTRY}  <key>CFBundleIdentifier</key>
   <string>${BUILD_NUMBER}</string>
   <key>LSMinimumSystemVersion</key>
   <string>${MIN_SYSTEM_VERSION}</string>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>NVBeacon connects to your iPhone to transfer servers and credentials when you approve pairing.</string>
+  <key>NSBonjourServices</key>
+  <array><string>_nvbeacon-xfer._tcp</string></array>
   <key>LSUIElement</key>
   <true/>
   <key>NSHighResolutionCapable</key>

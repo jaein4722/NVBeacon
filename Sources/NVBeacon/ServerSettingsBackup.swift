@@ -7,6 +7,40 @@ extension ServerSettingsBackup {
         self.init(servers: settings.normalized().configuredServers.map(Entry.init))
     }
 
+    static func portableExport(settings: AppSettings, configFile: URL? = nil) async throws -> Self {
+        let servers = settings.normalized().configuredServers
+        try Self(servers: servers.map(Entry.init)).validate()
+        var entries: [Entry] = []
+        for server in servers {
+            let endpoint = try await EffectiveSSHProfile.resolve(server, settings: settings, configFile: configFile)
+            if let proxy = endpoint.proxy { throw ExportError.requiresProxy(server.displayName, proxy) }
+            var resolved = server
+            resolved.name = server.displayName
+            resolved.sshTarget = "\(endpoint.user)@\(endpoint.host)"
+            resolved.sshPort = String(endpoint.port)
+            entries.append(Entry(resolved))
+        }
+        let backup = Self(servers: entries)
+        try backup.validate()
+        return backup
+    }
+
+    enum ExportError: Error, Equatable {
+        case unresolved(String)
+        case requiresProxy(String, String)
+
+        func message(in language: AppInterfaceLanguage) -> String {
+            switch self {
+            case .unresolved(let name):
+                language.text("Could not resolve the SSH endpoint for \(name). Check the SSH configuration.",
+                              "\(name)의 SSH 주소를 확인할 수 없습니다. SSH 설정을 확인하세요.")
+            case .requiresProxy(let name, let option):
+                language.text("\(name) requires \(option). The backup format cannot store that route.",
+                              "\(name) 연결에는 \(option) 설정이 필요합니다. 이 경유 경로는 백업 형식에 저장할 수 없습니다.")
+            }
+        }
+    }
+
     static func read(from url: URL) throws -> Self {
         let accessed = url.startAccessingSecurityScopedResource()
         defer { if accessed { url.stopAccessingSecurityScopedResource() } }

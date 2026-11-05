@@ -223,3 +223,37 @@ private func fixtureServer(_ id: String, enabled: Bool = true) -> ServerConfig {
     #expect(report.contains("Host RAM KiB: total=1000, available=500"))
     #expect(report.contains("Custom (omitted)"))
 }
+
+@Test func portableExportResolvesOpenSSHProfilesOnlyForTheArchive() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let config = directory.appendingPathComponent("config")
+    let hosts = directory.appendingPathComponent("hosts")
+    try "Include \"\(hosts.path)\"\n".write(to: config, atomically: true, encoding: .utf8)
+    try """
+        Host lab
+          HostName gpu.example.invalid
+          User researcher
+          Port 2200
+        """.write(to: hosts, atomically: true, encoding: .utf8)
+
+    var server = fixtureServer("profile")
+    server.sshTarget = "lab"
+    var override = fixtureServer("override")
+    override.sshTarget = "alternate@lab"
+    override.sshPort = "2222"
+    let settings = AppSettings(servers: [server, override])
+    let archive = try await ServerSettingsBackup.portableExport(settings: settings, configFile: config)
+    let decoded = try ServerSettingsBackup.decode(archive.encoded())
+    #expect(decoded.servers.map(\.sshTarget) == ["researcher@gpu.example.invalid", "alternate@gpu.example.invalid"])
+    #expect(decoded.servers.map(\.sshPort) == ["2200", "2222"])
+    #expect(decoded.servers.map(\.name) == [server.name, override.name])
+    #expect(settings.servers.first?.sshTarget == "lab")
+    for directive in ["ProxyJump gateway", "ProxyCommand false"] {
+        try "Host lab\n  \(directive)\n".write(to: hosts, atomically: true, encoding: .utf8)
+        await #expect(throws: ServerSettingsBackup.ExportError.self) {
+            try await ServerSettingsBackup.portableExport(settings: settings, configFile: config)
+        }
+    }
+}

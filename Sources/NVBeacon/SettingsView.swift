@@ -23,6 +23,7 @@ struct SettingsView: View {
     @State private var utilitySheet: SettingsUtilitySheet?
     @State private var utilityError: String?
     @State private var utilityNotice: String?
+    @State private var isPreparingExport = false
     @State private var isReadingBackup = false
 
     private var selectedSSHConfigHost: SSHConfigHost? {
@@ -203,6 +204,8 @@ struct SettingsView: View {
                     importServers: { importServerBackup(backup) },
                     cancel: { utilitySheet = nil }
                 )
+            case .transfer:
+                IPhoneTransferView(settings: draft, language: language) { utilitySheet = nil }
             case .diagnostics(let report):
                 DiagnosticsPreviewView(report: report, language: language, close: { utilitySheet = nil })
             }
@@ -582,11 +585,13 @@ struct SettingsView: View {
             Section {
                 HStack {
                     Button(t("Export Servers…", "서버 내보내기…"), action: exportServerBackup)
-                        .disabled(draft.configuredServers.isEmpty)
+                        .disabled(draft.configuredServers.isEmpty || isReadingBackup || isPreparingExport)
                     Button(t("Import Servers…", "서버 가져오기…")) { showsServerImporter = true }
-                        .disabled(isReadingBackup)
-                    if isReadingBackup { ProgressView().controlSize(.small) }
+                        .disabled(isReadingBackup || isPreparingExport)
+                    if isReadingBackup || isPreparingExport { ProgressView().controlSize(.small) }
                 }
+                Button(t("Transfer All Servers to iPhone…", "iPhone으로 모든 서버 전송…")) { utilitySheet = .transfer }
+                    .disabled(draft.configuredServers.isEmpty || isReadingBackup || isPreparingExport)
                 if let utilityNotice {
                     Text(utilityNotice).font(.caption).foregroundStyle(.secondary)
                 }
@@ -745,12 +750,21 @@ struct SettingsView: View {
     }
 
     private func exportServerBackup() {
-        do {
-            serverBackupDocument = ServerBackupDocument(data: try ServerSettingsBackup(settings: draft).encoded())
-            utilityNotice = nil
-            showsServerExporter = true
-        } catch {
-            showUtilityError(error)
+        guard !isPreparingExport else { return }
+        isPreparingExport = true
+        let settings = draft
+        Task { @MainActor in
+            defer { isPreparingExport = false }
+            do {
+                let backup = try await ServerSettingsBackup.portableExport(settings: settings)
+                serverBackupDocument = ServerBackupDocument(data: try backup.encoded())
+                utilityNotice = nil
+                showsServerExporter = true
+            } catch let error as ServerSettingsBackup.ExportError {
+                utilityError = error.message(in: language)
+            } catch {
+                showUtilityError(error)
+            }
         }
     }
 
