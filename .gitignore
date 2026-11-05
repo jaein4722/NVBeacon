@@ -13,6 +13,7 @@ xcuserdata/
 .env
 .env.*
 *.local
+*.local.md
 *.p12
 *.mobileprovision
 *.keychain-db

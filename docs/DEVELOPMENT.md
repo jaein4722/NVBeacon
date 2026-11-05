@@ -1,6 +1,6 @@
 # Development Guide
 
-This document is for contributors and maintainers of NVBeacon.
+This document is for contributors. Maintainers handle releases, signing, and distribution.
 
 ## GitHub Flow
 
@@ -9,12 +9,12 @@ NVBeacon follows GitHub Flow. `master` is the release-ready default branch.
 1. Update a clean local `master` with `git pull --ff-only origin master`.
 2. Create a short-lived branch for the change: `feat/<topic>`, `fix/<topic>`,
    `chore/<topic>`, or `docs/<topic>`.
-3. Commit focused changes, push the branch, and open a pull request targeting
-   `master`. Link the related issue when there is one.
+3. Commit focused changes. After explicit approval, push the branch and open a pull
+   request targeting `master`, following the format in [AGENTS.md](../AGENTS.md).
+   Link the related issue when there is one.
 4. Run the relevant tests and complete review before merging the pull request.
    Squash intermediate commits when practical.
-5. Delete the merged branch when it is no longer needed. Create release tags
-   from verified commits on `master` using the release workflow below.
+5. Delete the merged branch when it is no longer needed.
 
 Urgent fixes follow the same process on a `fix/<topic>` branch. Do not introduce
 long-lived `develop`, `release/*`, or `hotfix/*` branches.
@@ -22,15 +22,7 @@ long-lived `develop`, `release/*`, or `hotfix/*` branches.
 Keep unrelated work separate. If the current worktree contains in-progress
 changes, preserve it, fetch `origin/master`, and create a separate branch and
 worktree from that ref. Do not switch or pull over uncommitted work to start an
-unrelated change. Code fetched from a contributor fork can be reviewed separately;
-accepted changes go through a feature branch and pull request, with credit to
-the contributor.
-
-Preserve original contributor commits and authorship when integrating forked
-work. Keep adaptations and fixes in follow-up commits and describe both the
-original contribution and the adjustments in the pull request. Use `git
-cherry-pick -x` if replaying a commit is necessary. When squashing a contribution,
-retain the contributor's credit with a `Co-authored-by` trailer.
+unrelated change.
 
 ## Prerequisites
 
@@ -193,75 +185,13 @@ Supported environment variables:
 
 If `icon.png` exists at the repository root, the packaging script automatically converts it into an `.icns` asset and embeds it in the app bundle.
 
-## Signing and Notarization
+Local builds are ad-hoc signed by default, which is fine for personal testing. Official
+releases are built by the maintainer's tag-triggered release workflow.
 
-Ad-hoc local builds are fine for personal testing. Public distribution without Gatekeeper warnings requires:
+## Landing Page
 
-1. a `Developer ID Application` certificate
-2. notarization
-
-Example:
-
-```bash
-xcrun notarytool store-credentials "NVBeaconNotary"
-
-CODESIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" \
-NOTARIZE=1 \
-KEYCHAIN_PROFILE="NVBeaconNotary" \
-./scripts/package_app.sh
-```
-
-For CI, App Store Connect API key authentication is generally more robust than
-Apple ID + app-specific password. The package script supports both.
-
-## Release Flow
-
-NVBeacon uses tag-based GitHub Releases.
-
-Typical release sequence:
-
-1. prepare the final release candidate and update `CHANGELOG.md` on a short-lived branch
-2. merge it into `master` through a reviewed pull request with passing checks
-3. verify `swift test` passes on the release commit on `master`
-4. create and push a version tag
-
-Example:
-
-```bash
-git tag v0.6.1
-git push origin v0.6.1
-```
-
-The release workflow:
-
-- builds the DMG on a macOS runner
-- imports the Developer ID certificate with `apple-actions/import-codesign-certs`
-- notarizes the app bundle and DMG with `notarytool`
-- publishes the GitHub Release
-- sets an SEO-friendly release title for remote NVIDIA GPU monitoring on macOS
-- prepends a keyword-rich product summary before the version-specific notes
-- uses the matching `CHANGELOG.md` section as the version-specific release notes
-- generates a Sparkle `appcast.xml`
-- publishes the latest appcast to the `appcast` branch
-- syncs the Homebrew cask repository
-
-## GitHub Pages
-
-The repository also includes a lightweight marketing/SEO landing page under `site/`.
-
-- source files live in `site/`
-- deployment workflow lives in `.github/workflows/pages.yml`
-- Pages should be configured to deploy from GitHub Actions
-- published URL:
-
-```text
-https://jaein4722.github.io/NVBeacon/
-```
-
-Release page wording should stay aligned with the repository positioning:
-
-- title format: `NVBeacon X.Y.Z: macOS menu bar app for remote NVIDIA GPU monitoring over SSH`
-- opening summary: mention `macOS`, `remote NVIDIA GPU`, `SSH`, `nvidia-smi`, and alerting features when relevant
+The project landing page lives in `site/` and deploys through
+`.github/workflows/pages.yml`.
 
 ## App Updates
 
@@ -280,98 +210,6 @@ Notes:
 
 - Update installation is most reliable when release builds are Developer ID signed and notarized.
 - The package script embeds `SUPublicEDKey` in the app bundle, and the release workflow signs update archives and the generated appcast feed with Sparkle's EdDSA tools.
-
-### Sparkle Signing Keys
-
-Sparkle uses an EdDSA key pair for signing update archives and appcast feeds.
-
-Generate or inspect your keys with Sparkle's tools:
-
-```bash
-.build/artifacts/sparkle/Sparkle/bin/generate_keys
-.build/artifacts/sparkle/Sparkle/bin/generate_keys -p
-```
-
-For CI-friendly signing, export the private key from your login keychain:
-
-```bash
-.build/artifacts/sparkle/Sparkle/bin/generate_keys -x sparkle-private-key.txt
-```
-
-Repository secrets expected by the release workflow:
-
-- `SPARKLE_PUBLIC_ED_KEY`
-- `SPARKLE_PRIVATE_ED_KEY`
-- `DEVELOPER_ID_P12_BASE64`
-- `DEVELOPER_ID_P12_PASSWORD`
-- `APP_STORE_CONNECT_API_KEY_BASE64`
-- `APP_STORE_CONNECT_API_KEY_ID`
-- `APP_STORE_CONNECT_API_ISSUER_ID`
-- `APPLE_ID`
-- `APPLE_TEAM_ID`
-- `APPLE_APP_PASSWORD`
-
-The release workflow now fails if these secrets are missing, because NVBeacon treats unsigned update feeds as not ready for production use.
-
-### CI Developer ID Certificate
-
-GitHub Actions uses the standard Apple-maintained `apple-actions/import-codesign-certs`
-action to import a `.p12` certificate bundle from repository secrets, then resolves the
-`Developer ID Application` identity from the runner keychain search list.
-
-Recommended flow:
-
-1. Export the `Developer ID Application` certificate and private key from Keychain Access as a `.p12` file.
-2. Protect the export with a strong temporary password.
-3. Base64-encode the file and store it in `DEVELOPER_ID_P12_BASE64`.
-4. Store the export password in `DEVELOPER_ID_P12_PASSWORD`.
-
-Example:
-
-```bash
-base64 < developer-id-application.p12 | pbcopy
-```
-
-The notarization secrets should match the credentials you can use locally with:
-
-```bash
-xcrun notarytool store-credentials "NVBeaconNotary" \
-  --apple-id "you@example.com" \
-  --team-id "TEAMID" \
-  --password "app-specific-password"
-```
-
-### Recommended CI Notarization Authentication
-
-For GitHub Actions, prefer an App Store Connect API key over Apple ID credentials.
-
-Recommended secrets:
-
-- `APP_STORE_CONNECT_API_KEY_BASE64`
-- `APP_STORE_CONNECT_API_KEY_ID`
-- `APP_STORE_CONNECT_API_ISSUER_ID`
-
-Fallback secrets, if you do not use an API key:
-
-- `APPLE_ID`
-- `APPLE_TEAM_ID`
-- `APPLE_APP_PASSWORD`
-
-The release workflow prefers the API key path when those three secrets are present.
-
-## Homebrew Tap Sync
-
-The repository can update the Homebrew cask automatically after a GitHub Release.
-
-Required repository secret:
-
-- `HOMEBREW_TAP_TOKEN`
-
-Recommended token scope:
-
-- fine-grained PAT
-- target repository: `jaein4722/homebrew-tap`
-- permission: `Contents: write`
 
 ## Project Notes
 
