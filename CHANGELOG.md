@@ -1,9 +1,6 @@
 # Changelog
 
-## Unreleased
-
-- Added a native SwiftUI iOS preview for iPhone/iPad using NVBeaconCore, with foreground SSH monitoring, GPU/process/RAM dashboards, device-only Keychain credentials, explicit SSH host-key verification, and reviewed server backup import/export.
-- Added an iOS build entrypoint requiring SDK 27.1 or newer, mobile transport/lifecycle tests, and an iOS development guide documenting the remaining port work. Background job alerts are not included in the preview.
+## 0.7.0 - 2026-11-05
 
 - Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
 - Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
@@ -15,7 +12,8 @@
 - Hid unconfigured swap and moved available RAM into the RAM bar tooltip to keep host information compact.
 - Calculated CPU utilization between regular polls, removing the extra 0.2-second sampling delay while keeping a single SSH query for GPU and host metrics.
 - Suppressed network rates for samples less than one second apart, and retained bond/bridge slave filtering when falling back to `/proc/net/dev` with available interface topology.
-
+- Added a one-time Mac-to-iPhone server transfer in Advanced settings, with QR pairing, a six-digit comparison code, Touch ID or Mac password approval, and an encrypted local-network connection. Transferring needs the iOS app, which is still in the works and not on the App Store yet.
+- Changed server export to record each target's effective username, hostname, and port, so backups no longer depend on local SSH aliases. Export now stops without writing a partial backup when a target requires ProxyJump or ProxyCommand. Normal monitoring still uses the saved SSH target.
 - Thanks @JunbiaoXue for contributing server network and CPU monitoring in #7.
 
 ## 0.6.1 - 2026-11-02

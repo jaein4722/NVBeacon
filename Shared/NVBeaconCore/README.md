@@ -51,6 +51,4 @@ information and register credentials locally; sharing this schema alone does not
 make every existing macOS SSH configuration portable.
 
 The macOS adapter retains import review, private-file handling, fresh local IDs,
-disabled initial imports, and separation from existing credentials. The
-[iOS preview](../../docs/IOS.md) implements its own reviewed import, endpoint
-validation, device-only credentials and host-key trust on top of this schema.
+disabled initial imports, and separation from existing credentials.

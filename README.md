@@ -21,6 +21,9 @@
   </p>
 </div>
 
+> [!NOTE]
+> **NVBeacon for iPhone and iPad is in the works!** It is not on the App Store yet. The Mac app already includes [Transfer All Servers to iPhone](#transfer-all-servers-to-iphone), which will work once the iOS app is released.
+
 ## About
 
 NVBeacon gives you a fast view of one or more remote NVIDIA GPU servers from the macOS menu bar without keeping Terminal open.
@@ -225,19 +228,9 @@ The interface can be set to:
 
 ## For Developers
 
-Development, packaging, test app, and release workflow notes live in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
+Development, packaging, and test app notes live in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
 
 The platform-independent models, parser, query format and server archive schema live in [NVBeaconCore](Shared/NVBeaconCore/README.md). macOS SSH execution, credentials, UI and notifications remain in the app. PR checks run core tests on Linux and app/process-lifecycle tests on macOS.
-
-### iOS Preview
-
-A native iPhone/iPad client is available in `Mobile/NVBeacon.xcodeproj`. It reuses NVBeaconCore and adds in-app SSH, device Keychain credentials, automatic OpenSSH Ed25519/RSA/ECDSA key detection, host-key verification, GPU, process, CPU, memory and network dashboards, and reviewed server backup import. Foreground SSH sessions can be reused. English and Korean are available on iOS. Build with the latest Xcode and iOS SDK **27.1 or newer** (iOS 17+ deployment target):
-
-```bash
-./scripts/build_ios.sh
-```
-
-On Monitor, choose **Edit** to reorder servers or delete a selection with its saved credentials. The preview monitors while the app is in the foreground; macOS job alerts and continuous background monitoring have not been ported. See the [iOS development and porting guide](docs/IOS.md) for device setup, tests, architecture and remaining work.
 
 ## License
 
