@@ -171,6 +171,18 @@ On 2026-11-04, the user verified the full flow on an iPhone running iOS 27.2:
 QR pairing, transfer of credentials for two Oracle VMs, bulk host trust, and
 monitoring with the transferred credentials.
 
+## Credential storage
+
+iOS credentials are generic-password Keychain items using
+`kSecAttrAccessibleWhenUnlockedThisDeviceOnly`, keyed by server ID. They are local to
+the device, not a vault shared with the Mac. Importing a key does not encrypt or
+delete the original file in Files or on the Mac. Signing requires key material in
+app memory, so do not describe this as a non-exportable Secure Enclave key or as
+requiring Face ID on every use. Simulator tests do not establish hardware security.
+
+Mac private-key settings primarily store paths, and OpenSSH may also use its config
+or an agent. A working Mac connection does not prove that an exportable key file exists.
+
 ## Architecture
 
 ```text
@@ -206,38 +218,6 @@ This is a foreground-monitoring preview, not full macOS feature parity.
   passphrase-encrypted PEM/PKCS#8 containers and RSA-SHA512-only servers are not supported.
 
 Individual credential transfers remain a separate milestone. Foreground watches
-and background notification delivery are also outside the initial port.
-
-## Initial validation (2026-11-02)
-
-- Xcode 27.2 / SDK 27.2 simulator and unsigned physical-device builds succeeded.
-- macOS app, portable-core and mobile-package tests passed. Mobile integration
-  tests use temporary loopback SSH servers to exercise password/Ed25519
-  authentication, unknown/changed host-key rejection, both output streams,
-  exit status after EOF, cancellation and hung-command deadlines.
-- The app launched on an iPhone 18 Pro simulator running iOS 27.2; the initial
-  monitor and settings screens were visually inspected.
-- The monitor toolbar label was then constrained to its icon after visual
-  inspection showed an oversized menu. Both builds passed again; a subsequent
-  simulator rerun was blocked because `simctl list runtimes` returned an empty
-  list. That final visual adjustment still needs an interactive recheck.
-- Real GPU-server collection, full interactive server-editor/Files flows and
-  physical-device execution have not yet been validated. A simulator launch
-  does not establish those checks.
-- After a separate Xcode assistant removed module imports, the required imports
-  were restored. A Debug build for the user's existing iPhone 18 Pro destination
-  then succeeded with SDK 27.2 and `ONLY_ACTIVE_ARCH=YES` / arm64, using two build
-  jobs and without booting, installing or launching a simulator. That build also
-  includes the Files sharing configuration. User-side Xcode Run and end-to-end
-  import remain to be checked.
-
-## Interactive import validation (2026-11-02)
-
-The Xcode build and app launch succeeded on the selected iPhone 18 Pro simulator
-with iOS 27.2. Two reviewed imports from a separate local Files folder succeeded:
-an eight-server Mac backup and an eight-server test copy with SSH aliases resolved
-to explicit endpoints. Persisted settings matched their source data, all imports
-remained disabled, and representative editor ports were verified. No credentials
-were imported and no real SSH/GPU-server collection was performed. Resolving
-aliases for the test copy was an external preparation step; the Mac export
-implementation has not yet changed.
+and background notification delivery are also outside the initial port. A reusable
+credential entry would let several servers share one imported key, but requires a
+model change because the vault is keyed by server ID.
