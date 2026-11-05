@@ -3,24 +3,31 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.6.1</title>
-            <pubDate>Mon, 02 Nov 2026 10:59:40 +0000</pubDate>
+            <title>0.7.0</title>
+            <pubDate>Thu, 05 Nov 2026 07:40:42 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.6.1</sparkle:fullReleaseNotesLink>
-            <sparkle:version>25</sparkle:version>
-            <sparkle:shortVersionString>0.6.1</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>26</sparkle:version>
+            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Hardened SSH command execution by draining standard output and standard error while commands run, preventing full output pipes from blocking polling.
-- Improved cancellation and timeout cleanup so local SSH commands are terminated and reaped, including commands that ignore normal termination. Cancelled collection does not start a retry.
-- Limited captured command output to 8 MiB per command to keep unusually large responses from growing memory without a bound.
-- Prevented duplicate process metadata from causing a crash; the latest matching reading is retained.
-- Extracted platform-independent models, parsers, collection logic, and the existing server backup format into NVBeaconCore, while keeping macOS SSH execution and credential handling in the app.
-- Added process lifecycle regression tests, shared-core tests, and macOS/Linux CI checks.
+- Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
+- Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
+- Grouped CPU, RAM/Swap, and network metrics in one host information section, expanded by default, with a saved expand/collapse state per server.
+- Added collapsible server cards, expanded by default, with saved states independent of each server's host information section. Collapsing either section keeps polling and alerts running.
+- Unified GPU and host query editors as matching single-line fields, preserving multiline script behavior through an executable single-line representation.
+- Replaced the per-server memory-only command editor with a complete host information script for CPU, RAM/Swap, and network collection; preserved existing custom memory queries through migration. Server backup v2 preserves host scripts and still imports v1 backups.
+- Added host information collection controls in General settings: turn all collection off or select CPU, memory, and network individually. Individual switches are hidden while collection is off, with their choices retained. The default host script skips disabled probes.
+- Hid unconfigured swap and moved available RAM into the RAM bar tooltip to keep host information compact.
+- Calculated CPU utilization between regular polls, removing the extra 0.2-second sampling delay while keeping a single SSH query for GPU and host metrics.
+- Suppressed network rates for samples less than one second apart, and retained bond/bridge slave filtering when falling back to `/proc/net/dev` with available interface topology.
+- Added a one-time Mac-to-iPhone server transfer in Advanced settings, with QR pairing, a six-digit comparison code, Touch ID or Mac password approval, and an encrypted local-network connection. Transferring needs the iOS app, which is still in the works and not on the App Store yet.
+- Changed server export to record each target's effective username, hostname, and port, so backups no longer depend on local SSH aliases. Export now stops without writing a partial backup when a target requires ProxyJump or ProxyCommand. Normal monitoring still uses the saved SSH target.
+- Thanks @JunbiaoXue for contributing server network and CPU monitoring in #7.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.6.1/NVBeacon-0.6.1.dmg" length="4173873" type="application/octet-stream" sparkle:edSignature="Vsc6AICwYTasE/OzDu7Y/ConFU8VyVTz6kYRp2vgmjJDq4qfn4qmL/mUDh1uL+3eWet4emkhgHo3rhC+RsB2DA=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.7.0/NVBeacon-0.7.0.dmg" length="4733636" type="application/octet-stream" sparkle:edSignature="151fC/x03tFlUSke+GHeyC22bAMOOiTvGMl0pOAosJZxAIJq2i2dLQ0rztM9uPT+feRpGo3OUJohpR2WglxgCg=="/>
         </item>
     </channel>
 </rss>
