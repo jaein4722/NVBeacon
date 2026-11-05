@@ -46,7 +46,7 @@ The `NVBeacon.servers` v2 JSON schema adds the complete `hostCommand`. Version 1
 archives remain readable and migrate their memory command into the full host
 script; re-exports use v2. SSH targets and identity paths
 are opaque data in core. A target may be an OpenSSH alias and a path may refer to
-another machine. A future iOS/Windows client must resolve/import suitable endpoint
+another machine. Non-macOS clients must resolve/import suitable endpoint
 information and register credentials locally; sharing this schema alone does not
 make every existing macOS SSH configuration portable.
 

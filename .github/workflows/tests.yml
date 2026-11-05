@@ -44,3 +44,5 @@ jobs:
         run: swift test --build-system native
       - name: Test shared core
         run: swift test --package-path Shared/NVBeaconCore --build-system native
+      - name: Test server transfer
+        run: swift test --package-path Shared/NVBeaconTransfer --build-system native
