@@ -62,6 +62,7 @@ Each server can show Linux CPU utilization, RAM usage, configured swap, and netw
 - Remote NVIDIA GPU monitoring over `ssh` using `nvidia-smi`
 - Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
 - Per-GPU utilization, memory, temperature, and process count
+- Opt-in 24-hour per-user GPU history in a separate window
 - Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
 - Per-server CPU usage, grouped host information, and saved expand/collapse state
 - Per-server network usage with download and upload rates plus total transferred bytes
@@ -155,6 +156,25 @@ NVBeacon supports two kinds of work alerts for remote GPU jobs:
 - `GPU Idle`: star a GPU and get notified when it stays idle long enough for the next job
 
 You can manage notification permission, active watches, and recent notification history from the `Notifications` tab in Settings.
+
+## GPU History
+
+Turn on **Record GPU history** in settings, then click the chart button in the
+popover header to open the **GPU History** window. Pick a server, a GPU, and a
+1h, 5h, 12h, or 24h range. Colored layers stack each remote user's summed
+process SM utilization; the gray line is the GPU's total utilization. These come
+from different sampling windows, so layers are not exact shares of the total.
+
+Recording is off by default and costs nothing when off. When on:
+
+- Per-user sampling (`nvidia-smi pmon -s u -c 1` plus a PID owner lookup) runs at
+  most once a minute per server, alongside the regular refresh, so it does not
+  slow refreshes down. Nothing is installed on the server.
+- Each completed minute is appended to
+  `~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/` as one short
+  JSON line per GPU. The file is rewritten only every six hours to drop data
+  older than 24 hours.
+- Charts exist only while the window is open. Closing it releases them.
 
 ## Settings Overview
 

@@ -13,10 +13,11 @@ private struct ServerRefreshContext: Sendable {
     let password: String?
     let detectedSSHUsername: String?
     let detectedSSHUserID: Int?
+    let samplesUserUtilization: Bool
 }
 
 private enum ServerRefreshResult: Sendable {
-    case success(serverID: String, reading: ServerReading, detectedSSHUserID: Int?)
+    case success(serverID: String, reading: ServerReading, detectedSSHUserID: Int?, userUtilization: [Int: [String: Double]]?)
     case failure(serverID: String, message: String)
     case cancelled(serverID: String)
 }
@@ -38,6 +39,11 @@ final class NVBeaconStore: ObservableObject {
     @Published private(set) var detectedSSHUsername: String?
     @Published private(set) var collapsedHostServerIDs = Set<String>()
     @Published private(set) var collapsedServerIDs = Set<String>()
+    /// Completed minutes only, so observers update at most once a minute per server.
+    @Published private(set) var gpuHistory = [String: [GPUHistorySample]]()
+    @Published private(set) var gpuHistoryErrors = [String: String]()
+    private let historyArchive = GPUHistoryArchive()
+    private var lastUserUtilizationSampleAt = [String: Date]()
 
     private let fetcher: SSHMetricsFetcher
     private let notificationManager: ProcessExitNotificationManager
@@ -104,6 +110,9 @@ final class NVBeaconStore: ObservableObject {
         configurePolling(resetState: false)
         Task { [weak self] in
             await self?.refreshNotificationPermissionState()
+        }
+        Task { [weak self] in
+            await self?.loadGPUHistory()
         }
     }
 
@@ -764,7 +773,8 @@ final class NVBeaconStore: ObservableObject {
                     connectionSettings: server.connectionSettings(from: settings),
                     password: password.isEmpty ? nil : password,
                     detectedSSHUsername: state.detectedSSHUsername,
-                    detectedSSHUserID: state.detectedSSHUserID
+                    detectedSSHUserID: state.detectedSSHUserID,
+                    samplesUserUtilization: claimUserUtilizationSample(for: server.id)
                 )
             )
         }
@@ -776,6 +786,10 @@ final class NVBeaconStore: ObservableObject {
             for context in contexts {
                 group.addTask { [fetcher] in
                     do {
+                        // Concurrent with the summary, so pmon's one-second sample adds no latency.
+                        async let userUtilization: [Int: [String: Double]]? = context.samplesUserUtilization
+                            ? (try? await fetcher.fetchUserUtilization(settings: context.connectionSettings, password: context.password))
+                            : nil
                         let fetchedReading = try await fetcher.fetchSummary(
                             settings: context.connectionSettings,
                             password: context.password
@@ -797,7 +811,8 @@ final class NVBeaconStore: ObservableObject {
                         return .success(
                             serverID: context.serverID,
                             reading: fetchedReading,
-                            detectedSSHUserID: detectedUserID
+                            detectedSSHUserID: detectedUserID,
+                            userUtilization: await userUtilization
                         )
                     } catch is CancellationError {
                         return .cancelled(serverID: context.serverID)
@@ -812,7 +827,7 @@ final class NVBeaconStore: ObservableObject {
                 // must not replace the new connection's state when it finishes.
                 guard generation == pollingGeneration else { continue }
                 switch result {
-                case .success(let serverID, let reading, let detectedSSHUserID):
+                case .success(let serverID, let reading, let detectedSSHUserID, let userUtilization):
                     guard let state = serverState(for: serverID) else { continue }
                     var mergedSnapshot = reading.snapshot.mergingResolvedProcessMetadata(from: state.snapshot)
                     mergedSnapshot.hostCPU = updateCPUUsage(for: serverID, sample: mergedSnapshot.hostCPUSample)
@@ -826,6 +841,9 @@ final class NVBeaconStore: ObservableObject {
                     }
 
                     if let server = server(for: serverID) {
+                        if settings.recordsGPUHistory {
+                            await recordGPUHistory(reading.snapshot, userUtilization: userUtilization, server: server)
+                        }
                         let password = currentSessionPassword(for: serverID)
                         await evaluateWatchedProcesses(
                             using: mergedSnapshot,
@@ -848,6 +866,45 @@ final class NVBeaconStore: ObservableObject {
         }
 
         syncAggregateRuntimeState()
+    }
+
+    /// pmon blocks for about a second, so per-user sampling runs at most once a minute
+    /// however short the refresh interval is.
+    private func claimUserUtilizationSample(for serverID: String, now: Date = Date()) -> Bool {
+        guard settings.recordsGPUHistory else { return false }
+        if let last = lastUserUtilizationSampleAt[serverID],
+           now.timeIntervalSince(last) < UserUtilizationSampler.minimumInterval { return false }
+        lastUserUtilizationSampleAt[serverID] = now
+        return true
+    }
+
+    private func loadGPUHistory() async {
+        for server in settings.configuredServers {
+            do {
+                let loaded = try await historyArchive.load(serverID: server.id, fingerprint: server.connectionFingerprint)
+                guard self.server(for: server.id)?.connectionFingerprint == server.connectionFingerprint else { continue }
+                if !loaded.isEmpty { gpuHistory[server.id] = loaded }
+            } catch {
+                gpuHistoryErrors[server.id] = error.localizedDescription
+            }
+        }
+    }
+
+    private func recordGPUHistory(_ snapshot: GPUSnapshot, userUtilization: [Int: [String: Double]]?, server: ServerConfig) async {
+        do {
+            let recorded = try await historyArchive.record(
+                snapshot, users: userUtilization, serverID: server.id, fingerprint: server.connectionFingerprint)
+            guard self.server(for: server.id)?.connectionFingerprint == server.connectionFingerprint else { return }
+            if let recorded { gpuHistory[server.id] = recorded }
+            if gpuHistoryErrors[server.id] != nil { gpuHistoryErrors[server.id] = nil }
+        } catch {
+            gpuHistoryErrors[server.id] = error.localizedDescription
+        }
+    }
+
+    /// Saves the partial minute so a normal quit loses nothing.
+    func flushGPUHistory() async {
+        await historyArchive.flush()
     }
 
     /// Derives a transfer rate by comparing the newest counters with the previous sample.
@@ -1345,6 +1402,9 @@ final class NVBeaconStore: ObservableObject {
             state.passwordSessionState = synchronizedPasswordSessionState(for: server)
 
             if connectionChanged {
+                gpuHistory[server.id] = nil
+                gpuHistoryErrors[server.id] = nil
+                lastUserUtilizationSampleAt.removeValue(forKey: server.id)
                 state.snapshot = nil
                 state.networkUsage = nil
                 state.detectedSSHUserID = nil
