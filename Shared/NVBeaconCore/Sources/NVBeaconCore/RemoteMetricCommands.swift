@@ -69,8 +69,12 @@ public enum RemoteMetricCommands {
         return trimmed.isEmpty ? defaultHostCommand : trimmed
     }
 
+    /// Quotes with '"'"' rather than '\'' so the result contains no backslashes.
+    /// The summary is quoted again for ssh and first parsed by the remote login
+    /// shell; fish treats \' inside single quotes as an escape, so a nested '\''
+    /// split the host script apart on servers whose login shell is fish.
     private static func shellQuote(_ value: String) -> String {
-        "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+        "'" + value.replacingOccurrences(of: "'", with: "'\"'\"'") + "'"
     }
 
     /// A copyable, executable single-line representation of a saved script.

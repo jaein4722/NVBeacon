@@ -119,3 +119,12 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     #expect(output.exitStatus == 0)
     #expect(!FileManager.default.fileExists(atPath: marker.path))
 }
+
+/// ssh quotes the summary once more and the remote login shell parses it first.
+/// fish treats \' inside single quotes as an escape, so the nested host script must
+/// be quoted without backslash-quote sequences.
+@Test func summaryHasNoBackslashQuoteForFishLoginShells() {
+    let summary = RemoteMetricCommands.summary(summaryCommand: RemoteMetricCommands.defaultGPUCommand)
+    #expect(summary.contains(RemoteMetricCommands.hostSectionSeparator))
+    #expect(!summary.contains("\\'"))
+}
