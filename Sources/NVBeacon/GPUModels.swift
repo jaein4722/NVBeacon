@@ -570,6 +570,7 @@ struct AppSettings: Codable, Equatable, Sendable {
     var closesPopoverOnOutsideClick: Bool = true
     var popoverWidth: Int = Self.defaultPopoverWidth
     var highlightsMyProcesses: Bool = true
+    var recordsGPUHistory: Bool = false
     var collectsHostInfo: Bool = true
     var collectsHostCPU: Bool = true
     var collectsHostMemory: Bool = true
@@ -598,6 +599,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         closesPopoverOnOutsideClick: Bool = true,
         popoverWidth: Int = Self.defaultPopoverWidth,
         highlightsMyProcesses: Bool = true,
+        recordsGPUHistory: Bool = false,
         collectsHostInfo: Bool = true,
         collectsHostCPU: Bool = true,
         collectsHostMemory: Bool = true,
@@ -625,6 +627,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.popoverWidth = popoverWidth
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.recordsGPUHistory = recordsGPUHistory
         self.collectsHostInfo = collectsHostInfo
         self.collectsHostCPU = collectsHostCPU
         self.collectsHostMemory = collectsHostMemory
@@ -654,6 +657,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         case closesPopoverOnOutsideClick
         case popoverWidth
         case highlightsMyProcesses
+        case recordsGPUHistory
         case collectsHostInfo
         case collectsHostCPU
         case collectsHostMemory
@@ -685,6 +689,7 @@ struct AppSettings: Codable, Equatable, Sendable {
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
+            recordsGPUHistory: try container.decodeIfPresent(Bool.self, forKey: .recordsGPUHistory) ?? false,
             collectsHostInfo: try container.decodeIfPresent(Bool.self, forKey: .collectsHostInfo) ?? true,
             collectsHostCPU: try container.decodeIfPresent(Bool.self, forKey: .collectsHostCPU) ?? true,
             collectsHostMemory: try container.decodeIfPresent(Bool.self, forKey: .collectsHostMemory) ?? true,

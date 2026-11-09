@@ -66,6 +66,20 @@ struct SSHMetricsFetcher: Sendable {
         }
     }
 
+    /// Runs as its own command, alongside the summary, so pmon's one-second sample
+    /// never delays the summary result. `nil` when pmon is unavailable.
+    func fetchUserUtilization(settings: AppSettings, password: String? = nil) async throws -> [Int: [String: Double]]? {
+        let normalized = settings.normalized()
+        guard normalized.isConfigured else { throw FetchError.missingTarget }
+        let output = try await runSSHCommand(
+            settings: normalized,
+            remoteCommand: UserUtilizationSampler.command,
+            password: password,
+            allowEmptyOutput: true
+        )
+        return UserUtilizationSampler.parse(output)
+    }
+
     func fetchProcessDetails(
         settings: AppSettings,
         processes: [GPUProcessReading],

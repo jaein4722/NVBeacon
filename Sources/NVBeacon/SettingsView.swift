@@ -538,6 +538,13 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
+                Toggle(t("Record GPU history", "GPU 기록 저장"), isOn: $draft.recordsGPUHistory)
+
+                Text(t("Keep 24 hours of per-user GPU utilization on this Mac and open it from the chart button in the popover. Adds one nvidia-smi pmon sample per server at most once a minute.",
+                       "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장하고 팝오버의 차트 버튼으로 엽니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
                 LabeledContent(t("Display", "표시")) {
                     Picker(t("Display", "표시"), selection: $draft.menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in
