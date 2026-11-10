@@ -5,7 +5,9 @@ import NVBeaconMobile
 struct NVBeaconApp: App {
     @AppStorage("interfaceLanguage") private var language = "system"
     @AppStorage("interfaceAppearance") private var appearance = "system"
-#if NVBEACON_DESIGN_LAB && targetEnvironment(simulator)
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+    @State private var store = ScreenshotFixtures.store()
+#elseif NVBEACON_DESIGN_LAB && targetEnvironment(simulator)
     @State private var store = DesignLabFixtures.store()
 #else
     @State private var store = MobileStore()
@@ -20,7 +22,11 @@ struct NVBeaconApp: App {
                 .tint(.green)
                 .buttonBorderShape(.roundedRectangle(radius: 10))
                 .task(id: MonitorIdentity(active: scenePhase == .active, generation: store.generation)) {
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+                    if scenePhase == .active { await ScreenshotFixtures.prepare(store) }
+#else
                     if scenePhase == .active { await store.monitor() }
+#endif
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase != .active { store.suspend() }

@@ -22,11 +22,26 @@ struct RootView: View {
     @State private var exporterPresented = false
     @State private var exportDocument = ServerArchiveDocument()
     @State private var pendingImport: ServerSettingsBackup?
+    @State private var selectedTab = 0
+
+    init(store: MobileStore) {
+        self.store = store
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+        let scene = ScreenshotFixtures.scene
+        _selectedTab = State(initialValue: scene == "settings" ? 1 : 0)
+        if scene == "gpu-details" || scene == "host-details" {
+            _selectedServerID = State(initialValue: store.servers.first?.id)
+            _compactColumn = State(initialValue: .detail)
+            _serverDisclosure = State(initialValue: ServerDetailDisclosure(gpus: [0]))
+        }
+#endif
+    }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             monitor
             .tabItem { Label("Monitor", systemImage: "waveform.path.ecg") }
+            .tag(0)
 
             NavigationStack {
                 Form {
@@ -90,6 +105,7 @@ struct RootView: View {
                 .navigationTitle("Settings")
             }
             .tabItem { Label("Settings", systemImage: "gearshape") }
+            .tag(1)
         }
         .sheet(isPresented: $transferPresented) { MacTransferView(store: store) }
         .sheet(item: $editor) { ServerEditor(store: store, server: $0) }
