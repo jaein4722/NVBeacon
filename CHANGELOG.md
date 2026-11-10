@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.8.0 - 2026-11-10
+
+- Added an opt-in GPU History window with up to 24 hours of per-user GPU utilization. Turn on **Record GPU history** in Settings, then open the chart from the menu bar popover to view activity by server and GPU.
+- Fixed GPU and host metrics collection on servers that use fish as their login shell.
+- Thanks @Moviw for contributing GPU history and the fish compatibility fix in [#5](https://github.com/jaein4722/NVBeacon/pull/5) and [#11](https://github.com/jaein4722/NVBeacon/pull/11).
+
 ## 0.7.0 - 2026-11-05
 
 - Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
