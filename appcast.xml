@@ -3,31 +3,21 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.7.0</title>
-            <pubDate>Thu, 05 Nov 2026 07:40:42 +0000</pubDate>
+            <title>0.8.0</title>
+            <pubDate>Tue, 10 Nov 2026 06:38:03 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.7.0</sparkle:fullReleaseNotesLink>
-            <sparkle:version>26</sparkle:version>
-            <sparkle:shortVersionString>0.7.0</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.8.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>27</sparkle:version>
+            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added per-server network usage: download and upload rates plus total transferred bytes, shown in the popover and in the menu bar tooltip.
-- Read network interface counters (`/sys/class/net`, falling back to `/proc/net/dev`) inside the existing polling SSH call, skipping loopback, container, and overlay interfaces as well as bond/bridge slaves.
-- Grouped CPU, RAM/Swap, and network metrics in one host information section, expanded by default, with a saved expand/collapse state per server.
-- Added collapsible server cards, expanded by default, with saved states independent of each server's host information section. Collapsing either section keeps polling and alerts running.
-- Unified GPU and host query editors as matching single-line fields, preserving multiline script behavior through an executable single-line representation.
-- Replaced the per-server memory-only command editor with a complete host information script for CPU, RAM/Swap, and network collection; preserved existing custom memory queries through migration. Server backup v2 preserves host scripts and still imports v1 backups.
-- Added host information collection controls in General settings: turn all collection off or select CPU, memory, and network individually. Individual switches are hidden while collection is off, with their choices retained. The default host script skips disabled probes.
-- Hid unconfigured swap and moved available RAM into the RAM bar tooltip to keep host information compact.
-- Calculated CPU utilization between regular polls, removing the extra 0.2-second sampling delay while keeping a single SSH query for GPU and host metrics.
-- Suppressed network rates for samples less than one second apart, and retained bond/bridge slave filtering when falling back to `/proc/net/dev` with available interface topology.
-- Added a one-time Mac-to-iPhone server transfer in Advanced settings, with QR pairing, a six-digit comparison code, Touch ID or Mac password approval, and an encrypted local-network connection. Transferring needs the iOS app, which is still in the works and not on the App Store yet.
-- Changed server export to record each target's effective username, hostname, and port, so backups no longer depend on local SSH aliases. Export now stops without writing a partial backup when a target requires ProxyJump or ProxyCommand. Normal monitoring still uses the saved SSH target.
-- Thanks @JunbiaoXue for contributing server network and CPU monitoring in #7.
+- Added an opt-in GPU History window with up to 24 hours of per-user GPU utilization. Turn on **Record GPU history** in Settings, then open the chart from the menu bar popover to view activity by server and GPU.
+- Fixed GPU and host metrics collection on servers that use fish as their login shell.
+- Thanks @Moviw for contributing GPU history and the fish compatibility fix in [#5](https://github.com/jaein4722/NVBeacon/pull/5) and [#11](https://github.com/jaein4722/NVBeacon/pull/11).
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.7.0/NVBeacon-0.7.0.dmg" length="4733636" type="application/octet-stream" sparkle:edSignature="151fC/x03tFlUSke+GHeyC22bAMOOiTvGMl0pOAosJZxAIJq2i2dLQ0rztM9uPT+feRpGo3OUJohpR2WglxgCg=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.8.0/NVBeacon-0.8.0.dmg" length="4910527" type="application/octet-stream" sparkle:edSignature="BTj+rcJNr3MObHTF7YhRALDJiL8mb/G4eY3s5ajT2Ofe9+Sf9GbnQeGTWQ8M4AIV+lX2di0llPoj3TWJj5p3AQ=="/>
         </item>
     </channel>
 </rss>
