@@ -1,4 +1,9 @@
 "Monitor" = "모니터";
+"Support" = "지원";
+"Privacy Policy" = "개인정보처리방침";
+"Open Source Licenses" = "오픈소스 라이선스";
+"Licenses unavailable" = "라이선스를 불러올 수 없음";
+"The license notices could not be loaded." = "라이선스 고지를 불러오지 못했습니다.";
 "Monitoring" = "모니터링";
 "Settings" = "설정";
 "Refresh interval" = "새로고침 간격";

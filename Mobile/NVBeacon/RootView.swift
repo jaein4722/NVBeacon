@@ -79,6 +79,9 @@ struct RootView: View {
                         Section("About") {
                             LabeledContent("NVBeacon for iOS", value: "Preview")
                             NavigationLink("Diagnostics") { MobileDiagnosticsView(store: store) }
+                            Link("Support", destination: URL(string: "https://jaein4722.github.io/NVBeacon/support.html")!)
+                            Link("Privacy Policy", destination: URL(string: "https://jaein4722.github.io/NVBeacon/privacy.html")!)
+                            NavigationLink("Open Source Licenses") { OpenSourceLicensesView() }
                             Link("Project on GitHub", destination: URL(string: "https://github.com/jaein4722/NVBeacon")!)
                         }
                     }

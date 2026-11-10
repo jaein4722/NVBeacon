@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Privacy Policy | NVBeacon</title>
+  <meta name="description" content="How NVBeacon for iPhone and iPad handles server profiles, credentials, monitoring data and optional transfers.">
+  <link rel="canonical" href="https://jaein4722.github.io/NVBeacon/privacy.html">
+  <link rel="icon" type="image/png" href="./assets/icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="page-shell document-shell">
+    <header class="topbar">
+      <a class="brand" href="./"><img src="./assets/icon.png" alt=""><span>NVBeacon</span></a>
+      <nav class="topbar-links" aria-label="Main navigation">
+        <a href="./support.html">Support</a><a href="./privacy.html">Privacy</a>
+        <a href="https://github.com/jaein4722/NVBeacon">GitHub</a>
+      </nav>
+    </header>
+    <main id="content" class="document-card">
+      <h1>Privacy Policy</h1>
+      <nav class="language-links" aria-label="Page language"><a href="#english" lang="en">English</a><a href="#korean" lang="ko">한국어</a></nav>
+
+      <section id="english" lang="en" aria-labelledby="privacy-en">
+        <h2 id="privacy-en">NVBeacon for iPhone and iPad</h2>
+        <p class="document-meta">Last updated: November 10, 2026</p>
+        <p>NVBeacon is maintained by <a href="https://github.com/jaein4722">jaein4722</a>. This policy covers the iPhone and iPad app. It connects directly to SSH servers you choose; you do not need an NVBeacon account.</p>
+        <h3>What stays on your device</h3>
+        <p>Server names, addresses, ports, usernames, monitoring commands, trusted host keys and app preferences are stored in the app’s local settings. Passwords, imported SSH private keys and saved key passphrases are stored in the device’s Keychain, accessible while the device is unlocked, using device-only protection. NVBeacon does not sync these credentials through iCloud Keychain.</p>
+        <p>GPU and host readings, process details and the recent monitoring graph are held in memory for display. The app does not upload them to the developer. Local settings may be included in device backups managed by your operating system; NVBeacon does not provide its own cloud backup service.</p>
+        <h3>Connections you choose</h3>
+        <p>NVBeacon sends authentication information and monitoring commands over encrypted SSH connections to the servers you configure. Those servers can see your connection’s network address, login and commands, and may keep logs under their operators’ policies. Verify the server’s host fingerprint before trusting it. Custom commands run on that server with your SSH account’s permissions.</p>
+        <h3>Optional Mac transfer and permissions</h3>
+        <p>Camera access is used to scan a pairing QR code. Camera images are not saved or sent to the developer. Local-network access supports connections to local SSH servers and transfers from your Mac. After you compare the pairing code and approve the transfer on the Mac, server profiles and available credentials travel over an encrypted local-network connection. You review the import on the receiving device.</p>
+        <h3>Files and diagnostics you share</h3>
+        <p>Exported JSON backups contain server connection settings and custom commands, but exclude passwords, private-key contents and passphrases. A command can itself contain sensitive text, so inspect a backup before sharing it. Exported files and separately imported key files remain wherever you saved them until you delete them there.</p>
+        <p>Diagnostics are generated locally and are only shared when you choose to copy or share them. The report omits server addresses, usernames, credentials, commands and raw errors. Reports you post to GitHub Issues are public and handled by GitHub.</p>
+        <h3>No advertising or developer analytics</h3>
+        <p>The app contains no advertising, tracking or developer-operated analytics service. We do not receive your server profiles, credentials or monitoring readings automatically, and do not sell them. Apple may provide crash or diagnostic information according to your Apple settings and TestFlight participation.</p>
+        <h3>Deleting your data</h3>
+        <p>Delete a server inside NVBeacon to remove its saved profile, the app’s stored credential for that server and its current readings from this device. This does not delete anything on the remote server or on your Mac. Delete exported backups and original key files separately in Files or their storage provider. Delete servers before uninstalling if you want their Keychain entries removed; uninstalling alone is not the app’s credential-deletion mechanism.</p>
+        <h3>Website, contact and changes</h3>
+        <p>These pages are hosted by GitHub Pages and contain no added analytics or advertising scripts. GitHub processes website requests under its <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">privacy statement</a>. For questions, use the <a href="./support.html">support page</a> or <a href="https://github.com/jaein4722/NVBeacon/issues">issue tracker</a>. Do not post credentials or private server details. Updates to this policy will appear here with a revised date.</p>
+      </section>
+      <section id="korean" lang="ko" aria-labelledby="privacy-ko">
+        <h2 id="privacy-ko">iPhone 및 iPad용 NVBeacon 개인정보처리방침</h2>
+        <p class="document-meta">최종 수정: 2026년 11월 10일</p>
+        <p>NVBeacon은 <a href="https://github.com/jaein4722">jaein4722</a>가 관리합니다. 이 방침은 iPhone 및 iPad 앱에 적용됩니다. 앱은 사용자가 지정한 SSH 서버에 직접 연결하며 NVBeacon 계정은 필요하지 않습니다.</p>
+        <h3>기기에 저장되는 정보</h3>
+        <p>서버 이름·주소·포트·사용자 이름, 조회 명령, 신뢰한 호스트 키와 앱 환경설정은 기기의 앱 설정에 저장합니다. 비밀번호, 가져온 SSH 개인 키와 저장된 키 암호는 잠금 해제 중 접근 가능한 기기 전용 키체인에 저장하며, 앱이 iCloud 키체인으로 동기화하지 않습니다.</p>
+        <p>GPU·호스트 측정값, 프로세스 정보와 최근 모니터링 그래프는 표시를 위해 메모리에 보관하며 개발자에게 업로드하지 않습니다. 앱 설정은 운영체제의 기기 백업에 포함될 수 있습니다. NVBeacon 자체 클라우드 백업 서비스는 없습니다.</p>
+        <h3>사용자가 선택한 연결</h3>
+        <p>인증정보와 조회 명령은 사용자가 설정한 서버로 암호화된 SSH 연결을 통해 전송됩니다. 해당 서버는 접속 네트워크 주소, 로그인과 명령을 확인할 수 있으며 운영자의 정책에 따라 로그를 보관할 수 있습니다. 연결을 신뢰하기 전에 호스트 지문을 확인하세요. 사용자 지정 명령은 해당 서버에서 SSH 계정의 권한으로 실행됩니다.</p>
+        <h3>Mac 전송과 권한</h3>
+        <p>카메라는 연결용 QR 코드 스캔에 사용하며 이미지를 저장하거나 개발자에게 전송하지 않습니다. 로컬 네트워크 권한은 로컬 SSH 서버 연결과 Mac 전송에 사용합니다. 양쪽의 연결 코드를 비교하고 Mac에서 승인하면 서버 설정과 사용 가능한 인증정보를 암호화된 로컬 네트워크 연결로 전송하며, 수신 기기에서 가져올 항목을 확인합니다.</p>
+        <h3>백업과 진단 공유</h3>
+        <p>내보낸 JSON 백업에는 서버 접속 설정과 사용자 지정 명령이 들어가며 비밀번호·개인 키 내용·키 암호는 제외합니다. 명령 자체에 민감한 내용이 있을 수 있으므로 공유 전에 확인하세요. 내보낸 파일과 별도로 가져온 원본 키 파일은 저장 위치에서 직접 삭제할 때까지 남습니다.</p>
+        <p>진단 보고서는 기기에서 생성하고 사용자가 복사나 공유를 선택할 때만 전달합니다. 서버 주소·사용자 이름·인증정보·명령·원본 오류는 제외합니다. GitHub Issues에 올린 보고서는 공개되며 GitHub가 처리합니다.</p>
+        <h3>광고·추적·개발자 분석</h3>
+        <p>앱에는 광고, 추적 또는 개발자가 운영하는 사용 분석 서비스가 없습니다. 서버 설정·인증정보·측정값을 개발자가 자동 수집하거나 판매하지 않습니다. Apple은 사용자의 Apple 설정 및 TestFlight 참여에 따라 충돌·진단 정보를 제공할 수 있습니다.</p>
+        <h3>정보 삭제</h3>
+        <p>앱에서 서버를 삭제하면 해당 기기의 서버 설정, 앱에 저장된 해당 서버의 인증정보와 현재 측정값을 삭제합니다. 원격 서버나 Mac의 정보는 삭제하지 않습니다. 내보낸 백업과 원본 키 파일은 파일 앱 또는 저장 서비스에서 별도로 삭제하세요. 키체인 항목을 지우려면 앱 제거 전에 앱 안에서 서버를 삭제하세요. 앱 제거만으로 키체인 인증정보가 삭제되는 것은 아닙니다.</p>
+        <h3>웹사이트와 문의</h3>
+        <p>이 페이지는 GitHub Pages로 제공하며 별도의 분석·광고 스크립트를 추가하지 않았습니다. 웹 요청에는 <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement">GitHub 개인정보처리방침</a>이 적용됩니다. 문의는 <a href="./support.html">지원 페이지</a> 또는 <a href="https://github.com/jaein4722/NVBeacon/issues">이슈 게시판</a>을 이용하세요. 인증정보나 비공개 서버 정보는 게시하지 마세요. 방침이 바뀌면 이 페이지와 수정일을 갱신합니다.</p>
+      </section>
+    </main>
+    <footer class="footer"><span>NVBeacon · <a href="./">Project home</a></span><div class="footer-links"><a href="./support.html">Support</a><a href="./privacy.html">Privacy</a></div></footer>
+  </div>
+</body>
+</html>

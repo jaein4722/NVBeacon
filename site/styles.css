@@ -431,3 +431,22 @@ pre {
     padding-top: 56px;
   }
 }
+
+
+/* Support and privacy pages share the existing site's typography and palette. */
+.document-shell { max-width: 900px; }
+.document-card { padding: clamp(22px, 5vw, 48px); background: var(--panel-strong); border: 1px solid var(--border); border-radius: var(--radius-xl); box-shadow: var(--shadow); overflow-wrap: anywhere; }
+.document-card h1 { margin: 0; font-size: clamp(2rem, 5vw, 3rem); letter-spacing: -0.035em; }
+.document-card h2 { margin-top: 0; font-size: 1.65rem; }
+.document-card h3 { margin: 28px 0 8px; font-size: 1.12rem; }
+.document-card p, .document-card li { color: var(--muted); line-height: 1.8; }
+.document-card ul { padding-left: 22px; }
+.document-card a:not(.button), .document-shell .footer a { color: var(--accent-deep); text-decoration: underline; text-underline-offset: 3px; }
+.document-card section { padding-top: 32px; scroll-margin-top: 20px; }
+.document-card section + section { margin-top: 40px; border-top: 1px solid var(--border); }
+.document-meta { font-size: 0.9rem; }
+.language-links { display: flex; gap: 24px; margin-top: 20px; }
+.document-shell .topbar-links { flex-wrap: wrap; justify-content: center; }
+a:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 5px; border-radius: 3px; }
+.skip-link { position: absolute; left: 12px; top: -100px; background: white; padding: 12px; z-index: 10; }
+.skip-link:focus { top: 12px; }

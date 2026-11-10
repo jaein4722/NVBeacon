@@ -205,6 +205,24 @@ The package also builds on macOS so its client and transport behavior can be
 tested without a simulator. The macOS executable and its Sparkle dependency do
 not depend on the mobile package. No new dependency was added to NVBeaconCore.
 
+## Launch support and notices
+
+The bundled notices come from the exact dependencies in the Xcode project's
+`Package.resolved`, including Citadel's embedded bcrypt/Blowfish notices and the
+pinned upstream BoringSSL license. After resolving dependencies into
+`.build/ios-packages`, regenerate and verify with:
+
+```bash
+python3 scripts/generate_ios_notices.py
+python3 scripts/generate_ios_notices.py --check
+```
+
+The generator reads Git objects at the pinned revisions and refuses mismatched
+checkouts. A BoringSSL revision change requires updating its stored license.
+The output must remain bundled as `ThirdPartyNotices.txt`; verify it in the
+Release archive. Distribution signing, App Store validation and UI/device QA
+are separate from an unsigned archive build.
+
 ## Remaining port work
 
 This is a foreground-monitoring preview, not full macOS feature parity.
