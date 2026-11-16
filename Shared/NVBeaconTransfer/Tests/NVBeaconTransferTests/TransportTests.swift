@@ -103,3 +103,28 @@ import Testing
     try await sender.send(payload)
     #expect(try await received.value == payload)
 }
+
+/// The invitation lifetime bounds pairing only; reviewing servers on the iPhone can take
+/// longer, and neither side may expire an already paired session.
+@Test @MainActor func pairedTransferOutlivesTheInvitationLifetime() async throws {
+    let sender = PairingSender(lifetime: 2, advertise: false)
+    var senderCode: String?
+    var senderFailure: PairingError?
+    sender.onFailure = { senderFailure = $0 }
+    let qr = try await sender.start { senderCode = $0 }
+    let port = try #require(sender.port)
+    let receiver = PairingReceiver(endpoint: .hostPort(host: "127.0.0.1", port: port))
+    defer { receiver.cancel(); sender.cancel() }
+    let payload = Data(repeating: 0x24, count: 2_000)
+    let receive = Task { try await receiver.receive(invitation: qr) { _ in } }
+    for _ in 0..<100 where senderCode == nil {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(senderCode != nil)
+    try await Task.sleep(for: .seconds(3))
+    #expect(senderFailure == nil)
+    let send = Task { try await sender.send(payload) }
+    #expect(try await receive.value == payload)
+    try await receiver.acknowledge()
+    try await send.value
+}
