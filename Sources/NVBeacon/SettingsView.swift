@@ -134,9 +134,14 @@ struct SettingsView: View {
         .onAppear {
             reloadSSHConfigHosts()
             loadCurrentSettings()
+            launchAtLoginManager.refreshStatus()
             Task {
                 await store.refreshNotificationPermissionState()
             }
+        }
+        // Login items can be approved or removed in System Settings while this window is open.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLoginManager.refreshStatus()
         }
         .onChange(of: draft) { _, _ in
             scheduleAutoApply()
