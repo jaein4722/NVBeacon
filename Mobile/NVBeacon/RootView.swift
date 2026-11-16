@@ -297,7 +297,6 @@ struct RootView: View {
     private var monitor: some View {
         NavigationSplitView(preferredCompactColumn: $compactColumn) {
             monitorList
-                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
         } detail: {
             if let id = selectedServerID {
                 ServerDetailView(store: store, serverID: id, disclosure: $serverDisclosure) { editor = $0 }
