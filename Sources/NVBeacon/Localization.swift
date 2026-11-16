@@ -7,7 +7,9 @@ enum AppInterfaceLanguage: String, Sendable {
     static func resolved(from preference: AppLanguagePreference, preferredLanguages: [String] = Locale.preferredLanguages) -> Self {
         switch preference {
         case .system:
-            return preferredLanguages.contains { $0.lowercased().hasPrefix("ko") } ? .korean : .english
+            // Like macOS itself, use the first preferred language the app supports.
+            let supported = preferredLanguages.lazy.map { $0.lowercased() }.first { $0.hasPrefix("ko") || $0.hasPrefix("en") }
+            return supported?.hasPrefix("ko") == true ? .korean : .english
         case .english:
             return .english
         case .korean:
@@ -56,8 +58,8 @@ enum AppLanguagePreference: String, Codable, CaseIterable, Equatable, Hashable, 
         switch self {
         case .system:
             return language.text(
-                "Follow the current macOS language. Unsupported system languages fall back to English.",
-                "현재 macOS 언어를 따릅니다. 지원하지 않는 언어는 영어로 표시합니다."
+                "Follow your macOS preferred languages, using the first one NVBeacon supports. Otherwise English is used.",
+                "macOS 선호 언어 순서에서 NVBeacon이 지원하는 첫 번째 언어를 따릅니다. 없으면 영어로 표시합니다."
             )
         case .english:
             return language.text(

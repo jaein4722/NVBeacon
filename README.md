@@ -230,7 +230,7 @@ The interface can be set to:
 - `English`
 - `Korean`
 
-`System` follows the current macOS language. Unsupported system languages fall back to English.
+`System` follows your macOS preferred languages and uses the first one NVBeacon supports. If neither English nor Korean is listed, English is used.
 
 ## Notes
 
