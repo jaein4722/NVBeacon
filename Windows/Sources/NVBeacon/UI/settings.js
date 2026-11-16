@@ -121,7 +121,11 @@ function stepper(key, value, min, max, suffix, onChange, step = 1) {
 
 function changed(options = {}) {
   clearTimeout(ui.applyTimer);
-  ui.applyTimer = setTimeout(() => send({ type: "apply", settings: ui.draft }), 350);
+  ui.applyPending = true;
+  ui.applyTimer = setTimeout(() => {
+    ui.applyPending = false;
+    send({ type: "apply", settings: ui.draft });
+  }, 350);
   if (options.rerender) render();
 }
 function selectedServer() { return ui.draft.servers.find((s) => s.id === ui.selectedServerId) || null; }
@@ -314,11 +318,60 @@ function refreshServerPickerLabel() {
   }
 }
 
+const HISTORY_TITLES = {
+  permissionEnabled: ["Permission enabled", "권한 허용"],
+  permissionDenied: ["Permission denied", "권한 거부"],
+  watchAdded: ["Process watch enabled", "프로세스 watch 등록"],
+  watchRemoved: ["Process watch removed", "프로세스 watch 해제"],
+  idleWatchAdded: ["GPU idle watch enabled", "GPU idle watch 등록"],
+  idleWatchRemoved: ["GPU idle watch removed", "GPU idle watch 해제"],
+  testNotificationScheduled: ["Test notification sent", "테스트 알림 전송"],
+  exitNotificationScheduled: ["Process exit notification sent", "프로세스 종료 알림 전송"],
+  idleNotificationScheduled: ["GPU idle notification sent", "GPU idle 알림 전송"],
+};
+
+function watchRow(badge, badgeClass, title, primary, secondary, id) {
+  const remove = button(t("Disable", "해제"), () => send({ type: "removeWatch", id }), { key: "remove:" + id });
+  return h("div", "row watch-row",
+    h("div", "row-label",
+      h("span", "", h("span", "watch-badge " + badgeClass, badge), " ", h("strong", "", title)),
+      h("small", "", primary), secondary ? h("small", "", secondary) : null),
+    h("div", "row-control", remove));
+}
+
 function notificationsPane() {
+  const d = ui.draft;
+  const n = ui.data.notifications || { processWatches: [], idleWatches: [], history: [] };
+  const watchRows = [];
+  if (!n.processWatches.length && !n.idleWatches.length) {
+    watchRows.push(note(t("There are no configured notification watches.", "현재 설정된 notification watch가 없습니다.")));
+  }
+  for (const watch of n.idleWatches) {
+    watchRows.push(watchRow(t("GPU Idle", "GPU Idle"), "idle", watch.title, watch.subtitle,
+      t("Idle " + d.idleNotificationSeconds + "s · <=" + d.idleMemoryThresholdMB + "MB", "Idle " + d.idleNotificationSeconds + "초 · <=" + d.idleMemoryThresholdMB + "MB"), watch.id));
+  }
+  for (const watch of n.processWatches) {
+    watchRows.push(watchRow(t("Process Exit", "프로세스 종료"), "exit", watch.title,
+      t("User " + watch.user + " · PID " + watch.pid + " · GPU " + watch.gpu, "사용자 " + watch.user + " · PID " + watch.pid + " · GPU " + watch.gpu),
+      watch.connection, watch.id));
+  }
+  const historyRows = n.history.length
+    ? n.history.map((entry) => h("div", "info-row history-row",
+        h("span", "", h("strong", "", t(...(HISTORY_TITLES[entry.kind] || [entry.kind, entry.kind]))), h("br"), entry.subtitle),
+        h("span", "", new Date(entry.time).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }))))
+    : [note(t("There is no notification history in the last 24 hours.", "최근 24시간 내 notification 설정 내역이 없습니다."))];
   return [
-    section(t("Permission", "권한"), [note(t(
-      "Notifications are not available in the Windows preview yet. Process-exit and GPU-idle alerts, and their 24-hour history, will appear here.",
-      "Windows 미리보기에서는 아직 알림을 지원하지 않습니다. 프로세스 종료·GPU idle 알림과 최근 24시간 기록이 이곳에 추가됩니다."))]),
+    section(t("Permission", "권한"), [
+      row(t("Status", "상태"), h("span", "", t("Shown through the tray icon", "트레이 아이콘으로 표시"))),
+      h("div", "row", h("div", "row-control", button(t("Send Test Notification", "테스트 알림 보내기"), () => send({ type: "testNotification" })))),
+    ], t("Windows shows these as notifications from NVBeacon. If they do not appear, check Settings › System › Notifications and Do not disturb.",
+         "Windows가 NVBeacon의 알림으로 표시합니다. 보이지 않으면 Windows 설정 › 시스템 › 알림과 방해 금지 모드를 확인하세요.")),
+    section(t("GPU Idle Alert", "GPU Idle 알림"), [
+      row(t("Idle Duration", "Idle 시간"), stepper("idle-seconds", d.idleNotificationSeconds, 1, 3600, "s", (value) => { d.idleNotificationSeconds = value; changed(); })),
+      row(t("Memory Threshold", "메모리 임계치"), stepper("idle-memory", d.idleMemoryThresholdMB, 0, 10240, "MB", (value) => { d.idleMemoryThresholdMB = value; changed(); })),
+    ], t("Starred GPUs send an alert when they stay idle.", "별표된 GPU가 오랫동안 쉬고 있으면 알림을 보냅니다.")),
+    section(t("Active Watches", "활성 Watch"), watchRows),
+    section(t("Recent 24 Hours", "최근 24시간"), historyRows),
   ];
 }
 
@@ -515,7 +568,9 @@ function receive(message) {
   switch (message.type) {
     case "settings":
       ui.data = message;
-      ui.draft = JSON.parse(JSON.stringify(message.settings));
+      // Keep edits that have not been sent yet (an alert or watch change can push
+      // fresh data while the user is typing).
+      if (!ui.applyPending || !ui.draft) ui.draft = JSON.parse(JSON.stringify(message.settings));
       render();
       break;
     case "runtime":

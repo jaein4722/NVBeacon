@@ -146,6 +146,13 @@ function headerStrip(state) {
     strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
   }
   if (servers.length === 1 && servers[0].myUser) strip.append(myProcessesLabel(servers[0].myUser));
+  const processes = fleet.watchedProcessCount, idle = fleet.watchedIdleCount;
+  if (processes + idle > 0) {
+    const parts = [];
+    if (processes) parts.push(t(processes + " process exit", processes + "개 프로세스 종료"));
+    if (idle) parts.push(t(idle + " GPU idle", idle + "개 GPU idle"));
+    strip.append(h("span", "watching", icon("bellFill"), t("Watching ", "감시 중: ") + parts.join(" · ")));
+  }
   return strip;
 }
 
@@ -229,14 +236,22 @@ function myProcessesLabel(user) {
   return h("span", "my-processes", icon("person"), t("My processes: " + user, "내 프로세스: " + user));
 }
 
-function processRow(process) {
+function processRow(server, gpu, process) {
   const nameLine = h("span", "row", h("span", "caption semibold truncate", process.name), process.isMine ? mineBadge() : null);
   nameLine.style.gap = "6px";
+  // macOS's "Notify / Watching" capsule: alert when this process exits.
+  const watch = h("button", "watch-button" + (process.isWatched ? " on" : ""),
+    icon(process.isWatched ? "bellFill" : "bellSmall"), process.isWatched ? t("Watching", "감시 중") : t("Notify", "알림"));
+  watch.title = process.isWatched ? t("Disable process exit alert", "프로세스 종료 알림 해제") : t("Enable process exit alert", "프로세스 종료 알림 받기");
+  watch.setAttribute("aria-pressed", String(!!process.isWatched));
+  watch.dataset.key = "watch:" + server.id + ":" + gpu.index + ":" + process.pid;
+  watch.addEventListener("click", () => send({ type: "toggleExitWatch", serverId: server.id, gpu: gpu.index, pid: process.pid }));
   const main = h("div", "process-main",
     h("span", "process-user truncate", process.user),
     h("div", "process-name", nameLine, h("span", "caption2 secondary mono", "PID " + process.pid)),
     h("span", "spacer"),
-    h("span", "caption2 secondary mono", process.memoryText));
+    h("span", "caption2 secondary mono", process.memoryText),
+    watch);
   const row = h("div", "process" + (process.isMine ? " mine" : ""), main);
   if (process.command) {
     const command = h("div", "process-command caption2 secondary truncate", process.command);
@@ -275,7 +290,19 @@ function gpuRow(server, gpu) {
     render();
   });
 
-  const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), toggle);
+  // macOS layout: the idle-alert star sits left of the row, outside the expand button.
+  const star = h("button", "star-button" + (gpu.isWatchingIdle ? " on" : ""), icon(gpu.isWatchingIdle ? "starFill" : "star"));
+  star.title = gpu.isWatchingIdle ? t("Disable GPU idle alert", "GPU idle 알림 해제") : t("Enable GPU idle alert", "GPU idle 알림 받기");
+  star.setAttribute("aria-label", star.title);
+  star.setAttribute("aria-pressed", String(!!gpu.isWatchingIdle));
+  star.dataset.key = "star:" + key;
+  star.addEventListener("click", () => send({ type: "toggleIdleWatch", serverId: server.id, gpu: gpu.index }));
+
+  const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), h("div", "gpu-line", star, toggle));
+  if (gpu.isWatchingIdle) {
+    const armed = h("span", "armed", icon("starFill"), t("Idle notification armed", "Idle 알림 설정됨"));
+    card.append(h("div", "armed-row", armed));
+  }
   if (expanded) {
     const list = h("div", "processes" + (view.justToggled === "gpu:" + key ? " appear" : ""), h("div", "divider"));
     if ((server.loadingDetailGPUs || []).includes(gpu.index)) {
@@ -286,7 +313,7 @@ function gpuRow(server, gpu) {
     if (!gpu.processes.length) {
       list.append(h("span", "caption secondary", t("There are no active compute processes reported on this GPU.", "이 GPU에서 보고된 active compute process가 없습니다.")));
     }
-    for (const process of gpu.processes) list.append(processRow(process));
+    for (const process of gpu.processes) list.append(processRow(server, gpu, process));
     card.append(list);
   }
   return card;
@@ -419,6 +446,7 @@ function render() {
     nodes.push(h("div", "subheadline secondary empty", t("No GPU data is available yet.", "표시할 GPU 데이터가 아직 없습니다.")));
   }
   for (const server of state.servers) nodes.push(serverSection(server));
+  if (state.notice) nodes.push(h("div", "notice", icon("info"), state.notice));
   content.replaceChildren(...nodes);
   view.justToggled = null;
 

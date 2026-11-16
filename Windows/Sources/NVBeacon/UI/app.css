@@ -173,6 +173,27 @@ svg { display: block; fill: currentColor; }
 .process-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .process-command { padding-left: 62px; }
 
+/* Alerts: idle star, exit watch capsule, watching summary, notice (macOS layout) */
+.gpu-line { display: flex; align-items: flex-start; gap: 8px; }
+.gpu-line .gpu-toggle { flex: 1; min-width: 0; }
+.star-button { width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: var(--secondary); margin-top: 1px; }
+.star-button svg { width: 16px; height: 16px; }
+.star-button.on { color: #f5c400; }
+.star-button:hover { color: var(--primary); }
+.star-button.on:hover { color: #f5c400; opacity: 0.8; }
+.armed-row { padding-left: 26px; }
+.armed { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #c99a00; background: color-mix(in srgb, #f5c400 14%, transparent); }
+:root[data-theme="dark"] .armed { color: #f5c400; }
+.armed svg { width: 11px; height: 11px; }
+.watch-button { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--secondary); background: var(--fill-08); box-shadow: inset 0 0 0 1px var(--fill-08); transition: background 0.16s, color 0.16s; }
+.watch-button svg { width: 11px; height: 11px; }
+.watch-button:hover { color: var(--primary); }
+.watch-button.on { color: var(--orange); background: color-mix(in srgb, var(--orange) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 35%, transparent); }
+.watching { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--orange); }
+.watching svg { width: 12px; height: 12px; }
+.notice { display: flex; align-items: flex-start; gap: 6px; padding: 2px 4px; font-size: 12px; color: var(--secondary); }
+.notice svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
+
 /* "Highlight my processes" (green tint and border, as on macOS) */
 .mine-badge { font-size: 11px; font-weight: 600; color: var(--green); padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--green) 12%, transparent); white-space: nowrap; flex: none; }
 .gpu.mine { background: color-mix(in srgb, var(--green) 8%, var(--card)); border-color: color-mix(in srgb, var(--green) 26%, transparent); }

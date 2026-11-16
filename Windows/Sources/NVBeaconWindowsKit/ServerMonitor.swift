@@ -44,6 +44,8 @@ public final class ServerMonitor: @unchecked Sendable {
     private var refreshRequested = false
     private var loop: Task<Void, Never>?
     private let onChange: @Sendable () -> Void
+    /// Runs after each successful poll with the merged snapshot (alert evaluation).
+    public var afterPoll: (@Sendable (ServerSettings, GPUSnapshot, AnyRemoteCommandExecutor) async -> Void)?
 
     public init(servers: [ServerSettings], interval: Duration, hostMetrics: HostMetricsOptions = .init(),
                 highlightsMyProcesses: Bool = false, sshConfigHosts: [SSHConfigHost] = [],
@@ -187,6 +189,9 @@ public final class ServerMonitor: @unchecked Sendable {
             states[index] = state
         }
         onChange()
+        if let afterPoll, let merged = lock.withLock({ states[index].snapshot }), case .success = result {
+            await afterPoll(server, merged, transport)
+        }
     }
 
     // MARK: Process details (macOS `loadProcessDetails`)

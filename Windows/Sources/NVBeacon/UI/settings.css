@@ -110,6 +110,14 @@ textarea.text { height: auto; min-height: 120px; padding: 8px; resize: vertical;
 
 .help { width: 16px; height: 16px; color: var(--secondary); }
 
+/* Notifications */
+.watch-badge { display: inline-block; padding: 1px 6px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+.watch-badge.idle { color: #a47d00; background: color-mix(in srgb, #f5c400 18%, transparent); }
+.watch-badge.exit { color: var(--orange); background: color-mix(in srgb, var(--orange) 16%, transparent); }
+:root[data-theme="dark"] .watch-badge.idle { color: #f5c400; }
+.history-row span:first-child { line-height: 1.45; color: var(--primary) !important; }
+.history-row span:last-child { color: var(--secondary); white-space: nowrap; }
+
 /* About */
 .about-head { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 6px 0 4px; text-align: center; }
 .about-icon { width: 96px; height: 96px; border-radius: 22px; display: grid; place-items: center; background: linear-gradient(145deg, #2f9e44, #1b6b2c); color: #fff; box-shadow: 0 6px 18px rgba(0,0,0,0.18); }

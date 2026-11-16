@@ -9,6 +9,20 @@ let stateChangedMessage = UINT(WM_APP) + 2
 let diagnosticsMenuMessage = UINT(WM_APP) + 3
 let diagnosticsEndMenuMessage = UINT(WM_APP) + 4
 let diagnosticsSettingsMessage = UINT(WM_APP) + 5
+/// Alerts found by a poll are waiting to be shown on the UI thread.
+let notificationsPendingMessage = UINT(WM_APP) + 6
+
+/// A value shared between the UI thread and polling tasks.
+final class Locked<Value>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: Value
+    init(_ value: Value) { stored = value }
+    var value: Value {
+        get { lock.withLock { stored } }
+        set { lock.withLock { stored = newValue } }
+    }
+    func take<T>(_ body: (inout Value) -> T) -> T { lock.withLock { body(&stored) } }
+}
 
 /// Only touched on the UI thread (the window procedure and the message loop).
 nonisolated(unsafe) var trayApp: TrayApp?
@@ -25,6 +39,9 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
             return 0
         case stateChangedMessage:
             app.stateChanged()
+            return 0
+        case notificationsPendingMessage:
+            app.showPendingNotifications()
             return 0
         case UINT(WM_COMMAND):
             app.handleCommand(UInt(wParam & 0xFFFF))
@@ -71,15 +88,56 @@ final class TrayApp {
     private var monitorWindow: MonitorWindow?
     private var settingsWindow: SettingsWindow?
     private var pendingImport: ServerSettingsBackup?
+    /// Process-exit and GPU-idle watches and their history (%APPDATA%\NVBeacon\watches.json).
+    let watches = WatchStore(fileURL: WatchStore.defaultFileURL)
+    /// What polling tasks read when they evaluate alerts.
+    private let alertSettings: Locked<WindowsSettings>
+    private let pendingNotifications = Locked<[PendingNotification]>([])
+    /// The last status line, shown at the bottom of the popover like macOS's notice.
+    private(set) var notice: (text: String, at: Date)?
 
     init(window: HWND, settings: WindowsSettings, sessionTargets: [String]?) {
         self.window = window
         self.settings = settings
+        self.alertSettings = Locked(settings)
         self.sessionServers = sessionTargets.map { $0.map { ServerSettings(sshTarget: $0) } }
         self.taskbarCreatedMessage = "TaskbarCreated".withCString(encodedAs: UTF16.self) { RegisterWindowMessageW($0) }
         Theme.preference = settings.appearanceMode
         Theme.languagePreference = settings.languagePreference
         self.monitor = Self.makeMonitor(servers: sessionServers ?? settings.servers, settings: settings)
+        configureAlerts(monitor)
+    }
+
+    /// Evaluates watches after every successful poll, off the UI thread, and hands
+    /// any alerts to the UI thread to show.
+    private func configureAlerts(_ monitor: ServerMonitor) {
+        let watches = watches, alertSettings = alertSettings, pending = pendingNotifications
+        monitor.afterPoll = { server, snapshot, transport in
+            let notifications = await watches.evaluate(snapshot: snapshot, server: server, settings: alertSettings.value,
+                                                       korean: Theme.language == "ko", transport: transport)
+            guard !notifications.isEmpty else { return }
+            pending.take { $0 += notifications }
+            PostMessageW(HWND(bitPattern: trayWindowBits), notificationsPendingMessage, 0, 0)
+        }
+    }
+
+    func showPendingNotifications() {
+        let notifications = pendingNotifications.take { list -> [PendingNotification] in
+            defer { list = [] }
+            return list
+        }
+        guard !notifications.isEmpty else { return }
+        for notification in notifications { Notifier.show(notification, trayWindow: window) }
+        let korean = Theme.language == "ko"
+        setNotice(notifications.count == 1
+            ? (korean ? "알림을 보냈습니다: \(notifications[0].title)" : "Sent an alert: \(notifications[0].title)")
+            : (korean ? "알림 \(notifications.count)개를 보냈습니다." : "Sent \(notifications.count) alerts."))
+        pushSettings()
+    }
+
+    private func setNotice(_ text: String) {
+        notice = (text, Date())
+        stateChanged()
     }
 
     private static func makeMonitor(servers: [ServerSettings], settings: WindowsSettings) -> ServerMonitor {
@@ -96,13 +154,13 @@ final class TrayApp {
         flyout.logicalWidth = Double(settings.popoverWidth)
         flyout.closesOnOutsideClick = settings.closesPopoverOnOutsideClick
         flyout.fixedHeight = settings.popoverHeightMode == .fixed ? Double(settings.popoverHeight) : nil
-        flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings).json() }
+        flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings, watches: watches, notice: notice).json() }
         flyout.onMessage = { [unowned self] in handlePageMessage($0) }
     }
 
     func attach(_ monitorWindow: MonitorWindow) {
         self.monitorWindow = monitorWindow
-        monitorWindow.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings).json() }
+        monitorWindow.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings, watches: watches, notice: notice).json() }
         monitorWindow.onMessage = { [unowned self] in handlePageMessage($0) }
         monitorWindow.onFrameChanged = { [unowned self] frame in
             settings.windowFrame = frame
@@ -136,6 +194,26 @@ final class TrayApp {
             if let mode = (message["mode"] as? String).flatMap(DisplayMode.init(rawValue:)) { setDisplayMode(mode) }
         case "togglePin":
             setAlwaysOnTop(!settings.windowAlwaysOnTop)
+        case "toggleIdleWatch":
+            guard let id = message["serverId"] as? String, let index = message["gpu"] as? Int,
+                  let state = monitor.snapshot.first(where: { $0.id == id }),
+                  let gpu = state.snapshot?.gpus.first(where: { $0.index == index }) else { return }
+            let on = watches.toggleIdleWatch(gpu: gpu, server: state.server, snapshotTakenAt: state.snapshot?.takenAt,
+                                             idleSeconds: settings.idleNotificationSeconds, memoryThresholdMB: settings.idleMemoryThresholdMB)
+            let korean = Theme.language == "ko"
+            setNotice(on ? (korean ? "GPU idle 알림을 등록했습니다." : "GPU idle alert enabled.")
+                         : (korean ? "GPU idle 알림을 해제했습니다." : "GPU idle alert disabled."))
+            pushSettings()
+        case "toggleExitWatch":
+            guard let id = message["serverId"] as? String, let index = message["gpu"] as? Int, let pid = message["pid"] as? Int,
+                  let state = monitor.snapshot.first(where: { $0.id == id }),
+                  let gpu = state.snapshot?.gpus.first(where: { $0.index == index }),
+                  let process = gpu.processes.first(where: { $0.pid == pid }) else { return }
+            let on = watches.toggleExitWatch(process: process, gpu: gpu, server: state.server)
+            let korean = Theme.language == "ko"
+            setNotice(on ? (korean ? "프로세스 종료 알림을 등록했습니다." : "Process exit alert enabled.")
+                         : (korean ? "프로세스 종료 알림을 해제했습니다." : "Process exit alert disabled."))
+            pushSettings()
         case "settings": openSettings()
         default: break
         }
@@ -324,6 +402,7 @@ final class TrayApp {
         guard newSettings != settings else { return }
         let old = settings
         settings = newSettings
+        alertSettings.value = newSettings
         save()
 
         flyout?.logicalWidth = Double(newSettings.popoverWidth)
@@ -344,6 +423,7 @@ final class TrayApp {
         if pollingChanged, sessionServers == nil {
             monitor.stop()
             monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings)
+            configureAlerts(monitor)
             monitor.start()
         }
         stateChanged()
@@ -379,8 +459,26 @@ final class TrayApp {
             ],
             "about": ["version": DiagnosticsReport.appVersion,
                       "settingsFile": SettingsStore.fileURL.path],
+            "notifications": notificationsPayload(),
         ])
         pushRuntime()
+    }
+
+    /// Settings › Notifications: active watches and the last 24 hours, as on macOS.
+    private func notificationsPayload() -> [String: Any] {
+        [
+            "processWatches": watches.processWatches.map { watch in
+                ["id": watch.id, "title": watch.displayProcessName, "user": watch.user ?? "--",
+                 "pid": watch.pid, "gpu": watch.gpuIndex, "connection": watch.connectionLabel] as [String: Any]
+            },
+            "idleWatches": watches.idleWatches.map { watch in
+                ["id": watch.id, "title": watch.title, "subtitle": watch.subtitle] as [String: Any]
+            },
+            "history": watches.recentHistory().map { entry in
+                ["kind": entry.kind.rawValue, "subtitle": entry.subtitle,
+                 "time": entry.timestamp.timeIntervalSince1970 * 1000] as [String: Any]
+            },
+        ]
     }
 
     private func pushRuntime() {
@@ -430,7 +528,7 @@ final class TrayApp {
                 updated.importServers(from: backup)
                 apply(updated)
                 pendingImport = nil
-                notice(Theme.language == "ko" ? "비활성 서버 \(backup.servers.count)개를 추가했습니다." : "Added \(backup.servers.count) disabled servers.")
+                settingsToast(Theme.language == "ko" ? "비활성 서버 \(backup.servers.count)개를 추가했습니다." : "Added \(backup.servers.count) disabled servers.")
                 pushSettings()
             }
         case "cancelImport":
@@ -443,8 +541,22 @@ final class TrayApp {
             settings = SettingsStore.load()
             pushSettings()
         case "clearSettings":
+            // Like macOS: servers, alerts and notification history all go.
             SettingsStore.clear()
+            watches.clear()
             apply(WindowsSettings())
+            pushSettings()
+        case "removeWatch":
+            if let id = message["id"] as? String { watches.removeWatch(id: id) }
+            stateChanged()
+            pushSettings()
+        case "testNotification":
+            let korean = Theme.language == "ko"
+            let shown = Notifier.show(PendingNotification(
+                title: korean ? "NVBeacon 테스트 알림" : "NVBeacon test notification",
+                body: korean ? "프로세스 종료 알림과 GPU idle 알림이 정상적으로 표시됩니다." : "Process exit and GPU idle alerts are working normally."),
+                trayWindow: window)
+            if shown { watches.record(NotificationHistoryEntry(kind: .testNotificationScheduled)) }
             pushSettings()
         case "openURL":
             Shell.openWebPage(message["url"] as? String ?? "")
@@ -458,7 +570,7 @@ final class TrayApp {
         }
     }
 
-    private func notice(_ text: String) {
+    private func settingsToast(_ text: String) {
         settingsWindow?.host.post(["type": "notice", "text": text])
     }
 
@@ -473,7 +585,7 @@ final class TrayApp {
                                              filter: [("JSON", "*.json")], fileName: "NVBeacon-servers.json",
                                              defaultExtension: "json") else { return }
             try data.write(to: URL(fileURLWithPath: path), options: .atomic)
-            notice(Theme.language == "ko" ? "서버 설정을 내보냈습니다." : "Server settings exported.")
+            settingsToast(Theme.language == "ko" ? "서버 설정을 내보냈습니다." : "Server settings exported.")
         } catch {
             failure(error.localizedDescription)
         }

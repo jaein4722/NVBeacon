@@ -97,6 +97,9 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
     public var popoverWidth = 500
     public var closesPopoverOnOutsideClick = true
     public var highlightsMyProcesses = true
+    /// GPU idle alerts: how long a starred GPU must stay idle, and the memory it may still use.
+    public var idleNotificationSeconds = 300
+    public var idleMemoryThresholdMB = 50
     public var popoverHeightMode = PopoverHeightMode.automatic
     public var popoverHeight = 600
     public var displayMode = DisplayMode.popover
@@ -124,6 +127,8 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         popoverWidth = try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? defaults.popoverWidth
         closesPopoverOnOutsideClick = try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? defaults.closesPopoverOnOutsideClick
         highlightsMyProcesses = try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? defaults.highlightsMyProcesses
+        idleNotificationSeconds = try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? defaults.idleNotificationSeconds
+        idleMemoryThresholdMB = try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? defaults.idleMemoryThresholdMB
         popoverHeightMode = try container.decodeIfPresent(PopoverHeightMode.self, forKey: .popoverHeightMode) ?? defaults.popoverHeightMode
         popoverHeight = try container.decodeIfPresent(Int.self, forKey: .popoverHeight) ?? defaults.popoverHeight
         displayMode = try container.decodeIfPresent(DisplayMode.self, forKey: .displayMode) ?? defaults.displayMode
@@ -139,6 +144,8 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
         copy.popoverWidth = min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
         copy.popoverHeight = min(max(popoverHeight, Self.popoverHeightRange.lowerBound), Self.popoverHeightRange.upperBound)
+        copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 1), 3_600)
+        copy.idleMemoryThresholdMB = min(max(idleMemoryThresholdMB, 0), 10_240)
         var seen = Set<String>()
         copy.servers = servers.filter { seen.insert($0.id).inserted }
         return copy

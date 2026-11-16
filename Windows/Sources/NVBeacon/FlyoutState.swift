@@ -14,6 +14,8 @@ struct FlyoutState: Encodable {
         let processCount: Int
         let latestUpdate: Double?
         let isRefreshing: Bool
+        let watchedProcessCount: Int
+        let watchedIdleCount: Int
     }
 
     struct Server: Encodable {
@@ -73,6 +75,7 @@ struct FlyoutState: Encodable {
         let temperature: String
         let processes: [Process]
         let hasMine: Bool
+        let isWatchingIdle: Bool
     }
 
     struct Process: Encodable {
@@ -82,6 +85,7 @@ struct FlyoutState: Encodable {
         let memoryText: String
         let command: String?
         let isMine: Bool
+        let isWatched: Bool
     }
 
     let type = "state"
@@ -95,8 +99,11 @@ struct FlyoutState: Encodable {
     let pollableServerCount: Int
     let fleet: Fleet
     let servers: [Server]
+    /// The latest status line (alert set, alert sent), shown for a short while.
+    let notice: String?
 
-    init(states: [ServerState], settings: WindowsSettings) {
+    init(states: [ServerState], settings: WindowsSettings, watches: WatchStore, notice: (text: String, at: Date)?) {
+        self.notice = notice.flatMap { Date().timeIntervalSince($0.at) < 20 ? $0.text : nil }
         sentAt = Date().timeIntervalSince1970 * 1000
         language = Theme.language
         theme = Theme.resolvedName
@@ -111,12 +118,14 @@ struct FlyoutState: Encodable {
             gpuCount: allGPUs.count,
             processCount: allGPUs.reduce(0) { $0 + $1.processes.count },
             latestUpdate: active.compactMap { $0.snapshot?.takenAt }.max().map { $0.timeIntervalSince1970 * 1000 },
-            isRefreshing: states.contains { $0.isRefreshing }
+            isRefreshing: states.contains { $0.isRefreshing },
+            watchedProcessCount: watches.processWatches.count,
+            watchedIdleCount: watches.idleWatches.count
         )
-        servers = states.map { Self.server($0, settings: settings) }
+        servers = states.map { Self.server($0, settings: settings, watches: watches) }
     }
 
-    private static func server(_ state: ServerState, settings: WindowsSettings) -> Server {
+    private static func server(_ state: ServerState, settings: WindowsSettings, watches: WatchStore) -> Server {
         let config = state.server
         // A disabled server keeps no readings in the popover, as on macOS.
         let snapshot = config.isPollable ? state.snapshot : nil
@@ -144,9 +153,11 @@ struct FlyoutState: Encodable {
                         Process(pid: process.pid, user: process.userSummary == "--" ? (process.userID.map { "uid \($0)" } ?? "--") : process.userSummary,
                                 name: process.displayProcessName, memoryText: process.memorySummary,
                                 command: process.showsSeparateCommandSummary ? process.commandSummary : nil,
-                                isMine: mine(process))
+                                isMine: mine(process),
+                                isWatched: watches.isWatching(process, on: config))
                     },
-                    hasMine: gpu.processes.contains(where: mine))
+                    hasMine: gpu.processes.contains(where: mine),
+                    isWatchingIdle: watches.isWatchingIdle(gpu, on: config))
             },
             myUser: settings.highlightsMyProcesses && config.isPollable ? state.detectedSSHUsername : nil,
             loadingDetailGPUs: Array(state.loadingDetailGPUs).sorted(),
