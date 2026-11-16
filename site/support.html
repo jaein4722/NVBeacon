@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Support | NVBeacon</title>
+  <meta name="description" content="Get help with NVBeacon, SSH connections, Mac transfers and local data management.">
+  <link rel="canonical" href="https://jaein4722.github.io/NVBeacon/support.html">
+  <link rel="icon" type="image/png" href="./assets/icon.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
+  <div class="page-shell document-shell">
+    <header class="topbar">
+      <a class="brand" href="./"><img src="./assets/icon.png" alt=""><span>NVBeacon</span></a>
+      <nav class="topbar-links" aria-label="Main navigation">
+        <a href="./support.html">Support</a><a href="./privacy.html">Privacy</a>
+        <a href="https://github.com/jaein4722/NVBeacon">GitHub</a>
+      </nav>
+    </header>
+    <main id="content" class="document-card">
+      <h1>Support</h1>
+      <nav class="language-links" aria-label="Page language"><a href="#english" lang="en">English</a><a href="#korean" lang="ko">한국어</a></nav>
+
+      <section id="english" lang="en" aria-labelledby="support-en">
+        <h2 id="support-en">Help with NVBeacon</h2>
+        <p>For bug reports, questions and feature requests, email <a href="mailto:jaein4722@gmail.com">jaein4722@gmail.com</a>. You can also use <a href="https://github.com/jaein4722/NVBeacon/issues">GitHub Issues</a> for public reports. Sending email does not require a GitHub account.</p>
+        <p><a class="button primary" href="mailto:jaein4722@gmail.com?subject=NVBeacon%20support">Email support</a></p>
+        <h3>Include enough detail to reproduce the problem</h3>
+        <p>Include your app version, device and OS version, the steps you followed and what you expected. On iPhone or iPad, use Settings → Diagnostics to copy a report. Review anything you share: GitHub Issues are public. Never include passwords, private keys, pairing QR codes or private server addresses. Redact screenshots and custom commands.</p>
+        <h3>SSH connection problems</h3>
+        <ul><li>Check that the server is reachable and that its SSH port, username and authentication method are correct. Connect your VPN first for private servers.</li><li>Verify the host fingerprint with your server administrator. A changed fingerprint needs verification before trusting the new key.</li><li>Confirm that your account can run <code>nvidia-smi</code> on the server. Your administrator controls server access and command permissions.</li></ul>
+        <h3>iPhone and iPad</h3>
+        <ul><li>Monitoring runs while the app is in the foreground. Open it again after locking the device or switching apps to reconnect. Continuous background monitoring and job-exit/idle notifications are not available in this version.</li><li>Enter an explicit hostname and SSH username. Mac SSH aliases, ProxyJump, SSH agents and interactive MFA are not supported.</li><li>For Mac transfer, put both devices on the same local network, allow local-network access and camera access for scanning, generate a fresh QR code and compare the six-digit code before approving on Mac. You can also add a server manually without a Mac.</li><li>JSON backups exclude credentials. After importing, provide credentials and verify host fingerprints before enabling servers.</li></ul>
+        <h3>Delete saved server information</h3>
+        <p>Delete a server in the app to remove its profile and saved credential from this device. Delete exported files separately. Read the <a href="./privacy.html">iPhone and iPad privacy policy</a> for details.</p>
+        <h3>macOS</h3>
+        <p>For installation, updates and desktop features, see the <a href="https://github.com/jaein4722/NVBeacon/blob/master/README.md">README</a> and <a href="https://github.com/jaein4722/NVBeacon/releases">release notes</a>.</p>
+      </section>
+      <section id="korean" lang="ko" aria-labelledby="support-ko">
+        <h2 id="support-ko">NVBeacon 지원</h2>
+        <p>오류 신고, 질문과 기능 제안은 <a href="mailto:jaein4722@gmail.com">jaein4722@gmail.com</a>으로 보내주세요. 공개해도 되는 내용은 <a href="https://github.com/jaein4722/NVBeacon/issues">GitHub Issues</a>로도 문의할 수 있습니다. 이메일 문의에는 GitHub 계정이 필요하지 않습니다.</p>
+        <p><a class="button primary" href="mailto:jaein4722@gmail.com?subject=NVBeacon%20support">이메일 문의</a></p>
+        <h3>문제 재현에 필요한 정보</h3>
+        <p>앱 버전, 기기와 OS 버전, 재현 순서와 기대한 동작을 알려주세요. iPhone·iPad에서는 설정 → 진단에서 보고서를 복사할 수 있습니다. 이슈는 공개되므로 공유 전에 확인하세요. 비밀번호·개인 키·연결용 QR 코드·비공개 서버 주소를 올리지 말고, 스크린샷과 사용자 지정 명령의 민감한 내용도 가려주세요.</p>
+        <h3>SSH 연결이 안 될 때</h3>
+        <ul><li>서버 접근 가능 여부와 SSH 포트·사용자 이름·인증 방식을 확인하세요. 사설망 서버는 VPN을 먼저 연결하세요.</li><li>서버 관리자에게 호스트 지문을 확인하세요. 지문이 바뀌었다면 새 키를 신뢰하기 전에 변경 이유를 확인해야 합니다.</li><li>해당 계정으로 서버에서 <code>nvidia-smi</code>를 실행할 수 있는지 확인하세요. 서버 접근과 명령 실행 권한은 서버 관리자가 설정합니다.</li></ul>
+        <h3>iPhone·iPad 사용 안내</h3>
+        <ul><li>앱이 화면에 열려 있을 때 모니터링합니다. 잠금이나 앱 전환 후에는 앱을 열어 다시 연결하세요. 이번 버전은 지속적인 백그라운드 모니터링과 작업 종료·GPU 유휴 알림을 지원하지 않습니다.</li><li>호스트 이름과 SSH 사용자 이름을 직접 입력하세요. Mac SSH 별칭, ProxyJump, SSH 에이전트와 대화형 다중 인증은 지원하지 않습니다.</li><li>Mac에서 전송할 때는 두 기기를 같은 로컬 네트워크에 연결하고 로컬 네트워크·카메라 권한을 허용하세요. 새 QR 코드를 만든 뒤 양쪽의 6자리 코드를 비교하고 Mac에서 승인하세요. Mac 없이 서버를 직접 추가할 수도 있습니다.</li><li>JSON 백업에는 인증정보가 없습니다. 가져온 뒤 인증정보를 입력하고 호스트 지문을 확인한 다음 서버를 활성화하세요.</li></ul>
+        <h3>서버 정보 삭제</h3>
+        <p>앱에서 서버를 삭제하면 해당 기기의 서버 설정과 저장된 인증정보가 삭제됩니다. 내보낸 파일은 따로 삭제하세요. 자세한 내용은 <a href="./privacy.html#korean">개인정보처리방침</a>을 확인하세요.</p>
+        <h3>macOS</h3>
+        <p>설치·업데이트·데스크톱 기능은 <a href="https://github.com/jaein4722/NVBeacon/blob/master/README.md">README</a>와 <a href="https://github.com/jaein4722/NVBeacon/releases">릴리스 안내</a>를 참고하세요.</p>
+      </section>
+    </main>
+    <footer class="footer"><span>NVBeacon · <a href="./">Project home</a></span><div class="footer-links"><a href="./support.html">Support</a><a href="./privacy.html">Privacy</a></div></footer>
+  </div>
+</body>
+</html>
