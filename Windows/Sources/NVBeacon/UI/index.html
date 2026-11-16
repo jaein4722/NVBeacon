@@ -8,31 +8,8 @@
   <link rel="stylesheet" href="app.css">
 </head>
 <body>
-  <header class="bar">
-    <div class="title">
-      <span class="app-name">NVBeacon</span>
-      <span class="subtitle" id="summary">Waiting for data…</span>
-    </div>
-    <div class="actions">
-      <button class="icon-button" id="refresh" title="Refresh now" aria-label="Refresh now">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.6 6.2A5.6 5.6 0 1 0 13 11l-1.2-.7A4.2 4.2 0 1 1 12.2 6H10v1.4h4.4V3h-1.4v2.1z"/></svg>
-      </button>
-      <button class="icon-button" id="menu" title="More" aria-label="More options">
-        <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="8" r="1.4"/><circle cx="8" cy="8" r="1.4"/><circle cx="13" cy="8" r="1.4"/></svg>
-      </button>
-    </div>
-  </header>
-  <main id="servers" aria-live="polite"></main>
-  <footer class="bar footer">
-    <button class="text-button" id="edit">Edit servers…</button>
-    <button class="text-button" id="quit">Quit</button>
-  </footer>
-  <template id="empty">
-    <div class="empty">
-      <p>No servers yet.</p>
-      <p class="hint">Add one SSH target per line to servers.txt, then reload.</p>
-    </div>
-  </template>
+  <main id="root"><div id="content" class="content"></div></main>
+  <script src="icons.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

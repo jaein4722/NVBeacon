@@ -73,6 +73,8 @@ final class TrayApp {
         flyout.onMessage = { [unowned self] message in
             switch message["type"] as? String {
             case "refresh": run(.refresh)
+            case "refreshServer":
+                if let id = message["id"] as? String { monitor.refresh(target: id) }
             case "menu": showMenu(fromFlyout: true)
             case "editServers": run(.editServers)
             case "copyReport": run(.copyReport)

@@ -20,6 +20,10 @@ final class Flyout {
     private var pageReady = false
     private var hiddenAt: UInt64 = 0
     private let releaseAfter: UINT
+    /// macOS popover default width, in logical (96 DPI) pixels.
+    private let logicalWidth = 500.0
+    /// Reported by the page so the flyout hugs its content, like the macOS popover.
+    private var contentHeight = 560.0
     var onMessage: ([String: Any]) -> Void = { _ in }
     var currentState: () -> String = { "{}" }
 
@@ -130,7 +134,12 @@ final class Flyout {
         var dpiX: UINT = 96, dpiY: UINT = 96
         GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &dpiX, &dpiY)
         let scale = Double(dpiX) / 96
-        let width = Int32(380 * scale), height = Int32(560 * scale), margin = Int32(12 * scale)
+        let margin = Int32(12 * scale)
+        let width = Int32(logicalWidth * scale)
+        // Same limits as the macOS popover: 320 pt minimum, at most min(1100, visible height − 96).
+        let workHeight = Double(work.bottom - work.top) / scale
+        let maximumHeight = max(320, min(1100, workHeight - 96))
+        let height = Int32(min(maximumHeight, max(min(320, maximumHeight), contentHeight)) * scale)
 
         let middle = (icon.left + icon.right) / 2
         let x = min(max(middle - width / 2, work.left + margin), work.right - width - margin)
@@ -218,6 +227,11 @@ final class Flyout {
             }
         case "close":
             hide()
+        case "size":
+            if let height = message["height"] as? Double, abs(height - contentHeight) >= 1 {
+                contentHeight = height
+                if isVisible { position() }
+            }
         default:
             onMessage(message)
         }
@@ -291,7 +305,7 @@ enum Theme {
 
     /// Must match the page's background so nothing flashes while it loads.
     static var backgroundColor: COLORREF {
-        prefersDark ? COLORREF(0x2C2C2C) : COLORREF(0xF3F3F3)  // 0x00BBGGRR
+        prefersDark ? COLORREF(0x1E1E1E) : COLORREF(0xECECEC)  // 0x00BBGGRR, macOS window backgrounds
     }
 }
 

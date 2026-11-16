@@ -1,77 +1,161 @@
 import Foundation
 import NVBeaconCore
 import NVBeaconWindowsKit
+import WinSDK
 
-/// What the flyout page receives. Swift sends domain values; the page owns
-/// presentation-only state (collapsed sections, scrolling, hover).
+/// What the flyout page receives. Swift sends domain values and decisions (busy
+/// counts, thresholds); the page owns presentation-only state such as collapsed
+/// sections and expanded GPUs, and formats text in the chosen language.
 struct FlyoutState: Encodable {
+    struct Fleet: Encodable {
+        let averageUtilization: Int
+        let busyCount: Int
+        let gpuCount: Int
+        let processCount: Int
+        let latestUpdate: Double?
+        let isRefreshing: Bool
+    }
+
     struct Server: Encodable {
         let id: String
-        let target: String
+        let name: String
         let updatedAt: Double?
         let error: String?
-        let stale: Bool
+        let isRefreshing: Bool
         let averageUtilization: Int?
-        let memoryUsedMB: Int?
-        let memoryTotalMB: Int?
-        let cpuPercent: Int?
-        let ramPercent: Int?
-        let ramText: String?
+        let busyCount: Int?
+        let processCount: Int?
+        let host: Host?
         let gpus: [GPU]
+    }
+
+    struct Host: Encodable {
+        let cpuPercent: Int?
+        let cpuMeasuring: Bool
+        let memory: Memory?
+        let network: Network?
+    }
+
+    struct Memory: Encodable {
+        let usedPercent: Int
+        let usedText: String
+        let totalText: String
+        let availableText: String
+        let ratio: Double
+        let swapUsedText: String?
+        let swapTotalText: String?
+        let swapRatio: Double?
+        let swapTotalKiB: Int?
+    }
+
+    struct Network: Encodable {
+        let downText: String
+        let upText: String
+        let totalText: String
+        let interfaces: [String]
+        let hasRates: Bool
     }
 
     struct GPU: Encodable {
         let index: Int
         let name: String
         let utilization: Int
+        let memoryPercent: Int
         let memoryUsedMB: Int
         let memoryTotalMB: Int
-        let temperature: Int?
+        let temperature: String
         let processes: [Process]
     }
 
     struct Process: Encodable {
         let pid: Int
         let user: String
-        let memoryMB: Int
-        let command: String
+        let name: String
+        let memoryText: String
+        let command: String?
     }
 
     let type = "state"
     /// Milliseconds since 1970, echoed back by the page to measure delivery time.
     let sentAt: Double
+    let language: String
+    let fleet: Fleet
     let servers: [Server]
+
+    // macOS defaults until Windows has settings: busy = has an active process.
+    static let busyMode = BusyDetectionMode.activeProcess
+    static let busyMemoryThresholdMB = 50
+    static let busyUtilizationThreshold = 10
+
+    static func isBusy(_ gpu: GPUReading) -> Bool {
+        gpu.isBusy(mode: busyMode, memoryThresholdMB: busyMemoryThresholdMB, utilizationThreshold: busyUtilizationThreshold)
+    }
 
     init(states: [ServerState]) {
         sentAt = Date().timeIntervalSince1970 * 1000
-        servers = states.map { state in
-            let gpus = state.snapshot?.gpus ?? []
-            let memory = state.snapshot?.hostMemory
-            return Server(
-                id: state.target,
-                target: state.target,
-                updatedAt: state.lastAttempt.map { $0.timeIntervalSince1970 * 1000 },
-                error: state.lastError,
-                stale: state.lastError != nil && state.snapshot != nil,
-                averageUtilization: state.snapshot?.averageUtilization,
-                memoryUsedMB: state.snapshot.map { _ in gpus.reduce(0) { $0 + $1.memoryUsedMB } },
-                memoryTotalMB: state.snapshot.map { _ in gpus.reduce(0) { $0 + $1.memoryTotalMB } },
-                cpuPercent: state.cpuPercent,
-                ramPercent: memory?.usagePercent,
-                ramText: memory.map {
-                    "\(HostMemoryReading.capacityText(kibibytes: $0.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: $0.totalKiB))"
-                },
-                gpus: gpus.map { gpu in
-                    GPU(index: gpu.index, name: gpu.name, utilization: gpu.utilization,
-                        memoryUsedMB: gpu.memoryUsedMB, memoryTotalMB: gpu.memoryTotalMB,
-                        temperature: gpu.temperatureCelsius,
-                        processes: gpu.processes.map {
-                            Process(pid: $0.pid, user: $0.user ?? $0.userID.map { "uid \($0)" } ?? "?",
-                                    memoryMB: $0.usedGPUMemoryMB, command: $0.commandSummary)
-                        })
-                }
-            )
+        language = Self.interfaceLanguage
+        let allGPUs = states.flatMap { $0.snapshot?.gpus ?? [] }
+        fleet = Fleet(
+            averageUtilization: allGPUs.isEmpty ? 0 : Int((Double(allGPUs.reduce(0) { $0 + $1.utilization }) / Double(allGPUs.count)).rounded()),
+            busyCount: allGPUs.filter(Self.isBusy).count,
+            gpuCount: allGPUs.count,
+            processCount: allGPUs.reduce(0) { $0 + $1.processes.count },
+            latestUpdate: states.compactMap { $0.snapshot?.takenAt }.max().map { $0.timeIntervalSince1970 * 1000 },
+            isRefreshing: states.contains { $0.isRefreshing }
+        )
+        servers = states.map(Self.server)
+    }
+
+    private static func server(_ state: ServerState) -> Server {
+        let snapshot = state.snapshot
+        let gpus = snapshot?.gpus ?? []
+        return Server(
+            id: state.target,
+            name: state.target,
+            updatedAt: snapshot.map { $0.takenAt.timeIntervalSince1970 * 1000 },
+            error: state.lastError,
+            isRefreshing: state.isRefreshing,
+            averageUtilization: snapshot?.averageUtilization,
+            busyCount: snapshot.map { _ in gpus.filter(isBusy).count },
+            processCount: snapshot?.totalProcessCount,
+            host: snapshot.map { host(snapshot: $0, state: state) },
+            gpus: gpus.map { gpu in
+                GPU(index: gpu.index, name: gpu.name, utilization: gpu.utilization,
+                    memoryPercent: gpu.memoryUsagePercent, memoryUsedMB: gpu.memoryUsedMB,
+                    memoryTotalMB: gpu.memoryTotalMB, temperature: gpu.temperatureSummary,
+                    processes: gpu.processes.map { process in
+                        Process(pid: process.pid, user: process.userSummary == "--" ? (process.userID.map { "uid \($0)" } ?? "--") : process.userSummary,
+                                name: process.displayProcessName, memoryText: process.memorySummary,
+                                command: process.showsSeparateCommandSummary ? process.commandSummary : nil)
+                    })
+            }
+        )
+    }
+
+    private static func host(snapshot: GPUSnapshot, state: ServerState) -> Host {
+        let memory = snapshot.hostMemory.map { reading in
+            Memory(usedPercent: reading.usagePercent,
+                   usedText: HostMemoryReading.capacityText(kibibytes: reading.usedKiB),
+                   totalText: HostMemoryReading.capacityText(kibibytes: reading.totalKiB),
+                   availableText: HostMemoryReading.capacityText(kibibytes: reading.availableKiB),
+                   ratio: reading.usageRatio,
+                   swapUsedText: reading.swapUsedKiB.map { HostMemoryReading.capacityText(kibibytes: $0) },
+                   swapTotalText: reading.swapTotalKiB.map { HostMemoryReading.capacityText(kibibytes: $0) },
+                   swapRatio: reading.swapUsageRatio,
+                   swapTotalKiB: reading.swapTotalKiB)
         }
+        let network = state.networkUsage.map { usage in
+            Network(downText: NetworkUsageFormatter.rateText(usage.receivedBytesPerSecond),
+                    upText: NetworkUsageFormatter.rateText(usage.transmittedBytesPerSecond),
+                    totalText: usage.totalSummary, interfaces: usage.interfaceNames, hasRates: usage.hasRates)
+        }
+        return Host(cpuPercent: state.cpuPercent, cpuMeasuring: snapshot.hostCPUSample != nil,
+                    memory: memory, network: network)
+    }
+
+    /// "ko" when the Windows display language is Korean, otherwise "en" (the macOS app's System setting).
+    static var interfaceLanguage: String {
+        (GetUserDefaultUILanguage() & 0x3FF) == 0x12 ? "ko" : "en"
     }
 
     func json() -> String {

@@ -52,6 +52,7 @@ public struct DemoTransport: RemoteCommandExecuting {
             }
         }
         let cpuBase = UInt64(t * 100)
+        let uptime = t.truncatingRemainder(dividingBy: 3 * 86_400)  // counters as if booted within 3 days
         let output = """
         \(gpuLines.joined(separator: "\n"))
 
@@ -68,7 +69,10 @@ public struct DemoTransport: RemoteCommandExecuting {
         MemTotal: 1056768000 kB
         MemAvailable: \(UInt64(wave(4, 300_000_000, 800_000_000))) kB
         SwapTotal: 8388604 kB
-        SwapFree: 8388604 kB
+        SwapFree: \(UInt64(wave(5, 7_800_000, 8_388_604))) kB
+        \(RemoteMetricCommands.networkSectionSeparator)
+        eth0 \(UInt64(uptime * 48_000_000)) \(UInt64(uptime * 9_500_000))
+        ib0 \(UInt64(uptime * 210_000_000)) \(UInt64(uptime * 205_000_000))
         """
         return RemoteCommandOutput(standardOutput: output, standardError: "", exitStatus: 0)
     }
