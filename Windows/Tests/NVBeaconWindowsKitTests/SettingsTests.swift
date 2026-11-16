@@ -44,7 +44,8 @@ import Testing
     let file = folder.appendingPathComponent("settings.json")
     let legacy = folder.appendingPathComponent("servers.txt")
     try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-    try "gpu-a\n# comment\nbob@gpu-b\n".write(to: legacy, atomically: true, encoding: .utf8)
+    // Not atomic: the temp-file rename can hit a sharing violation while antivirus scans it.
+    try "gpu-a\n# comment\nbob@gpu-b\n".write(to: legacy, atomically: false, encoding: .utf8)
 
     var migrated = SettingsStore.load(from: file, legacyServerFile: legacy)
     #expect(migrated.servers.map(\.sshTarget) == ["gpu-a", "bob@gpu-b"])
