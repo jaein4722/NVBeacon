@@ -2,7 +2,7 @@ import Foundation
 import NVBeaconCore
 
 public struct ServerState: Sendable {
-    public let target: String
+    public let server: ServerSettings
     public var snapshot: GPUSnapshot?
     public var cpuPercent: Int?
     public var networkUsage: NetworkUsage?
@@ -10,22 +10,34 @@ public struct ServerState: Sendable {
     public var lastAttempt: Date?
     public var isRefreshing = false
 
-    public init(target: String) { self.target = target }
+    public init(server: ServerSettings) { self.server = server }
+
+    public var id: String { server.id }
+    public var target: String { server.trimmedTarget }
+    public var displayName: String { server.displayName }
 }
 
-/// Polls every server on a fixed interval and reports each change.
+/// Polls every enabled server on a fixed interval and reports each change.
 public final class ServerMonitor: @unchecked Sendable {
     public let interval: Duration
+    public let hostMetrics: HostMetricsOptions
     private let lock = NSLock()
     private var states: [ServerState]
     private var refreshRequested = false
     private var loop: Task<Void, Never>?
     private let onChange: @Sendable () -> Void
 
-    public init(targets: [String], interval: Duration, onChange: @escaping @Sendable () -> Void) {
+    public init(servers: [ServerSettings], interval: Duration, hostMetrics: HostMetricsOptions = .init(),
+                onChange: @escaping @Sendable () -> Void) {
         self.interval = interval
-        self.states = targets.map(ServerState.init)
+        self.hostMetrics = hostMetrics
+        self.states = servers.map(ServerState.init)
         self.onChange = onChange
+    }
+
+    /// Command-line and demo targets: plain SSH targets with default commands.
+    public convenience init(targets: [String], interval: Duration, onChange: @escaping @Sendable () -> Void) {
+        self.init(servers: targets.map { ServerSettings(sshTarget: $0) }, interval: interval, onChange: onChange)
     }
 
     public var snapshot: [ServerState] { lock.withLock { states } }
@@ -47,9 +59,9 @@ public final class ServerMonitor: @unchecked Sendable {
     public func refreshNow() { lock.withLock { refreshRequested = true } }
 
     /// Polls one server right away unless it is already being polled.
-    public func refresh(target: String) {
-        guard let index = lock.withLock({ states.firstIndex { $0.target == target } }) else { return }
-        Task.detached { [self] in await poll(index: index, target: target) }
+    public func refresh(serverID: String) {
+        guard let index = lock.withLock({ states.firstIndex { $0.id == serverID } }) else { return }
+        Task.detached { [self] in await poll(index: index) }
     }
 
     private func takeRefreshRequest() -> Bool {
@@ -60,10 +72,10 @@ public final class ServerMonitor: @unchecked Sendable {
     }
 
     public func pollAll() async {
-        let targets = lock.withLock { states.map(\.target) }
+        let count = lock.withLock { states.count }
         await withTaskGroup(of: Void.self) { group in
-            for (index, target) in targets.enumerated() {
-                group.addTask { [self] in await poll(index: index, target: target) }
+            for index in 0..<count {
+                group.addTask { [self] in await poll(index: index) }
             }
         }
     }
@@ -74,21 +86,35 @@ public final class ServerMonitor: @unchecked Sendable {
         max(60, Double(interval.components.seconds) * 4)
     }
 
-    private func poll(index: Int, target: String) async {
-        let started: Bool = lock.withLock {
-            guard !states[index].isRefreshing else { return false }
-            states[index].isRefreshing = true
-            return true
+    static func transport(for server: ServerSettings) -> AnyRemoteCommandExecutor {
+        let target = server.trimmedTarget
+        if target.hasPrefix(DemoTransport.targetPrefix) {
+            return AnyRemoteCommandExecutor(DemoTransport(target: target))
         }
-        guard started else { return }
+        return AnyRemoteCommandExecutor(SSHTransport(target: target, port: server.resolvedPort,
+                                                     identityFile: server.sshIdentityFilePath))
+    }
+
+    private func poll(index: Int) async {
+        let server: ServerSettings? = lock.withLock {
+            guard !states[index].isRefreshing, states[index].server.isPollable else { return nil }
+            states[index].isRefreshing = true
+            return states[index].server
+        }
+        guard let server else { return }
         onChange()
 
-        let transport = target.hasPrefix(DemoTransport.targetPrefix)
-            ? AnyRemoteCommandExecutor(DemoTransport(target: target))
-            : AnyRemoteCommandExecutor(SSHTransport(target: target))
-        let collector = MetricsCollector(transport: transport)
+        let collector = MetricsCollector(transport: Self.transport(for: server))
         let result: Result<GPUSnapshot, Error>
-        do { result = .success(try await collector.fetchSummary()) } catch { result = .failure(error) }
+        do {
+            result = .success(try await collector.fetchSummary(
+                gpuCommand: server.resolvedRemoteCommand,
+                includesNetworkUsage: hostMetrics.network,
+                hostMetrics: hostMetrics,
+                hostCommand: server.resolvedHostCommand))
+        } catch {
+            result = .failure(error)
+        }
         let maximum = maximumSampleInterval
         lock.withLock {
             var state = states[index]

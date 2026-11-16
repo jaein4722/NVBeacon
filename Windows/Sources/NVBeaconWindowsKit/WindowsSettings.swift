@@ -1,0 +1,186 @@
+import Foundation
+import NVBeaconCore
+
+/// One monitored server. Field names match the macOS `ServerConfig` so backups
+/// and future sharing line up.
+public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
+    public var id: String
+    public var name: String
+    public var sshTarget: String
+    public var sshPort: String
+    public var sshIdentityFilePath: String
+    public var sshAuthenticationMode: SSHAuthenticationMode
+    public var remoteCommand: String
+    public var hostCommand: String
+    public var isEnabled: Bool
+
+    public init(id: String = UUID().uuidString, name: String = "", sshTarget: String = "", sshPort: String = "",
+                sshIdentityFilePath: String = "", sshAuthenticationMode: SSHAuthenticationMode = .keyBased,
+                remoteCommand: String = RemoteMetricCommands.defaultGPUCommand,
+                hostCommand: String = RemoteMetricCommands.defaultHostCommand, isEnabled: Bool = true) {
+        self.id = id
+        self.name = name
+        self.sshTarget = sshTarget
+        self.sshPort = sshPort
+        self.sshIdentityFilePath = sshIdentityFilePath
+        self.sshAuthenticationMode = sshAuthenticationMode
+        self.remoteCommand = remoteCommand
+        self.hostCommand = hostCommand
+        self.isEnabled = isEnabled
+    }
+
+    public var displayName: String {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        if !trimmed.isEmpty { return trimmed }
+        let target = sshTarget.trimmingCharacters(in: .whitespaces)
+        return target.isEmpty ? "New Server" : target
+    }
+
+    public var trimmedTarget: String { sshTarget.trimmingCharacters(in: .whitespaces) }
+
+    public var resolvedPort: Int? {
+        Int(sshPort.trimmingCharacters(in: .whitespaces)).flatMap { (1...65_535).contains($0) ? $0 : nil }
+    }
+
+    /// Enabled, has a usable target, and uses an authentication mode Windows supports.
+    public var isPollable: Bool {
+        isEnabled && SSHTransport.isValidTarget(trimmedTarget) && sshAuthenticationMode == .keyBased
+    }
+
+    public var resolvedRemoteCommand: String {
+        let trimmed = remoteCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? RemoteMetricCommands.defaultGPUCommand : remoteCommand
+    }
+
+    public var resolvedHostCommand: String {
+        let trimmed = hostCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? RemoteMetricCommands.defaultHostCommand : hostCommand
+    }
+}
+
+public enum LanguagePreference: String, Codable, CaseIterable, Sendable { case system, english, korean }
+public enum AppearancePreference: String, Codable, CaseIterable, Sendable { case system, light, dark }
+
+/// The Windows app's saved settings (%APPDATA%\NVBeacon\settings.json). Defaults
+/// match the macOS `AppSettings`.
+public struct WindowsSettings: Codable, Equatable, Sendable {
+    public static let popoverWidthRange = 480...800
+    public static let pollIntervalRange = 1...300
+
+    public var servers: [ServerSettings] = []
+    public var pollIntervalSeconds = 10
+    public var busyDetectionMode = BusyDetectionMode.activeProcess
+    public var busyMemoryThresholdMB = 50
+    public var busyUtilizationThresholdPercent = 10
+    public var collectsHostInfo = true
+    public var collectsHostCPU = true
+    public var collectsHostMemory = true
+    public var showsNetworkUsage = true
+    public var languagePreference = LanguagePreference.system
+    public var appearanceMode = AppearancePreference.system
+    public var popoverWidth = 500
+    public var closesPopoverOnOutsideClick = true
+
+    public init() {}
+
+    public init(from decoder: Decoder) throws {
+        // Every field is optional so older or hand-edited files still load.
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = WindowsSettings()
+        servers = try container.decodeIfPresent([ServerSettings].self, forKey: .servers) ?? defaults.servers
+        pollIntervalSeconds = try container.decodeIfPresent(Int.self, forKey: .pollIntervalSeconds) ?? defaults.pollIntervalSeconds
+        busyDetectionMode = try container.decodeIfPresent(BusyDetectionMode.self, forKey: .busyDetectionMode) ?? defaults.busyDetectionMode
+        busyMemoryThresholdMB = try container.decodeIfPresent(Int.self, forKey: .busyMemoryThresholdMB) ?? defaults.busyMemoryThresholdMB
+        busyUtilizationThresholdPercent = try container.decodeIfPresent(Int.self, forKey: .busyUtilizationThresholdPercent) ?? defaults.busyUtilizationThresholdPercent
+        collectsHostInfo = try container.decodeIfPresent(Bool.self, forKey: .collectsHostInfo) ?? defaults.collectsHostInfo
+        collectsHostCPU = try container.decodeIfPresent(Bool.self, forKey: .collectsHostCPU) ?? defaults.collectsHostCPU
+        collectsHostMemory = try container.decodeIfPresent(Bool.self, forKey: .collectsHostMemory) ?? defaults.collectsHostMemory
+        showsNetworkUsage = try container.decodeIfPresent(Bool.self, forKey: .showsNetworkUsage) ?? defaults.showsNetworkUsage
+        languagePreference = try container.decodeIfPresent(LanguagePreference.self, forKey: .languagePreference) ?? defaults.languagePreference
+        appearanceMode = try container.decodeIfPresent(AppearancePreference.self, forKey: .appearanceMode) ?? defaults.appearanceMode
+        popoverWidth = try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? defaults.popoverWidth
+        closesPopoverOnOutsideClick = try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? defaults.closesPopoverOnOutsideClick
+    }
+
+    /// Clamps numbers into their ranges and drops duplicate server ids.
+    public func sanitized() -> WindowsSettings {
+        var copy = self
+        copy.pollIntervalSeconds = min(max(pollIntervalSeconds, Self.pollIntervalRange.lowerBound), Self.pollIntervalRange.upperBound)
+        copy.busyMemoryThresholdMB = min(max(busyMemoryThresholdMB, 0), 10_240)
+        copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
+        copy.popoverWidth = min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
+        var seen = Set<String>()
+        copy.servers = servers.filter { seen.insert($0.id).inserted }
+        return copy
+    }
+
+    public var hostMetricsOptions: HostMetricsOptions {
+        HostMetricsOptions(cpu: collectsHostInfo && collectsHostCPU,
+                           memory: collectsHostInfo && collectsHostMemory,
+                           network: collectsHostInfo && showsNetworkUsage)
+    }
+
+    public func isBusy(_ gpu: GPUReading) -> Bool {
+        gpu.isBusy(mode: busyDetectionMode, memoryThresholdMB: busyMemoryThresholdMB,
+                   utilizationThreshold: busyUtilizationThresholdPercent)
+    }
+
+    // MARK: Backups (Core format v2, shared with macOS)
+
+    public func backup() -> ServerSettingsBackup {
+        ServerSettingsBackup(servers: servers.filter { !$0.trimmedTarget.isEmpty }.map { server in
+            ServerSettingsBackup.Entry(name: server.name, sshTarget: server.sshTarget, sshPort: server.sshPort,
+                                       sshIdentityFilePath: server.sshIdentityFilePath,
+                                       sshAuthenticationMode: server.sshAuthenticationMode,
+                                       // Windows cannot reuse connections; export the macOS default so
+                                       // the server behaves normally when imported on a Mac.
+                                       sshConnectionReuseMode: .reuseWhenPossible,
+                                       remoteCommand: server.remoteCommand,
+                                       memoryCommand: RemoteMetricCommands.defaultMemoryCommand,
+                                       hostCommand: server.hostCommand)
+        })
+    }
+
+    /// Imported servers are added disabled, never replacing existing ones (macOS behaviour).
+    public mutating func importServers(from backup: ServerSettingsBackup) {
+        servers += backup.servers.map { entry in
+            ServerSettings(name: entry.name, sshTarget: entry.sshTarget, sshPort: entry.sshPort,
+                           sshIdentityFilePath: entry.sshIdentityFilePath,
+                           sshAuthenticationMode: entry.sshAuthenticationMode,
+                           remoteCommand: entry.remoteCommand, hostCommand: entry.hostCommand, isEnabled: false)
+        }
+    }
+}
+
+/// Loads and saves settings, migrating the prototype's servers.txt once.
+public enum SettingsStore {
+    public static var folder: URL {
+        let appData = ProcessInfo.processInfo.environment["APPDATA"]
+            ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("AppData/Roaming").path
+        return URL(fileURLWithPath: appData).appendingPathComponent("NVBeacon")
+    }
+
+    public static var fileURL: URL { folder.appendingPathComponent("settings.json") }
+
+    public static func load(from url: URL = fileURL, legacyServerFile: URL = LaunchOptions.serverFile) -> WindowsSettings {
+        if let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(WindowsSettings.self, from: data) {
+            return settings.sanitized()
+        }
+        var settings = WindowsSettings()
+        if let text = try? String(contentsOf: legacyServerFile, encoding: .utf8) {
+            settings.servers = LaunchOptions.targets(fromServerFile: text).map { ServerSettings(sshTarget: $0) }
+        }
+        return settings
+    }
+
+    public static func save(_ settings: WindowsSettings, to url: URL = fileURL) throws {
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+        try encoder.encode(settings.sanitized()).write(to: url, options: .atomic)
+    }
+
+    public static func clear(at url: URL = fileURL) {
+        try? FileManager.default.removeItem(at: url)
+    }
+}

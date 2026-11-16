@@ -50,10 +50,14 @@ do {
     showError("\(error)\n\nUsage: NVBeacon.exe [--interval SECONDS] [--demo] [TARGET ...]")
     exit(2)
 }
-if options.targets.isEmpty { options.targets = LaunchOptions.loadServerFile() }
-let launchOptions = options
+var savedSettings = SettingsStore.load()
+// --interval without targets still applies for this session.
+if arguments.contains("--interval") { savedSettings.pollIntervalSeconds = Int(options.interval.components.seconds) }
+let launchSettings = savedSettings
+// Command-line or --demo targets replace the saved servers for this session only.
+let sessionTargets: [String]? = options.targets.isEmpty ? nil : options.targets
 let releaseAfter = releaseAfterSeconds
-Diagnostics.log("launch: \(launchOptions.targets.count) servers, release after \(releaseAfter) s")
+Diagnostics.log("launch: \(sessionTargets?.count ?? launchSettings.servers.count) servers, release after \(releaseAfter) s")
 
 func runUIThread() {
     CoInitializeEx(nil, DWORD(COINIT_APARTMENTTHREADED.rawValue))  // WebView2 requires an STA thread
@@ -67,7 +71,7 @@ func runUIThread() {
         windowClass.lpszClassName = name
         return RegisterClassExW(&windowClass)
     }
-    guard registered != 0, Flyout.registerClass(instance: instance) else {
+    guard registered != 0, Flyout.registerClass(instance: instance), SettingsWindow.registerClass(instance: instance) else {
         showError("Could not register the tray window (error \(GetLastError())).")
         exit(1)
     }
@@ -84,11 +88,15 @@ func runUIThread() {
     }
 
     trayWindowBits = Int(bitPattern: window)
-    let app = TrayApp(window: window, targets: launchOptions.targets, interval: launchOptions.interval)
+    let app = TrayApp(window: window, settings: launchSettings, sessionTargets: sessionTargets)
     trayApp = app
     if let flyout = Flyout(trayWindow: window, instance: instance, releaseAfterSeconds: releaseAfter) {
         activeFlyout = flyout
         app.attach(flyout)
+    }
+    if let settingsWindow = SettingsWindow(instance: instance) {
+        activeSettingsWindow = settingsWindow
+        app.attach(settingsWindow)
     }
     app.start()
 

@@ -19,6 +19,9 @@ struct FlyoutState: Encodable {
     struct Server: Encodable {
         let id: String
         let name: String
+        let isEnabled: Bool
+        /// Why an enabled server is not polled: "password" (not supported on Windows yet) or "target".
+        let inactiveReason: String?
         let updatedAt: Double?
         let error: String?
         let isRefreshing: Bool
@@ -79,44 +82,46 @@ struct FlyoutState: Encodable {
     /// Milliseconds since 1970, echoed back by the page to measure delivery time.
     let sentAt: Double
     let language: String
+    let theme: String
+    let pollableServerCount: Int
     let fleet: Fleet
     let servers: [Server]
 
-    // macOS defaults until Windows has settings: busy = has an active process.
-    static let busyMode = BusyDetectionMode.activeProcess
-    static let busyMemoryThresholdMB = 50
-    static let busyUtilizationThreshold = 10
-
-    static func isBusy(_ gpu: GPUReading) -> Bool {
-        gpu.isBusy(mode: busyMode, memoryThresholdMB: busyMemoryThresholdMB, utilizationThreshold: busyUtilizationThreshold)
-    }
-
-    init(states: [ServerState]) {
+    init(states: [ServerState], settings: WindowsSettings) {
         sentAt = Date().timeIntervalSince1970 * 1000
-        language = Self.interfaceLanguage
-        let allGPUs = states.flatMap { $0.snapshot?.gpus ?? [] }
+        language = Theme.language
+        theme = Theme.resolvedName
+        let active = states.filter { $0.server.isPollable }
+        pollableServerCount = active.count
+        let allGPUs = active.flatMap { $0.snapshot?.gpus ?? [] }
         fleet = Fleet(
             averageUtilization: allGPUs.isEmpty ? 0 : Int((Double(allGPUs.reduce(0) { $0 + $1.utilization }) / Double(allGPUs.count)).rounded()),
-            busyCount: allGPUs.filter(Self.isBusy).count,
+            busyCount: allGPUs.filter(settings.isBusy).count,
             gpuCount: allGPUs.count,
             processCount: allGPUs.reduce(0) { $0 + $1.processes.count },
-            latestUpdate: states.compactMap { $0.snapshot?.takenAt }.max().map { $0.timeIntervalSince1970 * 1000 },
+            latestUpdate: active.compactMap { $0.snapshot?.takenAt }.max().map { $0.timeIntervalSince1970 * 1000 },
             isRefreshing: states.contains { $0.isRefreshing }
         )
-        servers = states.map(Self.server)
+        servers = states.map { Self.server($0, settings: settings) }
     }
 
-    private static func server(_ state: ServerState) -> Server {
-        let snapshot = state.snapshot
+    private static func server(_ state: ServerState, settings: WindowsSettings) -> Server {
+        let config = state.server
+        // A disabled server keeps no readings in the popover, as on macOS.
+        let snapshot = config.isPollable ? state.snapshot : nil
         let gpus = snapshot?.gpus ?? []
+        let inactiveReason: String? = !config.isEnabled || config.isPollable ? nil
+            : config.sshAuthenticationMode == .passwordBased ? "password" : "target"
         return Server(
-            id: state.target,
-            name: state.target,
+            id: state.id,
+            name: state.displayName,
+            isEnabled: config.isEnabled,
+            inactiveReason: inactiveReason,
             updatedAt: snapshot.map { $0.takenAt.timeIntervalSince1970 * 1000 },
             error: state.lastError,
             isRefreshing: state.isRefreshing,
             averageUtilization: snapshot?.averageUtilization,
-            busyCount: snapshot.map { _ in gpus.filter(isBusy).count },
+            busyCount: snapshot.map { _ in gpus.filter(settings.isBusy).count },
             processCount: snapshot?.totalProcessCount,
             host: snapshot.map { host(snapshot: $0, state: state) },
             gpus: gpus.map { gpu in
@@ -151,11 +156,6 @@ struct FlyoutState: Encodable {
         }
         return Host(cpuPercent: state.cpuPercent, cpuMeasuring: snapshot.hostCPUSample != nil,
                     memory: memory, network: network)
-    }
-
-    /// "ko" when the Windows display language is Korean, otherwise "en" (the macOS app's System setting).
-    static var interfaceLanguage: String {
-        (GetUserDefaultUILanguage() & 0x3FF) == 0x12 ? "ko" : "en"
     }
 
     func json() -> String {

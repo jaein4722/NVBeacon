@@ -31,12 +31,12 @@ public enum SummaryFormatter {
 
     /// One short line per server, for the 127-character tray tooltip.
     public static func compactLine(_ state: ServerState) -> String {
-        if state.lastError != nil, state.snapshot == nil { return "\(state.target): error" }
-        guard let snapshot = state.snapshot else { return "\(state.target): connecting…" }
+        if state.lastError != nil, state.snapshot == nil { return "\(state.displayName): error" }
+        guard let snapshot = state.snapshot else { return "\(state.displayName): connecting…" }
         let used = snapshot.gpus.reduce(0) { $0 + $1.memoryUsedMB }
         let total = snapshot.gpus.reduce(0) { $0 + $1.memoryTotalMB }
         let stale = state.lastError == nil ? "" : " (stale)"
-        return "\(state.target): \(snapshot.averageUtilization)% · \(gigabytes(fromMB: used))/\(gigabytes(fromMB: total)) GB\(stale)"
+        return "\(state.displayName): \(snapshot.averageUtilization)% · \(gigabytes(fromMB: used))/\(gigabytes(fromMB: total)) GB\(stale)"
     }
 
     public static func tooltip(_ states: [ServerState]) -> String {
@@ -45,7 +45,7 @@ public enum SummaryFormatter {
     }
 
     public static func report(_ state: ServerState) -> String {
-        var lines = ["== \(state.target)"]
+        var lines = ["== \(state.displayName)"]
         if let error = state.lastError { lines.append("error: \(error)") }
         if let snapshot = state.snapshot {
             for gpu in snapshot.gpus {

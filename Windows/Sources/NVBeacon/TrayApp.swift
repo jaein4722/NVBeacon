@@ -8,6 +8,7 @@ let stateChangedMessage = UINT(WM_APP) + 2
 /// Test hooks, honoured only with --diag.
 let diagnosticsMenuMessage = UINT(WM_APP) + 3
 let diagnosticsEndMenuMessage = UINT(WM_APP) + 4
+let diagnosticsSettingsMessage = UINT(WM_APP) + 5
 
 /// Only touched on the UI thread (the window procedure and the message loop).
 nonisolated(unsafe) var trayApp: TrayApp?
@@ -23,17 +24,22 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
             if event == UINT(WM_RBUTTONUP) { app.showMenu() }
             return 0
         case stateChangedMessage:
-            app.updateIcon()
-            app.flyout?.push()
+            app.stateChanged()
             return 0
         case UINT(WM_COMMAND):
             app.handleCommand(UInt(wParam & 0xFFFF))
             return 0
+        case UINT(WM_SETTINGCHANGE):
+            app.systemSettingsChanged()   // e.g. the Windows light/dark switch
+            return 0
         case diagnosticsMenuMessage where Diagnostics.enabled:
-            app.showMenu(fromFlyout: true)   // test hook: what the flyout's "…" button does
+            app.showMenu(fromFlyout: true)
             return 0
         case diagnosticsEndMenuMessage where Diagnostics.enabled:
             EndMenu()
+            return 0
+        case diagnosticsSettingsMessage where Diagnostics.enabled:
+            app.openSettings()
             return 0
         case UINT(WM_DESTROY):
             PostQuitMessage(0)
@@ -48,40 +54,65 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
     return DefWindowProcW(window, message, wParam, lParam)
 }
 
+/// Owns the settings, the poller, the tray icon, the flyout and the Settings window.
 final class TrayApp {
     private enum Command: UInt {
-        case refresh = 1, copyReport, editServers, reloadServers, quit
+        case refresh = 1, settings, quit
     }
 
     let window: HWND
     let taskbarCreatedMessage: UINT
-    private var interval: Duration
+    private(set) var settings: WindowsSettings
+    /// Command-line or --demo targets replace the saved server list for this session only.
+    private let sessionServers: [ServerSettings]?
     private var monitor: ServerMonitor
     private var icon: HICON?
     private(set) var flyout: Flyout?
+    private var settingsWindow: SettingsWindow?
+    private var pendingImport: ServerSettingsBackup?
 
-    init(window: HWND, targets: [String], interval: Duration) {
+    init(window: HWND, settings: WindowsSettings, sessionTargets: [String]?) {
         self.window = window
-        self.interval = interval
+        self.settings = settings
+        self.sessionServers = sessionTargets.map { $0.map { ServerSettings(sshTarget: $0) } }
         self.taskbarCreatedMessage = "TaskbarCreated".withCString(encodedAs: UTF16.self) { RegisterWindowMessageW($0) }
-        self.monitor = Self.makeMonitor(targets: targets, interval: interval)
+        Theme.preference = settings.appearanceMode
+        Theme.languagePreference = settings.languagePreference
+        self.monitor = Self.makeMonitor(servers: sessionServers ?? settings.servers, settings: settings)
+    }
+
+    private static func makeMonitor(servers: [ServerSettings], settings: WindowsSettings) -> ServerMonitor {
+        ServerMonitor(servers: servers, interval: .seconds(settings.pollIntervalSeconds),
+                      hostMetrics: settings.hostMetricsOptions) {
+            PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
+        }
     }
 
     func attach(_ flyout: Flyout) {
         self.flyout = flyout
-        flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot).json() }
+        flyout.logicalWidth = Double(settings.popoverWidth)
+        flyout.closesOnOutsideClick = settings.closesPopoverOnOutsideClick
+        flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings).json() }
         flyout.onMessage = { [unowned self] message in
             switch message["type"] as? String {
-            case "refresh": run(.refresh)
+            case "refresh": monitor.refreshNow()
             case "refreshServer":
-                if let id = message["id"] as? String { monitor.refresh(target: id) }
-            case "menu": showMenu(fromFlyout: true)
-            case "editServers": run(.editServers)
-            case "copyReport": run(.copyReport)
-            case "quit": run(.quit)
+                if let id = message["id"] as? String { monitor.refresh(serverID: id) }
+            case "settings": openSettings()
             default: break
             }
         }
+    }
+
+    func attach(_ settingsWindow: SettingsWindow) {
+        self.settingsWindow = settingsWindow
+        settingsWindow.onPageReady = { [unowned self] in pushSettings() }
+        settingsWindow.onMessage = { [unowned self] in handleSettingsMessage($0) }
+    }
+
+    func start() {
+        addIcon()
+        monitor.start()
     }
 
     func toggleFlyout() {
@@ -89,15 +120,15 @@ final class TrayApp {
         flyout.toggle()
     }
 
-    private static func makeMonitor(targets: [String], interval: Duration) -> ServerMonitor {
-        ServerMonitor(targets: targets, interval: interval) {
-            PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
-        }
+    func stateChanged() {
+        updateIcon()
+        flyout?.push()
+        if settingsWindow?.isVisible == true { pushRuntime() }
     }
 
-    func start() {
-        addIcon()
-        monitor.start()
+    func systemSettingsChanged() {
+        guard settings.appearanceMode == .system else { return }
+        applyAppearance()
     }
 
     // MARK: Tray icon
@@ -110,8 +141,8 @@ final class TrayApp {
         data.uFlags = UINT(NIF_MESSAGE | NIF_ICON | NIF_TIP)
         data.uCallbackMessage = trayCallbackMessage
         data.hIcon = icon
-        let states = monitor.snapshot
-        let tip = states.isEmpty ? "NVBeacon: no servers" : SummaryFormatter.tooltip(states)
+        let states = monitor.snapshot.filter { $0.server.isPollable }
+        let tip = states.isEmpty ? "NVBeacon" : SummaryFormatter.tooltip(states)
         withUnsafeMutableBytes(of: &data.szTip) { buffer in
             let units = buffer.bindMemory(to: UInt16.self)
             let text = Array(tip.utf16.prefix(units.count - 1))
@@ -137,7 +168,7 @@ final class TrayApp {
     @discardableResult
     private func replaceIcon() -> HICON? {
         let old = icon
-        icon = TrayIconRenderer.makeIcon(for: monitor.snapshot)
+        icon = TrayIconRenderer.makeIcon(for: monitor.snapshot.filter { $0.server.isPollable })
         return old
     }
 
@@ -149,28 +180,16 @@ final class TrayApp {
 
     // MARK: Menu
 
-    /// The tray's right-click menu, or (from the flyout's "…" button) a short
-    /// menu owned by the flyout so opening it does not close the flyout.
+    /// The right-click menu: Settings… and Quit, as on macOS.
     func showMenu(fromFlyout: Bool = false) {
         guard let menu = CreatePopupMenu() else { return }
         defer { DestroyMenu(menu) }
         let owner = fromFlyout ? (flyout?.window ?? window) : window
-        let states = monitor.snapshot
-        if !fromFlyout {
-            if states.isEmpty {
-                append(menu, "No servers — add SSH targets to servers.txt", enabled: false)
-            }
-            for state in states {
-                appendServer(state, to: menu)
-                AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
-            }
-        }
-        append(menu, "Refresh now", command: .refresh)
-        append(menu, "Copy report", command: .copyReport)
-        append(menu, "Edit servers.txt…", command: .editServers)
-        append(menu, "Reload servers", command: .reloadServers)
+        let korean = Theme.language == "ko"
+        append(menu, korean ? "지금 새로고침" : "Refresh Now", command: .refresh)
+        append(menu, korean ? "설정…" : "Settings…", command: .settings)
         AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
-        append(menu, "Quit NVBeacon", command: .quit)
+        append(menu, korean ? "NVBeacon 종료" : "Quit NVBeacon", command: .quit)
 
         var cursor = POINT()
         GetCursorPos(&cursor)
@@ -185,89 +204,206 @@ final class TrayApp {
     }
 
     func handleCommand(_ identifier: UInt) {
-        if let command = Command(rawValue: identifier) { run(command) }
-    }
-
-    private func appendServer(_ state: ServerState, to menu: HMENU) {
-        var header = state.target
-        if let attempt = state.lastAttempt {
-            header += "   ·   updated " + attempt.formatted(date: .omitted, time: .standard)
-        }
-        append(menu, header, enabled: false)
-        if let error = state.lastError {
-            append(menu, "⚠ " + String(error.prefix(120)))
-        } else if state.snapshot == nil {
-            append(menu, "Connecting…")
-        }
-        guard let snapshot = state.snapshot else { return }
-        if snapshot.gpus.isEmpty { append(menu, "No GPUs reported") }
-        for gpu in snapshot.gpus {
-            let line = SummaryFormatter.gpuLine(gpu)
-            guard !gpu.processes.isEmpty, let submenu = CreatePopupMenu() else {
-                append(menu, line)
-                continue
-            }
-            for process in gpu.processes { append(submenu, SummaryFormatter.processLine(process)) }
-            // The parent menu owns the submenu and destroys it with itself.
-            line.withCString(encodedAs: UTF16.self) {
-                _ = AppendMenuW(menu, UINT(MF_POPUP), UINT_PTR(UInt(bitPattern: submenu)), $0)
-            }
-        }
-        if let host = SummaryFormatter.hostLine(state) { append(menu, host) }
-    }
-
-    /// Items without a command are informational; choosing one just closes the menu.
-    private func append(_ menu: HMENU, _ title: String, command: Command? = nil, enabled: Bool = true) {
-        let flags = UINT(MF_STRING) | (enabled ? 0 : UINT(MF_GRAYED))
-        title.withCString(encodedAs: UTF16.self) {
-            _ = AppendMenuW(menu, flags, UINT_PTR(command?.rawValue ?? 0), $0)
-        }
-    }
-
-    private func run(_ command: Command) {
+        guard let command = Command(rawValue: identifier) else { return }
         switch command {
-        case .refresh:
-            monitor.refreshNow()
-        case .copyReport:
-            let report = monitor.snapshot.map(SummaryFormatter.report).joined(separator: "\n\n")
-            copyToClipboard(report)
-        case .editServers:
-            _ = LaunchOptions.loadServerFile()  // creates the template on first use
-            shellOpen(LaunchOptions.serverFile.path)
-        case .reloadServers:
+        case .refresh: monitor.refreshNow()
+        case .settings: openSettings()
+        case .quit: quit()
+        }
+    }
+
+    private func append(_ menu: HMENU, _ title: String, command: Command) {
+        title.withCString(encodedAs: UTF16.self) {
+            _ = AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(command.rawValue), $0)
+        }
+    }
+
+    func quit() {
+        monitor.stop()
+        flyout?.releaseView()
+        settingsWindow?.close()
+        removeIcon()
+        DestroyWindow(window)
+    }
+
+    // MARK: Settings
+
+    func openSettings() {
+        flyout?.hide()
+        settingsWindow?.show()
+        pushSettings()
+    }
+
+    /// Saves, then applies whatever changed: polling restarts only when servers,
+    /// interval or collected host data change, like the macOS app.
+    private func apply(_ newSettings: WindowsSettings) {
+        let newSettings = newSettings.sanitized()
+        guard newSettings != settings else { return }
+        let old = settings
+        settings = newSettings
+        do { try SettingsStore.save(newSettings) } catch { Diagnostics.log("saving settings failed: \(error)") }
+
+        flyout?.logicalWidth = Double(newSettings.popoverWidth)
+        flyout?.closesOnOutsideClick = newSettings.closesPopoverOnOutsideClick
+        if old.appearanceMode != newSettings.appearanceMode || old.languagePreference != newSettings.languagePreference {
+            Theme.preference = newSettings.appearanceMode
+            Theme.languagePreference = newSettings.languagePreference
+            applyAppearance()
+        }
+        let pollingChanged = old.servers != newSettings.servers || old.pollIntervalSeconds != newSettings.pollIntervalSeconds
+            || old.hostMetricsOptions != newSettings.hostMetricsOptions
+        if pollingChanged, sessionServers == nil {
             monitor.stop()
-            monitor = Self.makeMonitor(targets: LaunchOptions.loadServerFile(), interval: interval)
-            updateIcon()
+            monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings)
             monitor.start()
-        case .quit:
-            monitor.stop()
-            flyout?.releaseView()
-            removeIcon()
-            DestroyWindow(window)
         }
+        stateChanged()
     }
 
-    private func shellOpen(_ path: String) {
-        "notepad.exe".withCString(encodedAs: UTF16.self) { program in
-            WindowsCommandLine.quote(path).withCString(encodedAs: UTF16.self) { argument in
-                _ = ShellExecuteW(nil, nil, program, argument, nil, SW_SHOWNORMAL)
+    private func applyAppearance() {
+        flyout?.applyTheme()
+        settingsWindow?.applyTheme()
+        flyout?.push()
+        pushSettings()
+    }
+
+    private func pushSettings() {
+        guard let settingsWindow, settingsWindow.isVisible else { return }
+        guard let settingsData = try? JSONEncoder().encode(settings),
+              let settingsObject = try? JSONSerialization.jsonObject(with: settingsData),
+              let hostsData = try? JSONEncoder().encode(SSHConfigHosts.load()),
+              let hostsObject = try? JSONSerialization.jsonObject(with: hostsData) else { return }
+        settingsWindow.host.post([
+            "type": "settings",
+            "settings": settingsObject,
+            "sshConfigHosts": hostsObject,
+            "sshConfigPath": SSHConfigHosts.configFile.path,
+            "sessionOverride": sessionServers != nil,
+            "language": Theme.language,
+            "theme": Theme.resolvedName,
+            "launchAtLogin": LaunchAtLogin.status.rawValue,
+            "defaults": [
+                "gpuCommand": RemoteMetricCommands.defaultGPUCommand,
+                "hostCommand": RemoteMetricCommands.defaultHostCommand,
+            ],
+            "about": ["version": DiagnosticsReport.appVersion,
+                      "settingsFile": SettingsStore.fileURL.path],
+        ])
+        pushRuntime()
+    }
+
+    private func pushRuntime() {
+        let states = monitor.snapshot
+        let active = states.filter { $0.server.isPollable }
+        let gpus = active.flatMap { $0.snapshot?.gpus ?? [] }
+        settingsWindow?.host.post([
+            "type": "runtime",
+            "servers": states.count,
+            "enabledServers": states.filter { $0.server.isEnabled }.count,
+            "loaded": active.contains { $0.snapshot != nil },
+            "visibleGPUs": gpus.count,
+            "busyGPUs": gpus.filter(settings.isBusy).count,
+            "processes": gpus.reduce(0) { $0 + $1.processes.count },
+            "averageUtilization": gpus.isEmpty ? 0 : gpus.reduce(0) { $0 + $1.utilization } / gpus.count,
+            "serverErrors": active.filter { $0.lastError != nil }.count,
+        ])
+    }
+
+    private func handleSettingsMessage(_ message: [String: Any]) {
+        guard let settingsWindow else { return }
+        let owner = settingsWindow.window
+        switch message["type"] as? String {
+        case "apply":
+            guard let object = message["settings"],
+                  let data = try? JSONSerialization.data(withJSONObject: object),
+                  let decoded = try? JSONDecoder().decode(WindowsSettings.self, from: data) else { return }
+            apply(decoded)
+        case "browseIdentity":
+            let folder = (ProcessInfo.processInfo.environment["USERPROFILE"] ?? "") + #"\.ssh"#
+            if let path = FileDialog.open(owner: owner, title: Theme.language == "ko" ? "Identity 파일 선택" : "Choose Identity File",
+                                          filter: [("All files", "*.*")], initialFolder: folder) {
+                settingsWindow.host.post(["type": "identityPicked", "serverId": message["serverId"] as? String ?? "", "path": path])
             }
+        case "reloadHosts":
+            pushSettings()
+        case "setLaunchAtLogin":
+            let error = LaunchAtLogin.setEnabled(message["enabled"] as? Bool ?? false)
+            settingsWindow.host.post(["type": "launchAtLogin", "status": LaunchAtLogin.status.rawValue, "error": error ?? NSNull()])
+        case "exportServers":
+            exportServers(owner: owner)
+        case "importServers":
+            chooseImport(owner: owner)
+        case "confirmImport":
+            if let backup = pendingImport {
+                var updated = settings
+                updated.importServers(from: backup)
+                apply(updated)
+                pendingImport = nil
+                notice(Theme.language == "ko" ? "비활성 서버 \(backup.servers.count)개를 추가했습니다." : "Added \(backup.servers.count) disabled servers.")
+                pushSettings()
+            }
+        case "cancelImport":
+            pendingImport = nil
+        case "diagnostics":
+            settingsWindow.host.post(["type": "diagnostics", "report": DiagnosticsReport.make(settings: settings, states: monitor.snapshot)])
+        case "copyText":
+            Shell.copyToClipboard(message["text"] as? String ?? "", owner: owner)
+        case "reload":
+            settings = SettingsStore.load()
+            pushSettings()
+        case "clearSettings":
+            SettingsStore.clear()
+            apply(WindowsSettings())
+            pushSettings()
+        case "openURL":
+            Shell.openWebPage(message["url"] as? String ?? "")
+        case "openSettingsFile":
+            try? SettingsStore.save(settings)
+            Shell.openInNotepad(SettingsStore.fileURL.path)
+        case "close":
+            settingsWindow.close()
+        default:
+            break
         }
     }
 
-    private func copyToClipboard(_ text: String) {
-        let units = Array(text.utf16) + [0]
-        guard OpenClipboard(window) else { return }
-        defer { CloseClipboard() }
-        EmptyClipboard()
-        let bytes = units.count * MemoryLayout<UInt16>.size
-        guard let memory = GlobalAlloc(UINT(GMEM_MOVEABLE), SIZE_T(bytes)) else { return }
-        guard let pointer = GlobalLock(memory) else {
-            GlobalFree(memory)
-            return
+    private func notice(_ text: String) {
+        settingsWindow?.host.post(["type": "notice", "text": text])
+    }
+
+    private func failure(_ text: String) {
+        settingsWindow?.host.post(["type": "error", "text": text])
+    }
+
+    private func exportServers(owner: HWND) {
+        do {
+            let data = try settings.backup().encoded()
+            guard let path = FileDialog.save(owner: owner, title: Theme.language == "ko" ? "서버 내보내기" : "Export Servers",
+                                             filter: [("JSON", "*.json")], fileName: "NVBeacon-servers.json",
+                                             defaultExtension: "json") else { return }
+            try data.write(to: URL(fileURLWithPath: path), options: .atomic)
+            notice(Theme.language == "ko" ? "서버 설정을 내보냈습니다." : "Server settings exported.")
+        } catch {
+            failure(error.localizedDescription)
         }
-        units.withUnsafeBytes { pointer.copyMemory(from: $0.baseAddress!, byteCount: bytes) }
-        GlobalUnlock(memory)
-        if SetClipboardData(UINT(CF_UNICODETEXT), memory) == nil { GlobalFree(memory) }
+    }
+
+    private func chooseImport(owner: HWND) {
+        guard let path = FileDialog.open(owner: owner, title: Theme.language == "ko" ? "서버 가져오기" : "Import Servers",
+                                         filter: [("JSON", "*.json")]) else { return }
+        do {
+            let data = try Data(contentsOf: URL(fileURLWithPath: path))
+            let backup = try ServerSettingsBackup.decode(data)
+            try backup.validate()
+            pendingImport = backup
+            settingsWindow?.host.post([
+                "type": "importPreview",
+                "fileName": URL(fileURLWithPath: path).lastPathComponent,
+                "existing": settings.servers.count,
+                "servers": backup.servers.map { ["name": $0.displayName, "target": $0.sshTarget] },
+            ])
+        } catch {
+            failure(error.localizedDescription)
+        }
     }
 }

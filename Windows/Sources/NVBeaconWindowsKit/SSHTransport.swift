@@ -23,11 +23,17 @@ public enum SSHTransportError: Error, Equatable, Sendable, CustomStringConvertib
 /// Only key and agent authentication is supported for now (`BatchMode=yes`).
 public struct SSHTransport: RemoteCommandExecuting {
     public let target: String
+    public let port: Int?
+    public let identityFile: String?
     public let sshExecutable: String
     public let timeout: Duration
 
-    public init(target: String, sshExecutable: String = SSHTransport.defaultSSHExecutable, timeout: Duration = .seconds(15)) {
+    public init(target: String, port: Int? = nil, identityFile: String? = nil,
+                sshExecutable: String = SSHTransport.defaultSSHExecutable, timeout: Duration = .seconds(15)) {
         self.target = target
+        self.port = port
+        let trimmed = identityFile?.trimmingCharacters(in: .whitespaces) ?? ""
+        self.identityFile = trimmed.isEmpty ? nil : trimmed
         self.sshExecutable = sshExecutable
         self.timeout = timeout
     }
@@ -46,7 +52,7 @@ public struct SSHTransport: RemoteCommandExecuting {
         do {
             output = try await WindowsProcessRunner.run(
                 executable: sshExecutable,
-                arguments: Self.arguments(target: target, remoteCommand: command),
+                arguments: Self.arguments(target: target, port: port, identityFile: identityFile, remoteCommand: command),
                 timeout: timeout
             )
         } catch ProcessRunError.timedOut(let seconds) {
@@ -93,8 +99,9 @@ public struct SSHTransport: RemoteCommandExecuting {
     }
 
     /// Mirrors the macOS app's options, without connection reuse or password auth.
-    public static func arguments(target: String, remoteCommand: String) -> [String] {
-        [
+    public static func arguments(target: String, port: Int? = nil, identityFile: String? = nil,
+                                 remoteCommand: String) -> [String] {
+        var arguments = [
             "-o", "ConnectTimeout=5",
             "-o", "ServerAliveInterval=5",
             "-o", "ServerAliveCountMax=1",
@@ -103,8 +110,10 @@ public struct SSHTransport: RemoteCommandExecuting {
             "-o", "PreferredAuthentications=publickey",
             "-o", "PasswordAuthentication=no",
             "-o", "KbdInteractiveAuthentication=no",
-            target,
-        ] + loginShellArguments(remoteCommand)
+        ]
+        if let identityFile { arguments += ["-i", identityFile] }
+        if let port { arguments += ["-p", String(port)] }
+        return arguments + [target] + loginShellArguments(remoteCommand)
     }
 
     // The three functions below are copied from the macOS `SSHMetricsFetcher` so

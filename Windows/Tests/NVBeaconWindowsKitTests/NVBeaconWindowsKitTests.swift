@@ -124,7 +124,7 @@ private func echoedArguments(_ arguments: [String]) async throws -> [String] {
 @Test func formatterSummaries() {
     let gpu = GPUReading(index: 0, name: "A100", uuid: "GPU-1", utilization: 45, memoryUsedMB: 12_288,
                          memoryTotalMB: 81_920, temperatureCelsius: 52, processes: [])
-    var state = ServerState(target: "gpu-a")
+    var state = ServerState(server: ServerSettings(sshTarget: "gpu-a"))
     state.snapshot = GPUSnapshot(takenAt: Date(), gpus: [gpu])
     #expect(SummaryFormatter.gpuLine(gpu) == "GPU 0  45%  ·  12.0/80.0 GB  ·  52°C  ·  idle  —  A100")
     #expect(SummaryFormatter.compactLine(state) == "gpu-a: 45% · 12.0/80.0 GB")

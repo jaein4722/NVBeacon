@@ -113,9 +113,10 @@ function headerStrip(state) {
   const fleet = state.fleet;
   const servers = state.servers;
   let title;
+  const pollable = state.pollableServerCount;
   if (!servers.length) title = t("No server configured", "서버 미설정");
   else if (servers.length === 1) title = servers[0].name;
-  else title = t(servers.length + "/" + servers.length + " servers", servers.length + "/" + servers.length + " 서버");
+  else title = t(pollable + "/" + servers.length + " servers", pollable + "/" + servers.length + " 서버");
 
   const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"));
   if (servers.length) {
@@ -129,8 +130,10 @@ function headerStrip(state) {
     strip.append(pills(fleet.averageUtilization, fleet.busyCount, fleet.gpuCount, fleet.processCount, fleet.latestUpdate));
   } else {
     const text = !servers.length
-      ? t("Right-click the tray icon and edit servers.txt to add a server.", "트레이 아이콘을 우클릭해 servers.txt에 서버를 추가하세요.")
-      : t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.");
+      ? t("Right-click the tray icon and open Settings to configure a server.", "트레이 아이콘 우클릭 메뉴에서 설정을 열어 서버를 설정하세요.")
+      : pollable === 0
+        ? t("No enabled server is ready for polling.", "Polling할 활성 서버가 없습니다.")
+        : t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.");
     strip.append(h("span", "caption secondary", text));
   }
   strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
@@ -275,7 +278,9 @@ function serverSection(server) {
     render();
   });
 
-  const head = h("div", "row baseline", toggle, h("span", "spacer"));
+  const head = h("div", "row baseline", toggle);
+  if (!server.isEnabled) head.append(h("span", "badge", t("Disabled", "비활성")));
+  head.append(h("span", "spacer"));
   if (!expanded) {
     if (server.busyCount != null) {
       head.append(h("span", "caption2 secondary mono", "GPU " + server.busyCount + "/" + server.gpus.length + " · " + server.averageUtilization + "%"));
@@ -287,15 +292,25 @@ function serverSection(server) {
       head.append(holder);
     }
   }
-  head.append(iconButton("refresh", t("Refresh this server now", "이 서버를 지금 새로고침"),
-    () => send({ type: "refreshServer", id: server.id }), "refresh:" + server.id));
+  const pollable = server.isEnabled && !server.inactiveReason;
+  if (pollable) {
+    head.append(iconButton("refresh", t("Refresh this server now", "이 서버를 지금 새로고침"),
+      () => send({ type: "refreshServer", id: server.id }), "refresh:" + server.id));
+  }
   if (server.isRefreshing) head.append(spinner());
 
-  const section = h("section", "card server", head);
+  const section = h("section", "card server" + (server.isEnabled ? "" : " disabled"), head);
   if (!expanded) return section;
 
   const details = h("div", "details" + (view.justToggled === "server:" + server.id ? " appear" : ""));
-  if (server.updatedAt) {
+  if (!server.isEnabled) {
+    details.append(h("div", "message secondary", t("This server is disabled in Settings.", "이 서버는 설정에서 비활성화되어 있습니다.")));
+  } else if (server.inactiveReason === "password") {
+    details.append(h("div", "message orange", t("Password-based authentication is not available on Windows yet. Switch this server to key-based authentication in Settings.",
+      "Windows에서는 아직 비밀번호 인증을 지원하지 않습니다. 설정에서 키 기반 인증으로 바꾸세요.")));
+  } else if (server.inactiveReason === "target") {
+    details.append(h("div", "message secondary", t("Enter an SSH target for this server in Settings.", "설정에서 이 서버의 SSH 대상을 입력하세요.")));
+  } else if (server.updatedAt) {
     details.append(pills(server.averageUtilization, server.busyCount, server.gpus.length, server.processCount, server.updatedAt));
     if (server.host) details.append(hostInformation(server));
     for (const gpu of server.gpus) details.append(gpuRow(server, gpu));
@@ -314,6 +329,7 @@ function render() {
   const state = view.state;
   if (!state) return;
   document.documentElement.lang = state.language;
+  document.documentElement.dataset.theme = state.theme || "light";
   const root = document.getElementById("root");
   const content = document.getElementById("content");
   const scroll = root.scrollTop;

@@ -1,7 +1,7 @@
 /* Mirrors the macOS popover (StatusMenuView.swift): windowBackground behind
    controlBackground cards, 14 px card corners, thin capsule bars. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
   --window: #ececec;
   --card: #ffffff;
   --card-stroke: rgba(0, 0, 0, 0.05);
@@ -22,23 +22,26 @@
   font-size: 13px;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --window: #1e1e1e;
-    --card: #282828;
-    --card-stroke: rgba(255, 255, 255, 0.06);
-    --primary: #f5f5f7;
-    --secondary: rgba(235, 235, 245, 0.6);
-    --fill-04: rgba(255, 255, 255, 0.04);
-    --fill-05: rgba(255, 255, 255, 0.06);
-    --fill-08: rgba(255, 255, 255, 0.1);
-    --divider: rgba(255, 255, 255, 0.1);
-    --orange: #ff9f0a;
-    --red: #ff453a;
-    --green: #32d74b;
-    --chevron-glyph: #1e1e1e;
-  }
+/* Swift resolves Settings › Theme (System/Light/Dark) and sets data-theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --window: #1e1e1e;
+  --card: #282828;
+  --card-stroke: rgba(255, 255, 255, 0.06);
+  --primary: #f5f5f7;
+  --secondary: rgba(235, 235, 245, 0.6);
+  --fill-04: rgba(255, 255, 255, 0.04);
+  --fill-05: rgba(255, 255, 255, 0.06);
+  --fill-08: rgba(255, 255, 255, 0.1);
+  --divider: rgba(255, 255, 255, 0.1);
+  --orange: #ff9f0a;
+  --red: #ff453a;
+  --green: #32d74b;
+  --chevron-glyph: #1e1e1e;
 }
+
+.badge { font-size: 11px; font-weight: 600; color: var(--secondary); padding: 2px 6px; border-radius: 999px; background: var(--fill-08); white-space: nowrap; }
+.server.disabled .label svg { opacity: 0.6; }
 
 * { box-sizing: border-box; }
 
