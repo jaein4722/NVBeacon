@@ -20,6 +20,8 @@ public struct GPULoadSample: Identifiable, Sendable {
 public struct ServerReading: Sendable {
     public var snapshot: GPUSnapshot?
     public var error: String?
+    /// The error text includes output from the remote server; show it verbatim, never as Markdown.
+    public fileprivate(set) var errorIncludesRemoteOutput = false
     fileprivate var errorCategory: String?
     public var hostKey: String?
     public var fingerprint: String?
@@ -109,7 +111,11 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
                     transferState.servers = servers
                 }
             }
-            catch { message = "Saved server settings could not be read. They have not been overwritten." }
+            catch {
+                // Keep the unreadable record under its own key before the next save replaces it.
+                defaults.set(data, forKey: "mobileServers.unreadable.\(Int(Date().timeIntervalSince1970))")
+                message = "Saved server settings could not be read. They have not been overwritten."
+            }
         }
         if !transferState.journal.isEmpty {
             do { try recoverInterruptedTransfer() }
@@ -122,12 +128,14 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         return try vault.read(server.id) ?? MobileCredential()
     }
 
-    public func save(_ server: MobileServer, credential: MobileCredential) throws {
+    /// Pass `keyAlreadyValidated` after running `SSHTransport.validatePrivateKey` off the main actor;
+    /// unlocking an encrypted key runs bcrypt and can take seconds.
+    public func save(_ server: MobileServer, credential: MobileCredential, keyAlreadyValidated: Bool = false) throws {
         try recoverInterruptedTransfer()
         var normalized = try server.validated()
         if normalized.isEnabled { normalized.transferSetupIssue = nil }
         guard !normalized.isEnabled || !credential.secret.isEmpty else { throw MobileError.missingCredential }
-        if normalized.authentication == .keyBased, !credential.secret.isEmpty {
+        if normalized.authentication == .keyBased, !credential.secret.isEmpty, !keyAlreadyValidated {
             try SSHTransport.validatePrivateKey(credential)
         }
         var next = servers
@@ -503,6 +511,8 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
         default: reading.errorCategory = "connection or configuration"
         }
         reading.error = error.localizedDescription
+        if case MobileError.commandFailed = error { reading.errorIncludesRemoteOutput = true }
+        else { reading.errorIncludesRemoteOutput = false }
         readings[id] = reading
     }
 

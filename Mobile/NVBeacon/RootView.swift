@@ -128,9 +128,16 @@ struct RootView: View {
                     Group {
                         Section {
                             ForEach(Array(backup.servers.enumerated()), id: \.offset) { _, server in
-                                VStack(alignment: .leading) {
+                                VStack(alignment: .leading, spacing: 4) {
                                     Text(server.displayName).font(.headline)
                                     Text(server.sshTarget).font(.caption).foregroundStyle(.secondary)
+                                    // Commands run on the server with the user's account: surface anything non-default.
+                                    ForEach(customCommands(server), id: \.self) { command in
+                                        Label("Custom remote command", systemImage: "exclamationmark.triangle")
+                                            .font(.caption.weight(.semibold)).foregroundStyle(.orange)
+                                        Text(verbatim: command).font(.caption2.monospaced()).foregroundStyle(.secondary)
+                                            .lineLimit(6).textSelection(.enabled)
+                                    }
                                 }
                             }
                         } header: { Text("\(backup.servers.count) servers") } footer: {
@@ -350,6 +357,17 @@ struct RootView: View {
         }
 #endif
         .toolbar { monitorTools }
+    }
+
+    private func customCommands(_ entry: ServerSettingsBackup.Entry) -> [String] {
+        var commands: [String] = []
+        let gpu = entry.remoteCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if ![RemoteMetricCommands.defaultGPUCommand, RemoteMetricCommands.legacyGPUCommand].contains(gpu) { commands.append(gpu) }
+        // hostCommand is already resolved to the default script when the backup had none.
+        let host = entry.hostCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if host != RemoteMetricCommands.hostInfo(memoryCommand: entry.memoryCommand),
+           host != RemoteMetricCommands.defaultHostCommand { commands.append(host) }
+        return commands
     }
 
     private func moveServers(from offsets: IndexSet, to destination: Int) {

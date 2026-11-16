@@ -95,7 +95,11 @@ struct ServerDetailView: View {
         if let error = reading?.error {
             Text("Connection needs attention").detailSectionTitle()
             VStack(alignment: .leading, spacing: 8) {
-                Label(LocalizedStringKey(error), systemImage: "exclamationmark.triangle").foregroundStyle(.orange)
+                Label {
+                    // Server output can contain anything, including Markdown links: never interpret it.
+                    if reading?.errorIncludesRemoteOutput == true { Text(verbatim: error) } else { Text(LocalizedStringKey(error)) }
+                } icon: { Image(systemName: "exclamationmark.triangle") }
+                .foregroundStyle(.orange)
                 if reading?.hostKey != nil {
                     Button("Verify Host Key", systemImage: "lock.shield") { trustPresented = true }
                 } else if let fingerprint = reading?.fingerprint {

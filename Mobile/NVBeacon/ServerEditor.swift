@@ -21,6 +21,7 @@ struct ServerEditor: View {
     @State private var resetTrustPresented = false
     @State private var keyInfo: ImportedSSHKey?
     @State private var loaded = false
+    @State private var saving = false
     @Environment(\.dismiss) private var dismiss
     private var isExisting: Bool { store.servers.contains { $0.id == server.id } }
 
@@ -119,9 +120,13 @@ struct ServerEditor: View {
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark") { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
-                Button("Save", systemImage: "checkmark") {
-                    save(using: proxy)
-                }.disabled(!loaded)
+                if saving {
+                    ProgressView()
+                } else {
+                    Button("Save", systemImage: "checkmark") {
+                        Task { await save(using: proxy) }
+                    }.disabled(!loaded)
+                }
             }
         }
         .task {
@@ -181,7 +186,7 @@ struct ServerEditor: View {
         }
     }
 
-    private func save(using proxy: ScrollViewProxy) {
+    private func save(using proxy: ScrollViewProxy) async {
         var edited = server
         edited.port = Int(portText.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
         if let invalid = edited.firstInvalidField {
@@ -197,8 +202,17 @@ struct ServerEditor: View {
         let script = hostCommandDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         let inherited = RemoteMetricCommands.hostInfo(memoryCommand: server.memoryCommand)
         edited.hostCommand = script.isEmpty || script == inherited ? nil : script
+        saving = true
+        defer { saving = false }
         do {
-            try store.save(edited, credential: credential)
+            // Unlocking an encrypted key runs bcrypt; keep it off the main actor so the editor stays responsive.
+            var validated = false
+            if edited.authentication == .keyBased, !credential.secret.isEmpty {
+                let value = credential
+                try await Task.detached(priority: .userInitiated) { try SSHTransport.validatePrivateKey(value) }.value
+                validated = true
+            }
+            try store.save(edited, credential: credential, keyAlreadyValidated: validated)
             dismiss()
         } catch MobileError.missingCredential {
             if edited.authentication == .passwordBased {
