@@ -25,9 +25,10 @@ HRESULT NVBWebViewRuntimeVersion(wchar_t **version);
 
 /// Creates a child WebView2 filling `parent`, serving `contentFolder` at https://<hostName>/
 /// and navigating to `startURL`. Only that host may be navigated to or send messages.
+/// With `nonClientRegions`, page areas styled `app-region: drag` act as the window's title bar.
 HRESULT NVBWebViewCreate(HWND parent, const wchar_t *userDataFolder, const wchar_t *hostName,
                          const wchar_t *contentFolder, const wchar_t *startURL,
-                         COLORREF background, BOOL devToolsEnabled,
+                         COLORREF background, BOOL devToolsEnabled, BOOL nonClientRegions,
                          void *context, NVBReadyCallback ready, NVBMessageCallback message);
 
 void NVBWebViewSetBounds(NVBWebView *view, RECT bounds);

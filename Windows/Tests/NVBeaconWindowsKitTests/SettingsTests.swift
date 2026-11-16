@@ -27,6 +27,17 @@ import Testing
     #expect(settings.busyDetectionMode == .memoryThreshold)
 }
 
+@Test func displayModeAndPopoverHeightSettings() throws {
+    let defaults = WindowsSettings()
+    #expect(defaults.displayMode == .popover && defaults.popoverHeightMode == .automatic && defaults.popoverHeight == 600)
+    #expect(!defaults.windowAlwaysOnTop && defaults.windowFrame == nil)
+    let json = #"{"displayMode":"window","windowAlwaysOnTop":true,"popoverHeightMode":"fixed","popoverHeight":5000,"windowFrame":{"x":-10,"y":20,"width":800,"height":900}}"#
+    let settings = try JSONDecoder().decode(WindowsSettings.self, from: Data(json.utf8)).sanitized()
+    #expect(settings.displayMode == .window && settings.windowAlwaysOnTop)
+    #expect(settings.popoverHeightMode == .fixed && settings.popoverHeight == 1100)
+    #expect(settings.windowFrame == WindowFrame(x: -10, y: 20, width: 800, height: 900))
+}
+
 @Test func settingsRoundTripAndMigrateServersText() throws {
     let folder = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-settings-\(UUID())")
     defer { try? FileManager.default.removeItem(at: folder) }

@@ -119,6 +119,12 @@ function headerStrip(state) {
   else title = t(pollable + "/" + servers.length + " servers", pollable + "/" + servers.length + " 서버");
 
   const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"));
+  // Popover ⇄ window. In window mode "keep on top" lives in the title bar.
+  if (state.displayMode === "window") {
+    top.append(iconButton("popover", t("Show as popover", "팝오버로 보기"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));
+  } else {
+    top.append(iconButton("openWindow", t("Open as a window", "창으로 열기"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
+  }
   if (servers.length) {
     top.append(iconButton("refresh", t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침"),
       () => send({ type: "refresh" }), "refresh-all"));
@@ -136,7 +142,9 @@ function headerStrip(state) {
         : t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.");
     strip.append(h("span", "caption secondary", text));
   }
-  strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
+  if (state.displayMode !== "window") {
+    strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
+  }
   if (servers.length === 1 && servers[0].myUser) strip.append(myProcessesLabel(servers[0].myUser));
   return strip;
 }
@@ -348,6 +356,47 @@ function serverSection(server) {
   return section;
 }
 
+// ---------- Window mode title bar ----------
+
+// The system caption is removed in window mode; this bar replaces it. The bar
+// itself drags the window (app-region: drag); its buttons opt out.
+function captionButton(iconName, title, onClick, className) {
+  const button = h("button", "caption-button " + (className || ""), icon(iconName));
+  button.title = title;
+  button.setAttribute("aria-label", title);
+  button.dataset.key = "caption:" + iconName;
+  button.addEventListener("click", onClick);
+  return button;
+}
+
+function renderTitleBar(state) {
+  let bar = document.getElementById("titlebar");
+  if (state.displayMode !== "window") {
+    if (bar) bar.remove();
+    document.body.classList.remove("window-mode");
+    return;
+  }
+  document.body.classList.add("window-mode");
+  if (!bar) {
+    bar = h("header", "titlebar");
+    bar.id = "titlebar";
+    document.body.prepend(bar);
+  }
+  const focusedKey = document.activeElement?.dataset?.key;
+  const pinned = !!state.alwaysOnTop;
+  const pin = captionButton(pinned ? "pinFill" : "pin",
+    pinned ? t("Stop keeping the window on top", "항상 위에 표시 끄기") : t("Keep the window on top", "항상 위에 표시"),
+    () => send({ type: "togglePin" }), pinned ? "active" : "");
+  pin.setAttribute("aria-pressed", String(pinned));
+  bar.replaceChildren(
+    h("span", "titlebar-title", icon("serverRack"), "NVBeacon"),
+    h("span", "spacer"),
+    pin,
+    captionButton("minimize", t("Minimize", "최소화"), () => send({ type: "minimizeWindow" })),
+    captionButton("close", t("Close", "닫기"), () => send({ type: "closeWindow" }), "close"));
+  if (focusedKey && focusedKey.startsWith("caption:")) bar.querySelector('[data-key="' + CSS.escape(focusedKey) + '"]')?.focus();
+}
+
 // ---------- Rendering ----------
 
 function render() {
@@ -355,6 +404,7 @@ function render() {
   if (!state) return;
   document.documentElement.lang = state.language;
   document.documentElement.dataset.theme = state.theme || "light";
+  renderTitleBar(state);
   const root = document.getElementById("root");
   const content = document.getElementById("content");
   const scroll = root.scrollTop;

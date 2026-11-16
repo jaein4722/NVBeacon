@@ -55,6 +55,20 @@ html, body {
 }
 
 #root { height: 100%; overflow-y: auto; scrollbar-width: thin; }
+
+/* Window mode: custom title bar (Windows 11 caption metrics: 32 px tall, 46 px buttons). */
+body.window-mode { display: flex; flex-direction: column; }
+body.window-mode #root { flex: 1; height: auto; min-height: 0; }
+.titlebar { display: flex; align-items: center; height: 32px; flex: none; padding-left: 12px; app-region: drag; user-select: none; }
+.titlebar-title { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--secondary); }
+.titlebar-title svg { width: 14px; height: 14px; }
+.caption-button { app-region: no-drag; width: 46px; height: 32px; display: grid; place-items: center; color: var(--primary); }
+.caption-button svg { width: 16px; height: 16px; }
+.caption-button:hover { background: var(--fill-08); }
+.caption-button:active { background: var(--fill-05); }
+.caption-button.active { color: var(--orange); }
+.caption-button.close:hover { background: #c42b1c; color: #fff; }
+.caption-button.close:active { background: #c84031; color: #fff; }
 .content { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
 
 button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
@@ -85,6 +99,7 @@ svg { display: block; fill: currentColor; }
 .icon-button svg { width: 14px; height: 14px; }
 .icon-button:hover { background: var(--fill-08); }
 .icon-button:active { opacity: 0.6; }
+.icon-button.active { color: var(--orange); }
 
 .spinner {
   width: 14px; height: 14px; flex: none;

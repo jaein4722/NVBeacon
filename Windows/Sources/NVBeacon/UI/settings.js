@@ -336,9 +336,27 @@ function appearancePane() {
         { value: "light", label: t("Light", "라이트") },
         { value: "dark", label: t("Dark", "다크") },
       ], (value) => { d.appearanceMode = value; changed(); })),
+      row(t("Display Mode", "표시 방식"), select("display-mode", d.displayMode, [
+        { value: "popover", label: t("Popover", "팝오버") },
+        { value: "window", label: t("Window", "창") },
+      ], (value) => { d.displayMode = value; changed({ rerender: true }); }),
+        t("Window keeps NVBeacon open like a normal app window.", "창은 NVBeacon을 일반 앱 창처럼 계속 띄워 둡니다.")),
+      toggleRow(t("Keep window on top", "창을 항상 위에 표시"), "window-on-top", d.windowAlwaysOnTop,
+        (value) => { d.windowAlwaysOnTop = value; changed(); }, { disabled: d.displayMode !== "window" }),
       row(t("Popover Width", "팝오버 너비"),
         stepper("popover-width", d.popoverWidth, 480, 800, "pt", (value) => { d.popoverWidth = value; changed(); }, 20),
         t("480–800 pt · Default 500 pt", "480–800pt · 기본값 500pt")),
+      row(t("Popover Height", "팝오버 높이"), [
+        select("popover-height-mode", d.popoverHeightMode, [
+          { value: "automatic", label: t("Automatic", "자동") },
+          { value: "fixed", label: t("Fixed", "고정") },
+        ], (value) => { d.popoverHeightMode = value; changed({ rerender: true }); }),
+        d.popoverHeightMode === "fixed"
+          ? stepper("popover-height", d.popoverHeight, 320, 1100, "pt", (value) => { d.popoverHeight = value; changed(); }, 20)
+          : null,
+      ], d.popoverHeightMode === "fixed"
+        ? t("320–1100 pt · Content scrolls inside", "320–1100pt · 넘치는 내용은 스크롤")
+        : t("Fits the content, up to the screen height", "내용에 맞춤 · 최대 화면 높이까지")),
       toggleRow(t("Close popover on outside click", "바깥 클릭 시 팝오버 닫기"), "close-outside", d.closesPopoverOnOutsideClick,
         (value) => { d.closesPopoverOnOutsideClick = value; changed({ rerender: true }); }),
       note(d.closesPopoverOnOutsideClick

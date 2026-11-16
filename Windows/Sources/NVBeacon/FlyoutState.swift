@@ -89,6 +89,9 @@ struct FlyoutState: Encodable {
     let sentAt: Double
     let language: String
     let theme: String
+    /// "popover" or "window"; the page shows the matching header buttons.
+    let displayMode: String
+    let alwaysOnTop: Bool
     let pollableServerCount: Int
     let fleet: Fleet
     let servers: [Server]
@@ -97,6 +100,8 @@ struct FlyoutState: Encodable {
         sentAt = Date().timeIntervalSince1970 * 1000
         language = Theme.language
         theme = Theme.resolvedName
+        displayMode = settings.displayMode.rawValue
+        alwaysOnTop = settings.windowAlwaysOnTop
         let active = states.filter { $0.server.isPollable }
         pollableServerCount = active.count
         let allGPUs = active.flatMap { $0.snapshot?.gpus ?? [] }

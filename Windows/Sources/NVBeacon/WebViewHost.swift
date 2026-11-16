@@ -7,6 +7,8 @@ import WinSDK
 final class WebViewHost {
     let window: HWND
     let page: String
+    /// Lets `app-region: drag` areas of the page move the window (a custom title bar).
+    var nonClientRegions = false
     private(set) var view: OpaquePointer?
     private(set) var pageReady = false
     private var creating = false
@@ -42,7 +44,7 @@ final class WebViewHost {
                 folder.withCString(encodedAs: UTF16.self) { content in
                     "https://nvbeacon.ui/\(page)".withCString(encodedAs: UTF16.self) { url in
                         NVBWebViewCreate(window, data, host, content, url, background,
-                                         Diagnostics.enabled, context, webViewReady, webViewMessage)
+                                         Diagnostics.enabled, nonClientRegions, context, webViewReady, webViewMessage)
                     }
                 }
             }

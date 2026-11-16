@@ -71,7 +71,8 @@ func runUIThread() {
         windowClass.lpszClassName = name
         return RegisterClassExW(&windowClass)
     }
-    guard registered != 0, Flyout.registerClass(instance: instance), SettingsWindow.registerClass(instance: instance) else {
+    guard registered != 0, Flyout.registerClass(instance: instance), SettingsWindow.registerClass(instance: instance),
+          MonitorWindow.registerClass(instance: instance) else {
         showError("Could not register the tray window (error \(GetLastError())).")
         exit(1)
     }
@@ -93,6 +94,10 @@ func runUIThread() {
     if let flyout = Flyout(trayWindow: window, instance: instance, releaseAfterSeconds: releaseAfter) {
         activeFlyout = flyout
         app.attach(flyout)
+    }
+    if let monitorWindow = MonitorWindow(instance: instance) {
+        activeMonitorWindow = monitorWindow
+        app.attach(monitorWindow)
     }
     if let settingsWindow = SettingsWindow(instance: instance) {
         activeSettingsWindow = settingsWindow

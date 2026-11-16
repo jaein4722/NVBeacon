@@ -57,7 +57,7 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
 /// Owns the settings, the poller, the tray icon, the flyout and the Settings window.
 final class TrayApp {
     private enum Command: UInt {
-        case refresh = 1, settings, quit
+        case refresh = 1, settings, quit, toggleDisplayMode, toggleOnTop
     }
 
     let window: HWND
@@ -68,6 +68,7 @@ final class TrayApp {
     private var monitor: ServerMonitor
     private var icon: HICON?
     private(set) var flyout: Flyout?
+    private var monitorWindow: MonitorWindow?
     private var settingsWindow: SettingsWindow?
     private var pendingImport: ServerSettingsBackup?
 
@@ -94,19 +95,18 @@ final class TrayApp {
         self.flyout = flyout
         flyout.logicalWidth = Double(settings.popoverWidth)
         flyout.closesOnOutsideClick = settings.closesPopoverOnOutsideClick
+        flyout.fixedHeight = settings.popoverHeightMode == .fixed ? Double(settings.popoverHeight) : nil
         flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings).json() }
-        flyout.onMessage = { [unowned self] message in
-            switch message["type"] as? String {
-            case "refresh": monitor.refreshNow()
-            case "refreshServer":
-                if let id = message["id"] as? String { monitor.refresh(serverID: id) }
-            case "loadProcessDetails":
-                if let id = message["serverId"] as? String, let gpu = message["gpu"] as? Int {
-                    monitor.loadProcessDetails(serverID: id, gpuIndex: gpu)
-                }
-            case "settings": openSettings()
-            default: break
-            }
+        flyout.onMessage = { [unowned self] in handlePageMessage($0) }
+    }
+
+    func attach(_ monitorWindow: MonitorWindow) {
+        self.monitorWindow = monitorWindow
+        monitorWindow.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot, settings: settings).json() }
+        monitorWindow.onMessage = { [unowned self] in handlePageMessage($0) }
+        monitorWindow.onFrameChanged = { [unowned self] frame in
+            settings.windowFrame = frame
+            save()
         }
     }
 
@@ -119,16 +119,83 @@ final class TrayApp {
     func start() {
         addIcon()
         monitor.start()
+        if settings.displayMode == .window { showMonitorWindow() }
     }
 
+    /// Messages from the popover and window pages (the same index.html).
+    private func handlePageMessage(_ message: [String: Any]) {
+        switch message["type"] as? String {
+        case "refresh": monitor.refreshNow()
+        case "refreshServer":
+            if let id = message["id"] as? String { monitor.refresh(serverID: id) }
+        case "loadProcessDetails":
+            if let id = message["serverId"] as? String, let gpu = message["gpu"] as? Int {
+                monitor.loadProcessDetails(serverID: id, gpuIndex: gpu)
+            }
+        case "setDisplayMode":
+            if let mode = (message["mode"] as? String).flatMap(DisplayMode.init(rawValue:)) { setDisplayMode(mode) }
+        case "togglePin":
+            setAlwaysOnTop(!settings.windowAlwaysOnTop)
+        case "settings": openSettings()
+        default: break
+        }
+    }
+
+    /// Tray click: the popover toggles; the window comes to the front, or hides
+    /// when it already is in front.
     func toggleFlyout() {
+        if settings.displayMode == .window, let monitorWindow {
+            if monitorWindow.isVisible, monitorWindow.isForeground, !IsIconic(monitorWindow.window) {
+                monitorWindow.hide()
+            } else {
+                showMonitorWindow()
+            }
+            return
+        }
         guard let flyout else { showMenu(); return }
         flyout.toggle()
+    }
+
+    private func showMonitorWindow() {
+        monitorWindow?.show(frame: settings.windowFrame, alwaysOnTop: settings.windowAlwaysOnTop)
+    }
+
+    func setDisplayMode(_ mode: DisplayMode) {
+        guard settings.displayMode != mode else { return }
+        settings.displayMode = mode
+        save()
+        applyDisplayMode()
+        pushSettings()
+    }
+
+    private func applyDisplayMode() {
+        switch settings.displayMode {
+        case .window:
+            flyout?.hide()
+            flyout?.releaseView()
+            showMonitorWindow()
+        case .popover:
+            monitorWindow?.hide()
+            flyout?.show()   // open it right away so it is clear where the content went
+        }
+    }
+
+    func setAlwaysOnTop(_ onTop: Bool) {
+        settings.windowAlwaysOnTop = onTop
+        save()
+        monitorWindow?.setAlwaysOnTop(onTop)
+        monitorWindow?.push()
+        pushSettings()
+    }
+
+    private func save() {
+        do { try SettingsStore.save(settings) } catch { Diagnostics.log("saving settings failed: \(error)") }
     }
 
     func stateChanged() {
         updateIcon()
         flyout?.push()
+        monitorWindow?.push()
         if settingsWindow?.isVisible == true { pushRuntime() }
     }
 
@@ -193,6 +260,12 @@ final class TrayApp {
         let owner = fromFlyout ? (flyout?.window ?? window) : window
         let korean = Theme.language == "ko"
         append(menu, korean ? "지금 새로고침" : "Refresh Now", command: .refresh)
+        if settings.displayMode == .window {
+            append(menu, korean ? "팝오버로 보기" : "Show as Popover", command: .toggleDisplayMode)
+            append(menu, korean ? "항상 위에 표시" : "Keep Window on Top", command: .toggleOnTop, checked: settings.windowAlwaysOnTop)
+        } else {
+            append(menu, korean ? "창으로 보기" : "Show as Window", command: .toggleDisplayMode)
+        }
         append(menu, korean ? "설정…" : "Settings…", command: .settings)
         AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
         append(menu, korean ? "NVBeacon 종료" : "Quit NVBeacon", command: .quit)
@@ -215,18 +288,21 @@ final class TrayApp {
         case .refresh: monitor.refreshNow()
         case .settings: openSettings()
         case .quit: quit()
+        case .toggleDisplayMode: setDisplayMode(settings.displayMode == .window ? .popover : .window)
+        case .toggleOnTop: setAlwaysOnTop(!settings.windowAlwaysOnTop)
         }
     }
 
-    private func append(_ menu: HMENU, _ title: String, command: Command) {
+    private func append(_ menu: HMENU, _ title: String, command: Command, checked: Bool = false) {
         title.withCString(encodedAs: UTF16.self) {
-            _ = AppendMenuW(menu, UINT(MF_STRING), UINT_PTR(command.rawValue), $0)
+            _ = AppendMenuW(menu, UINT(MF_STRING) | (checked ? UINT(MF_CHECKED) : 0), UINT_PTR(command.rawValue), $0)
         }
     }
 
     func quit() {
         monitor.stop()
         flyout?.releaseView()
+        monitorWindow?.hide()
         settingsWindow?.close()
         removeIcon()
         DestroyWindow(window)
@@ -242,15 +318,21 @@ final class TrayApp {
 
     /// Saves, then applies whatever changed: polling restarts only when servers,
     /// interval or collected host data change, like the macOS app.
-    private func apply(_ newSettings: WindowsSettings) {
-        let newSettings = newSettings.sanitized()
+    private func apply(_ incoming: WindowsSettings) {
+        var newSettings = incoming.sanitized()
+        newSettings.windowFrame = settings.windowFrame   // owned by the window, not the Settings page
         guard newSettings != settings else { return }
         let old = settings
         settings = newSettings
-        do { try SettingsStore.save(newSettings) } catch { Diagnostics.log("saving settings failed: \(error)") }
+        save()
 
         flyout?.logicalWidth = Double(newSettings.popoverWidth)
         flyout?.closesOnOutsideClick = newSettings.closesPopoverOnOutsideClick
+        if old.popoverHeightMode != newSettings.popoverHeightMode || old.popoverHeight != newSettings.popoverHeight {
+            flyout?.fixedHeight = newSettings.popoverHeightMode == .fixed ? Double(newSettings.popoverHeight) : nil
+        }
+        if old.displayMode != newSettings.displayMode { applyDisplayMode() }
+        if old.windowAlwaysOnTop != newSettings.windowAlwaysOnTop { monitorWindow?.setAlwaysOnTop(newSettings.windowAlwaysOnTop) }
         if old.appearanceMode != newSettings.appearanceMode || old.languagePreference != newSettings.languagePreference {
             Theme.preference = newSettings.appearanceMode
             Theme.languagePreference = newSettings.languagePreference
@@ -269,8 +351,10 @@ final class TrayApp {
 
     private func applyAppearance() {
         flyout?.applyTheme()
+        monitorWindow?.applyTheme()
         settingsWindow?.applyTheme()
         flyout?.push()
+        monitorWindow?.push()
         pushSettings()
     }
 

@@ -21,6 +21,8 @@ final class Flyout {
     /// Popover width in logical (96 DPI) pixels; Settings › Appearance.
     var logicalWidth = 500.0 { didSet { if isVisible { position() } } }
     var closesOnOutsideClick = true
+    /// Settings › Popover Height › Fixed, in logical pixels; nil follows the content.
+    var fixedHeight: Double? { didSet { if isVisible { position() } } }
     /// Reported by the page so the flyout hugs its content, like the macOS popover.
     private var contentHeight = 560.0
     private var shownAt: UInt64 = 0
@@ -150,7 +152,8 @@ final class Flyout {
         // Same limits as the macOS popover: 320 pt minimum, at most min(1100, visible height − 96).
         let workHeight = Double(work.bottom - work.top) / scale
         let maximumHeight = max(320, min(1100, workHeight - 96))
-        let height = Int32(min(maximumHeight, max(min(320, maximumHeight), contentHeight)) * scale)
+        let wanted = fixedHeight ?? contentHeight
+        let height = Int32(min(maximumHeight, max(min(320, maximumHeight), wanted)) * scale)
 
         let middle = (icon.left + icon.right) / 2
         let x = min(max(middle - width / 2, work.left + margin), work.right - width - margin)
@@ -172,12 +175,15 @@ final class Flyout {
         switch message["type"] as? String {
         case "close":
             hide()
+        case "minimizeWindow", "closeWindow":
+            break
         case "size":
             if let height = message["height"] as? Double {
                 let settling = awaitingFirstSize || GetTickCount64() - shownAt < Self.resizeWindowAfterShow
                 if isVisible { awaitingFirstSize = false }
                 guard abs(height - contentHeight) >= 1 else { break }
                 contentHeight = height
+                if fixedHeight != nil { break }
                 if isVisible, settling {
                     position()
                     Diagnostics.log("flyout resized to content \(Int(height))")

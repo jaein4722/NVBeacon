@@ -13,7 +13,8 @@ static const IID IIDWebMessageReceived = {0x57213f19, 0x00e6, 0x49fa, {0x8e, 0x0
 static const IID IIDNavigationStarting = {0x9adbe429, 0xf36d, 0x432b, {0x9d, 0xdc, 0xf8, 0x88, 0x1f, 0xbd, 0x76, 0xe3}};
 static const IID IIDTrySuspendCompleted = {0x00f206a7, 0x9d17, 0x4605, {0x91, 0xf6, 0x4e, 0x8e, 0x4d, 0xe1, 0x92, 0xe3}};
 static const IID IIDWebView3 = {0xa0d6df20, 0x3b92, 0x416d, {0xaa, 0x0c, 0x43, 0x7a, 0x9c, 0x72, 0x78, 0x57}};
-static const IID IIDController2 = {0xc979903e, 0xd4ca, 0x4228, {0x92, 0xeb, 0x47, 0xee, 0x3f, 0xa9, 0x6e, 0xab}};
+static const IID IIDSettings9 = {0x0528a73b, 0xe92d, 0x49f4, {0x92, 0x7a, 0xe5, 0x47, 0xdd, 0xda, 0xa3, 0x7d}};
+static const IID IIDController2 ={0xc979903e, 0xd4ca, 0x4228, {0x92, 0xeb, 0x47, 0xee, 0x3f, 0xa9, 0x6e, 0xab}};
 static const IID IIDUnknown = {0x00000000, 0x0000, 0x0000, {0xc0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x46}};
 
 typedef HRESULT (STDAPICALLTYPE *CreateEnvironmentFunction)(PCWSTR, PCWSTR, ICoreWebView2EnvironmentOptions *,
@@ -31,6 +32,7 @@ struct NVBWebView {
     wchar_t *hostName, *contentFolder, *startURL, *allowedPrefix;
     COLORREF background;
     BOOL devToolsEnabled;
+    BOOL nonClientRegions;
     void *context;
     NVBReadyCallback ready;
     NVBMessageCallback message;
@@ -174,6 +176,13 @@ static HRESULT STDMETHODCALLTYPE ControllerInvoke(ICoreWebView2CreateCoreWebView
         ICoreWebView2Settings_put_AreDevToolsEnabled(settings, view->devToolsEnabled);
         ICoreWebView2Settings_put_IsStatusBarEnabled(settings, FALSE);
         ICoreWebView2Settings_put_IsZoomControlEnabled(settings, FALSE);
+        if (view->nonClientRegions) {
+            ICoreWebView2Settings9 *settings9 = NULL;
+            if (SUCCEEDED(ICoreWebView2Settings_QueryInterface(settings, &IIDSettings9, (void **)&settings9))) {
+                ICoreWebView2Settings9_put_IsNonClientRegionSupportEnabled(settings9, TRUE);
+                ICoreWebView2Settings9_Release(settings9);
+            }
+        }
         ICoreWebView2Settings_Release(settings);
     }
 
@@ -246,7 +255,7 @@ HRESULT NVBWebViewRuntimeVersion(wchar_t **version) {
 
 HRESULT NVBWebViewCreate(HWND parent, const wchar_t *userDataFolder, const wchar_t *hostName,
                          const wchar_t *contentFolder, const wchar_t *startURL,
-                         COLORREF background, BOOL devToolsEnabled,
+                         COLORREF background, BOOL devToolsEnabled, BOOL nonClientRegions,
                          void *context, NVBReadyCallback ready, NVBMessageCallback message) {
     if (!createEnvironment) return E_NOT_VALID_STATE;
     NVBWebView *view = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, sizeof(NVBWebView));
@@ -260,6 +269,7 @@ HRESULT NVBWebViewCreate(HWND parent, const wchar_t *userDataFolder, const wchar
     if (view->allowedPrefix) swprintf(view->allowedPrefix, prefixLength, L"https://%s/", hostName);
     view->background = background;
     view->devToolsEnabled = devToolsEnabled;
+    view->nonClientRegions = nonClientRegions;
     view->context = context;
     view->ready = ready;
     view->message = message;

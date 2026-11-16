@@ -60,11 +60,27 @@ public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
 
 public enum LanguagePreference: String, Codable, CaseIterable, Sendable { case system, english, korean }
 public enum AppearancePreference: String, Codable, CaseIterable, Sendable { case system, light, dark }
+/// How the popover is sized: hug the content (macOS behaviour) or a fixed height.
+public enum PopoverHeightMode: String, Codable, CaseIterable, Sendable { case automatic, fixed }
+/// Popover opens from the tray icon; window stays open as a normal window.
+public enum DisplayMode: String, Codable, CaseIterable, Sendable { case popover, window }
+
+/// The monitor window's last frame in screen pixels.
+public struct WindowFrame: Codable, Equatable, Sendable {
+    public var x: Int
+    public var y: Int
+    public var width: Int
+    public var height: Int
+    public init(x: Int, y: Int, width: Int, height: Int) {
+        self.x = x; self.y = y; self.width = width; self.height = height
+    }
+}
 
 /// The Windows app's saved settings (%APPDATA%\NVBeacon\settings.json). Defaults
 /// match the macOS `AppSettings`.
 public struct WindowsSettings: Codable, Equatable, Sendable {
     public static let popoverWidthRange = 480...800
+    public static let popoverHeightRange = 320...1100
     public static let pollIntervalRange = 1...300
 
     public var servers: [ServerSettings] = []
@@ -81,6 +97,12 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
     public var popoverWidth = 500
     public var closesPopoverOnOutsideClick = true
     public var highlightsMyProcesses = true
+    public var popoverHeightMode = PopoverHeightMode.automatic
+    public var popoverHeight = 600
+    public var displayMode = DisplayMode.popover
+    public var windowAlwaysOnTop = false
+    /// Saved by the app when the window moves; the Settings page never edits it.
+    public var windowFrame: WindowFrame?
 
     public init() {}
 
@@ -102,6 +124,11 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         popoverWidth = try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? defaults.popoverWidth
         closesPopoverOnOutsideClick = try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? defaults.closesPopoverOnOutsideClick
         highlightsMyProcesses = try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? defaults.highlightsMyProcesses
+        popoverHeightMode = try container.decodeIfPresent(PopoverHeightMode.self, forKey: .popoverHeightMode) ?? defaults.popoverHeightMode
+        popoverHeight = try container.decodeIfPresent(Int.self, forKey: .popoverHeight) ?? defaults.popoverHeight
+        displayMode = try container.decodeIfPresent(DisplayMode.self, forKey: .displayMode) ?? defaults.displayMode
+        windowAlwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .windowAlwaysOnTop) ?? defaults.windowAlwaysOnTop
+        windowFrame = try container.decodeIfPresent(WindowFrame.self, forKey: .windowFrame)
     }
 
     /// Clamps numbers into their ranges and drops duplicate server ids.
@@ -111,6 +138,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         copy.busyMemoryThresholdMB = min(max(busyMemoryThresholdMB, 0), 10_240)
         copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
         copy.popoverWidth = min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
+        copy.popoverHeight = min(max(popoverHeight, Self.popoverHeightRange.lowerBound), Self.popoverHeightRange.upperBound)
         var seen = Set<String>()
         copy.servers = servers.filter { seen.insert($0.id).inserted }
         return copy
