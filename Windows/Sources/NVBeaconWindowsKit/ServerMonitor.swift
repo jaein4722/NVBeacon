@@ -44,16 +44,30 @@ public final class ServerMonitor: @unchecked Sendable {
     private var refreshRequested = false
     private var loop: Task<Void, Never>?
     private let onChange: @Sendable () -> Void
-    /// Runs after each successful poll with the merged snapshot (alert evaluation).
-    public var afterPoll: (@Sendable (ServerSettings, GPUSnapshot, AnyRemoteCommandExecutor) async -> Void)?
+    /// What a successful poll hands to `afterPoll` (alerts and GPU history).
+    public struct PollResult: Sendable {
+        public let server: ServerSettings
+        public let snapshot: GPUSnapshot
+        public let transport: AnyRemoteCommandExecutor
+        /// Per-user SM % from `nvidia-smi pmon`, when it was sampled this poll.
+        public let userUtilization: [Int: [String: Double]]?
+    }
+
+    /// Runs after each successful poll with the merged snapshot.
+    public var afterPoll: (@Sendable (PollResult) async -> Void)?
+    /// GPU History: sample per-user utilization at most once a minute per server.
+    public let samplesUserUtilization: Bool
+    private var lastUserSample: [String: Date] = [:]
 
     public init(servers: [ServerSettings], interval: Duration, hostMetrics: HostMetricsOptions = .init(),
-                highlightsMyProcesses: Bool = false, sshConfigHosts: [SSHConfigHost] = [],
+                highlightsMyProcesses: Bool = false, samplesUserUtilization: Bool = false,
+                sshConfigHosts: [SSHConfigHost] = [],
                 localUsername: String? = ProcessInfo.processInfo.environment["USERNAME"],
                 onChange: @escaping @Sendable () -> Void) {
         self.interval = interval
         self.hostMetrics = hostMetrics
         self.highlightsMyProcesses = highlightsMyProcesses
+        self.samplesUserUtilization = samplesUserUtilization
         self.states = servers.map { server in
             ServerState(server: server, detectedSSHUsername: highlightsMyProcesses
                 ? Self.detectedSSHUsername(for: server, sshConfigHosts: sshConfigHosts, localUsername: localUsername) : nil)
@@ -149,6 +163,14 @@ public final class ServerMonitor: @unchecked Sendable {
 
         let transport = Self.transport(for: server)
         let collector = MetricsCollector(transport: transport)
+        // Concurrent with the summary, so pmon's one-second sample adds no latency (as on macOS).
+        let samplesUsers: Bool = samplesUserUtilization && lock.withLock {
+            let now = Date()
+            if let last = lastUserSample[server.id], now.timeIntervalSince(last) < UserUtilizationSampler.minimumInterval { return false }
+            lastUserSample[server.id] = now
+            return true
+        }
+        async let userUtilization: [Int: [String: Double]]? = samplesUsers ? UserUtilizationSampler.fetch(transport: transport) : nil
         let result: Result<GPUSnapshot, Error>
         do {
             result = .success(try await collector.fetchSummary(
@@ -189,8 +211,9 @@ public final class ServerMonitor: @unchecked Sendable {
             states[index] = state
         }
         onChange()
+        let users = await userUtilization
         if let afterPoll, let merged = lock.withLock({ states[index].snapshot }), case .success = result {
-            await afterPoll(server, merged, transport)
+            await afterPoll(PollResult(server: server, snapshot: merged, transport: transport, userUtilization: users))
         }
     }
 

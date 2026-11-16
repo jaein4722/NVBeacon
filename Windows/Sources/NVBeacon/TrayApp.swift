@@ -11,6 +11,28 @@ let diagnosticsEndMenuMessage = UINT(WM_APP) + 4
 let diagnosticsSettingsMessage = UINT(WM_APP) + 5
 /// Alerts found by a poll are waiting to be shown on the UI thread.
 let notificationsPendingMessage = UINT(WM_APP) + 6
+/// A GPU History minute was saved.
+let historyChangedMessage = UINT(WM_APP) + 7
+/// Work queued for the UI thread by `UIThread.run`.
+let uiJobMessage = UINT(WM_APP) + 8
+
+/// Runs closures on the UI thread (the one that owns the windows and WebView2).
+enum UIThread {
+    private static let jobs = Locked<[@Sendable () -> Void]>([])
+
+    static func run(_ job: @escaping @Sendable () -> Void) {
+        jobs.take { $0.append(job) }
+        PostMessageW(HWND(bitPattern: trayWindowBits), uiJobMessage, 0, 0)
+    }
+
+    static func drain() {
+        let pending = jobs.take { list -> [@Sendable () -> Void] in
+            defer { list = [] }
+            return list
+        }
+        for job in pending { job() }
+    }
+}
 
 /// A value shared between the UI thread and polling tasks.
 final class Locked<Value>: @unchecked Sendable {
@@ -43,6 +65,12 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
         case notificationsPendingMessage:
             app.showPendingNotifications()
             return 0
+        case historyChangedMessage:
+            app.historyChanged()
+            return 0
+        case uiJobMessage:
+            UIThread.drain()
+            return 0
         case UINT(WM_COMMAND):
             app.handleCommand(UInt(wParam & 0xFFFF))
             return 0
@@ -57,6 +85,9 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
             return 0
         case diagnosticsSettingsMessage where Diagnostics.enabled:
             app.openSettings()
+            return 0
+        case UINT(WM_APP) + 9 where Diagnostics.enabled:
+            app.openHistory()   // test hook: the popover's chart button
             return 0
         case UINT(WM_DESTROY):
             PostQuitMessage(0)
@@ -86,7 +117,12 @@ final class TrayApp {
     private var icon: HICON?
     private(set) var flyout: Flyout?
     private var monitorWindow: MonitorWindow?
-    private var settingsWindow: SettingsWindow?
+    private var settingsWindow: PageWindow?
+    private(set) var historyWindow: PageWindow?
+    /// What the GPU History window currently shows: server id, GPU index, hours.
+    private var historyQuery: (serverID: String, gpu: Int, hours: Int)?
+    /// 24 hours of minute samples per server (%LOCALAPPDATA%\NVBeacon\GPUHistory).
+    let history = GPUHistoryArchive(directory: GPUHistoryArchive.defaultDirectory)
     private var pendingImport: ServerSettingsBackup?
     /// Process-exit and GPU-idle watches and their history (%APPDATA%\NVBeacon\watches.json).
     let watches = WatchStore(fileURL: WatchStore.defaultFileURL)
@@ -108,13 +144,19 @@ final class TrayApp {
         configureAlerts(monitor)
     }
 
-    /// Evaluates watches after every successful poll, off the UI thread, and hands
-    /// any alerts to the UI thread to show.
+    /// After every successful poll, off the UI thread: evaluates watches (alerts go
+    /// to the UI thread to show) and records GPU History when it is on.
     private func configureAlerts(_ monitor: ServerMonitor) {
-        let watches = watches, alertSettings = alertSettings, pending = pendingNotifications
-        monitor.afterPoll = { server, snapshot, transport in
-            let notifications = await watches.evaluate(snapshot: snapshot, server: server, settings: alertSettings.value,
-                                                       korean: Theme.language == "ko", transport: transport)
+        let watches = watches, alertSettings = alertSettings, pending = pendingNotifications, history = history
+        monitor.afterPoll = { result in
+            let settings = alertSettings.value
+            if settings.recordsGPUHistory,
+               (try? await history.record(result.snapshot, users: result.userUtilization,
+                                          serverID: result.server.id, fingerprint: result.server.connectionFingerprint)) == true {
+                PostMessageW(HWND(bitPattern: trayWindowBits), historyChangedMessage, 0, 0)
+            }
+            let notifications = await watches.evaluate(snapshot: result.snapshot, server: result.server, settings: settings,
+                                                       korean: Theme.language == "ko", transport: result.transport)
             guard !notifications.isEmpty else { return }
             pending.take { $0 += notifications }
             PostMessageW(HWND(bitPattern: trayWindowBits), notificationsPendingMessage, 0, 0)
@@ -144,6 +186,7 @@ final class TrayApp {
         ServerMonitor(servers: servers, interval: .seconds(settings.pollIntervalSeconds),
                       hostMetrics: settings.hostMetricsOptions,
                       highlightsMyProcesses: settings.highlightsMyProcesses,
+                      samplesUserUtilization: settings.recordsGPUHistory,
                       sshConfigHosts: SSHConfigHosts.load()) {
             PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
         }
@@ -168,11 +211,76 @@ final class TrayApp {
         }
     }
 
-    func attach(_ settingsWindow: SettingsWindow) {
+    func attach(settings settingsWindow: PageWindow) {
         self.settingsWindow = settingsWindow
         settingsWindow.onPageReady = { [unowned self] in pushSettings() }
         settingsWindow.onMessage = { [unowned self] in handleSettingsMessage($0) }
     }
+
+    func attach(history historyWindow: PageWindow) {
+        self.historyWindow = historyWindow
+        historyWindow.onPageReady = { [unowned self] in pushHistoryServers() }
+        historyWindow.onClosed = { [unowned self] in historyQuery = nil }
+        historyWindow.onMessage = { [unowned self] message in
+            switch message["type"] as? String {
+            case "query":
+                guard let id = message["serverId"] as? String, let gpu = message["gpu"] as? Int,
+                      let hours = message["hours"] as? Int else { return }
+                historyQuery = (id, gpu, hours)
+                pushHistoryData()
+            case "close": historyWindow.close()
+            default: break
+            }
+        }
+    }
+
+    // MARK: GPU History
+
+    func openHistory() {
+        if settings.displayMode == .popover { flyout?.hide() }
+        historyWindow?.show()
+        pushHistoryServers()
+    }
+
+    /// Servers and their GPU indexes for the pickers, as macOS's history window lists them.
+    private func pushHistoryServers() {
+        guard let historyWindow, historyWindow.isVisible else { return }
+        struct Entry: Encodable { let id: String; let name: String; let gpus: [Int] }
+        struct Message: Encodable { let type = "servers"; let servers: [Entry]; let language: String; let theme: String; let recording: Bool }
+        let states = monitor.snapshot, history = history
+        let language = Theme.language, theme = Theme.resolvedName, recording = settings.recordsGPUHistory
+        Task.detached {
+            var servers: [Entry] = []
+            for state in states {
+                let stored = await history.samples(serverID: state.id, fingerprint: state.server.connectionFingerprint)
+                let current = state.snapshot?.gpus.map(\.index) ?? []
+                servers.append(Entry(id: state.id, name: state.displayName,
+                                     gpus: current.isEmpty ? Set(stored.map(\.gpuIndex)).sorted() : current.sorted()))
+            }
+            guard let data = try? JSONEncoder().encode(Message(servers: servers, language: language, theme: theme, recording: recording)) else { return }
+            let json = String(decoding: data, as: UTF8.self)
+            UIThread.run { trayApp?.historyWindow?.host.post(json) }
+        }
+    }
+
+    /// Prepares the chart for the current query (macOS GPUHistoryRenderData) and sends it.
+    private func pushHistoryData() {
+        guard let historyWindow, historyWindow.isVisible, let query = historyQuery,
+              let state = monitor.snapshot.first(where: { $0.id == query.serverID }) else { return }
+        struct Message: Encodable { let type = "history"; let serverId: String; let gpu: Int; let hours: Int; let data: GPUHistoryRenderData }
+        let history = history, pollInterval = settings.pollIntervalSeconds
+        let uuid = state.snapshot?.gpus.first { $0.index == query.gpu }?.uuid
+        Task.detached {
+            let all = await history.samples(serverID: state.id, fingerprint: state.server.connectionFingerprint)
+            let samples = all.filter { $0.gpuIndex == query.gpu && (uuid == nil || $0.gpuUUID == uuid) }
+            let render = GPUHistoryRenderData(samples: samples, hours: query.hours, now: Date(), pollInterval: pollInterval)
+            guard let data = try? JSONEncoder().encode(Message(serverId: query.serverID, gpu: query.gpu, hours: query.hours, data: render)) else { return }
+            let json = String(decoding: data, as: UTF8.self)
+            UIThread.run { trayApp?.historyWindow?.host.post(json) }
+        }
+    }
+
+    func historyChanged() { pushHistoryData() }
 
     func start() {
         addIcon()
@@ -215,6 +323,7 @@ final class TrayApp {
                          : (korean ? "프로세스 종료 알림을 해제했습니다." : "Process exit alert disabled."))
             pushSettings()
         case "settings": openSettings()
+        case "openHistory": openHistory()
         default: break
         }
     }
@@ -379,9 +488,18 @@ final class TrayApp {
 
     func quit() {
         monitor.stop()
+        // Save the partial GPU History minute so a normal quit loses nothing (as on macOS).
+        let saved = DispatchSemaphore(value: 0)
+        let history = history
+        Task.detached {
+            await history.flush()
+            saved.signal()
+        }
+        _ = saved.wait(timeout: .now() + 2)
         flyout?.releaseView()
         monitorWindow?.hide()
         settingsWindow?.close()
+        historyWindow?.close()
         removeIcon()
         DestroyWindow(window)
     }
@@ -420,6 +538,7 @@ final class TrayApp {
         let pollingChanged = old.servers != newSettings.servers || old.pollIntervalSeconds != newSettings.pollIntervalSeconds
             || old.hostMetricsOptions != newSettings.hostMetricsOptions
             || old.highlightsMyProcesses != newSettings.highlightsMyProcesses
+            || old.recordsGPUHistory != newSettings.recordsGPUHistory
         if pollingChanged, sessionServers == nil {
             monitor.stop()
             monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings)

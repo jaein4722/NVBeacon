@@ -2,34 +2,44 @@ import Foundation
 import NVBeaconWindowsKit
 import WinSDK
 
-/// The Settings window: a normal resizable Win32 window whose content is
-/// settings.html in WebView2. WebView2 is released when the window closes.
-final class SettingsWindow {
-    static let className = "NVBeaconSettings"
+/// A normal resizable window showing one HTML page in WebView2: the Settings
+/// window and the GPU History window. WebView2 is released when it closes.
+final class PageWindow {
+    static let className = "NVBeaconPageWindow"
     let window: HWND
     let host: WebViewHost
+    private let titles: (english: String, korean: String)
+    private let size: (width: Double, height: Double)
+    private let minimumSize: (width: Double, height: Double)
     var onMessage: ([String: Any]) -> Void = { _ in }
     var onPageReady: () -> Void = {}
+    var onClosed: () -> Void = {}
 
-    init?(instance: HINSTANCE?) {
+    init?(instance: HINSTANCE?, page: String, titles: (english: String, korean: String),
+          size: (width: Double, height: Double), minimumSize: (width: Double, height: Double)) {
+        self.titles = titles
+        self.size = size
+        self.minimumSize = minimumSize
         let created = Self.className.withCString(encodedAs: UTF16.self) { name in
-            "NVBeacon Settings".withCString(encodedAs: UTF16.self) { title in
+            titles.english.withCString(encodedAs: UTF16.self) { title in
                 CreateWindowExW(0, name, title, DWORD(WS_OVERLAPPEDWINDOW) | DWORD(WS_CLIPCHILDREN),
-                                Int32(bitPattern: 0x8000_0000), 0, 760, 600, nil, nil, instance, nil)  // CW_USEDEFAULT
+                                Int32(bitPattern: 0x8000_0000), 0, Int32(size.width), Int32(size.height), nil, nil, instance, nil)
             }
         }
         guard let created else { return nil }
         window = created
-        host = WebViewHost(window: created, page: "settings.html")
+        host = WebViewHost(window: created, page: page)
         host.onMessage = { [unowned self] in onMessage($0) }
         host.onPageReady = { [unowned self] in onPageReady() }
+        // The window procedure finds this object through the window's user data.
+        SetWindowLongPtrW(window, GWLP_USERDATA, LONG_PTR(Int(bitPattern: Unmanaged.passUnretained(self).toOpaque())))
     }
 
     static func registerClass(instance: HINSTANCE?) -> Bool {
         className.withCString(encodedAs: UTF16.self) { name in
             var windowClass = WNDCLASSEXW()
             windowClass.cbSize = UINT(MemoryLayout<WNDCLASSEXW>.size)
-            windowClass.lpfnWndProc = settingsProcedure
+            windowClass.lpfnWndProc = pageWindowProcedure
             windowClass.hInstance = instance
             windowClass.hCursor = LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))
             windowClass.hIcon = LoadIconW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))  // IDI_APPLICATION
@@ -53,14 +63,16 @@ final class SettingsWindow {
     }
 
     func close() {
+        guard isVisible else { return }
         ShowWindow(window, SW_HIDE)
-        host.release()   // settings are opened rarely; don't keep Chromium around
+        host.release()   // opened rarely; don't keep Chromium around
+        onClosed()
     }
 
     func applyTheme() {
         var dark: Int32 = Theme.isDark ? 1 : 0
         DwmSetWindowAttribute(window, DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE.rawValue), &dark, DWORD(MemoryLayout<Int32>.size))
-        let title = Theme.language == "ko" ? "NVBeacon 설정" : "NVBeacon Settings"
+        let title = Theme.language == "ko" ? titles.korean : titles.english
         _ = title.withCString(encodedAs: UTF16.self) { SetWindowTextW(window, $0) }
         InvalidateRect(window, nil, true)
     }
@@ -68,7 +80,7 @@ final class SettingsWindow {
     private func centerOnWorkArea() {
         let dpi = Double(GetDpiForWindow(window))
         let scale = dpi > 0 ? dpi / 96 : 1
-        let width = Int32(760 * scale), height = Int32(620 * scale)
+        let width = Int32(size.width * scale), height = Int32(size.height * scale)
         var cursor = POINT()
         GetCursorPos(&cursor)
         var info = MONITORINFO()
@@ -77,27 +89,30 @@ final class SettingsWindow {
         let work = info.rcWork
         let x = work.left + max(0, (work.right - work.left - width) / 2)
         let y = work.top + max(0, (work.bottom - work.top - height) / 2)
-        SetWindowPos(window, nil, x, y, width, height, UINT(SWP_NOZORDER))
+        SetWindowPos(window, nil, x, y, width, min(height, work.bottom - work.top), UINT(SWP_NOZORDER))
+    }
+
+    fileprivate func minimumTrackSize() -> POINT {
+        let dpi = Double(GetDpiForWindow(window))
+        let scale = dpi > 0 ? dpi / 96 : 1
+        return POINT(x: Int32(minimumSize.width * scale), y: Int32(minimumSize.height * scale))
     }
 }
 
-/// Only touched on the UI thread.
-nonisolated(unsafe) var activeSettingsWindow: SettingsWindow?
-
-func settingsProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lParam: LPARAM) -> LRESULT {
-    if let settings = activeSettingsWindow, window == settings.window {
+func pageWindowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lParam: LPARAM) -> LRESULT {
+    let pointer = UnsafeMutableRawPointer(bitPattern: Int(GetWindowLongPtrW(window, GWLP_USERDATA)))
+    if let pointer {
+        let page = Unmanaged<PageWindow>.fromOpaque(pointer).takeUnretainedValue()
         switch message {
         case UINT(WM_CLOSE):
-            settings.close()
+            page.close()
             return 0
         case UINT(WM_SIZE):
-            settings.host.resize()
+            page.host.resize()
             return 0
         case UINT(WM_GETMINMAXINFO):
-            let dpi = Double(GetDpiForWindow(window))
-            let scale = dpi > 0 ? dpi / 96 : 1
             if let info = UnsafeMutablePointer<MINMAXINFO>(bitPattern: Int(lParam)) {
-                info.pointee.ptMinTrackSize = POINT(x: Int32(620 * scale), y: Int32(460 * scale))
+                info.pointee.ptMinTrackSize = page.minimumTrackSize()
             }
             return 0
         case UINT(WM_ERASEBKGND):

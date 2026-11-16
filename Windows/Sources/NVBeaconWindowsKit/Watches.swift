@@ -389,7 +389,7 @@ public final class WatchStore: @unchecked Sendable {
         guard let fileURL else { return }
         let snapshot = lock.withLock { saved }
         try? FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(), withIntermediateDirectories: true)
-        if let data = try? JSONEncoder.iso.encode(snapshot) { try? data.write(to: fileURL, options: .atomic) }
+        if let data = try? JSONEncoder.iso.encode(snapshot) { try? data.writeReliably(to: fileURL) }
     }
 }
 

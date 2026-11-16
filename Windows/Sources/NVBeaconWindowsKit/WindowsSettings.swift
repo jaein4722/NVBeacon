@@ -98,6 +98,8 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
     public var closesPopoverOnOutsideClick = true
     public var highlightsMyProcesses = true
     /// GPU idle alerts: how long a starred GPU must stay idle, and the memory it may still use.
+    /// GPU History: keep 24 hours of per-user GPU utilization on this PC (off by default, as on macOS).
+    public var recordsGPUHistory = false
     public var idleNotificationSeconds = 300
     public var idleMemoryThresholdMB = 50
     public var popoverHeightMode = PopoverHeightMode.automatic
@@ -127,6 +129,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         popoverWidth = try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? defaults.popoverWidth
         closesPopoverOnOutsideClick = try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? defaults.closesPopoverOnOutsideClick
         highlightsMyProcesses = try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? defaults.highlightsMyProcesses
+        recordsGPUHistory = try container.decodeIfPresent(Bool.self, forKey: .recordsGPUHistory) ?? defaults.recordsGPUHistory
         idleNotificationSeconds = try container.decodeIfPresent(Int.self, forKey: .idleNotificationSeconds) ?? defaults.idleNotificationSeconds
         idleMemoryThresholdMB = try container.decodeIfPresent(Int.self, forKey: .idleMemoryThresholdMB) ?? defaults.idleMemoryThresholdMB
         popoverHeightMode = try container.decodeIfPresent(PopoverHeightMode.self, forKey: .popoverHeightMode) ?? defaults.popoverHeightMode
@@ -214,7 +217,7 @@ public enum SettingsStore {
         try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        try encoder.encode(settings.sanitized()).write(to: url, options: .atomic)
+        try encoder.encode(settings.sanitized()).writeReliably(to: url)
     }
 
     public static func clear(at url: URL = fileURL) {

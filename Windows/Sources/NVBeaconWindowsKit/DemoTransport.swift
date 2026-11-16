@@ -44,6 +44,20 @@ public struct DemoTransport: RemoteCommandExecuting {
         if command.hasPrefix("id -u") {
             return RemoteCommandOutput(standardOutput: "1001\n", standardError: "", exitStatus: 0)
         }
+        if command.hasPrefix("pmon_output=") {
+            // GPU History's per-user sample: nvidia-smi pmon output, then pid → user.
+            let gpus = target.contains("h100") ? 8 : 4
+            var pmon = ["# gpu         pid   type     sm    mem    enc    dec    command", "# Idx           #    C/G      %      %      %      %    name"]
+            var owners: [String] = []
+            for index in 0..<gpus where Self.isRunning(index, at: now) {
+                let pid = 41_000 + index * 17
+                let sm = Int(35 + 60 * (0.5 + 0.5 * sin(now / 7 + Double(index))))
+                pmon.append("    \(index)      \(pid)     C     \(sm)     20      -      -    python")
+                owners.append("\(pid) \(Self.user(index))")
+            }
+            let output = pmon.joined(separator: "\n") + "\n\n__NVBEACON_PMON_OWNERS__\n" + owners.joined(separator: "\n")
+            return RemoteCommandOutput(standardOutput: output, standardError: "", exitStatus: 0)
+        }
         if command.hasPrefix("ps -o pid=") {
             // Both ps lookups the app uses: "pid uid user args" and "pid user args".
             let withUID = command.hasPrefix("ps -o pid= -o uid=")

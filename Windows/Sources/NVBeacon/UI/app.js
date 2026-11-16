@@ -119,6 +119,9 @@ function headerStrip(state) {
   else title = t(pollable + "/" + servers.length + " servers", pollable + "/" + servers.length + " 서버");
 
   const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"));
+  if (state.recordsGPUHistory) {
+    top.append(iconButton("chart", t("Open GPU history", "GPU 기록 열기"), () => send({ type: "openHistory" }), "open-history"));
+  }
   // Popover ⇄ window. In window mode "keep on top" lives in the title bar.
   if (state.displayMode === "window") {
     top.append(iconButton("popover", t("Show as popover", "팝오버로 보기"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));

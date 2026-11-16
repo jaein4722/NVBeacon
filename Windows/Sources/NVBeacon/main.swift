@@ -71,7 +71,7 @@ func runUIThread() {
         windowClass.lpszClassName = name
         return RegisterClassExW(&windowClass)
     }
-    guard registered != 0, Flyout.registerClass(instance: instance), SettingsWindow.registerClass(instance: instance),
+    guard registered != 0, Flyout.registerClass(instance: instance), PageWindow.registerClass(instance: instance),
           MonitorWindow.registerClass(instance: instance) else {
         showError("Could not register the tray window (error \(GetLastError())).")
         exit(1)
@@ -99,9 +99,16 @@ func runUIThread() {
         activeMonitorWindow = monitorWindow
         app.attach(monitorWindow)
     }
-    if let settingsWindow = SettingsWindow(instance: instance) {
-        activeSettingsWindow = settingsWindow
-        app.attach(settingsWindow)
+    if let settingsWindow = PageWindow(instance: instance, page: "settings.html",
+                                       titles: ("NVBeacon Settings", "NVBeacon 설정"),
+                                       size: (760, 620), minimumSize: (620, 460)) {
+        app.attach(settings: settingsWindow)
+    }
+    // macOS: GPU History window, 560×440 minimum.
+    if let historyWindow = PageWindow(instance: instance, page: "history.html",
+                                      titles: ("GPU History", "GPU 기록"),
+                                      size: (720, 600), minimumSize: (560, 440)) {
+        app.attach(history: historyWindow)
     }
     app.start()
 

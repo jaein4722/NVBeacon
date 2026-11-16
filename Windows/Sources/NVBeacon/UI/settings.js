@@ -420,8 +420,10 @@ function appearancePane() {
       note(d.highlightsMyProcesses
         ? t("Detect the SSH user's processes and highlight matching GPUs and process rows.", "SSH 사용자 프로세스를 감지해 해당 GPU와 프로세스 행을 강조합니다.")
         : t("Turn off per-user process highlighting and skip the extra ownership checks during polling.", "사용자별 프로세스 강조를 끄고 polling 중 추가 ownership 확인도 생략합니다.")),
-      toggleRow(t("Record GPU history", "GPU 기록 저장"), "gpu-history", false, () => {}, { disabled: true }),
-      note(t("Not available in the Windows preview yet.", "Windows 미리보기에서는 아직 지원하지 않습니다.")),
+      toggleRow(t("Record GPU history", "GPU 기록 저장"), "gpu-history", d.recordsGPUHistory,
+        (value) => { d.recordsGPUHistory = value; changed(); }),
+      note(t("Keep 24 hours of per-user GPU utilization on this PC and open it from the chart button in the popover. Adds one nvidia-smi pmon sample per server at most once a minute.",
+             "이 PC에 최근 24시간의 사용자별 GPU 사용률을 저장하고 팝오버의 차트 버튼으로 엽니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다.")),
     ], t("The tray icon cannot show text on Windows, so it draws one utilization bar per GPU; hover it for a summary.",
          "Windows 트레이 아이콘은 글자를 표시할 수 없어 GPU마다 사용률 막대를 그립니다. 마우스를 올리면 요약이 나옵니다.")),
   ];

@@ -96,6 +96,8 @@ struct FlyoutState: Encodable {
     /// "popover" or "window"; the page shows the matching header buttons.
     let displayMode: String
     let alwaysOnTop: Bool
+    /// Shows the history (chart) button in the header, as on macOS.
+    let recordsGPUHistory: Bool
     let pollableServerCount: Int
     let fleet: Fleet
     let servers: [Server]
@@ -109,6 +111,7 @@ struct FlyoutState: Encodable {
         theme = Theme.resolvedName
         displayMode = settings.displayMode.rawValue
         alwaysOnTop = settings.windowAlwaysOnTop
+        recordsGPUHistory = settings.recordsGPUHistory
         let active = states.filter { $0.server.isPollable }
         pollableServerCount = active.count
         let allGPUs = active.flatMap { $0.snapshot?.gpus ?? [] }
