@@ -30,6 +30,10 @@ struct FlyoutState: Encodable {
         let processCount: Int?
         let host: Host?
         let gpus: [GPU]
+        /// The login user when "Highlight my processes" is on.
+        let myUser: String?
+        let loadingDetailGPUs: [Int]
+        let detailError: String?
     }
 
     struct Host: Encodable {
@@ -68,6 +72,7 @@ struct FlyoutState: Encodable {
         let memoryTotalMB: Int
         let temperature: String
         let processes: [Process]
+        let hasMine: Bool
     }
 
     struct Process: Encodable {
@@ -76,6 +81,7 @@ struct FlyoutState: Encodable {
         let name: String
         let memoryText: String
         let command: String?
+        let isMine: Bool
     }
 
     let type = "state"
@@ -125,15 +131,21 @@ struct FlyoutState: Encodable {
             processCount: snapshot?.totalProcessCount,
             host: snapshot.map { host(snapshot: $0, state: state) },
             gpus: gpus.map { gpu in
-                GPU(index: gpu.index, name: gpu.name, utilization: gpu.utilization,
+                let mine = { (process: GPUProcessReading) in settings.highlightsMyProcesses && state.isCurrentUserProcess(process) }
+                return GPU(index: gpu.index, name: gpu.name, utilization: gpu.utilization,
                     memoryPercent: gpu.memoryUsagePercent, memoryUsedMB: gpu.memoryUsedMB,
                     memoryTotalMB: gpu.memoryTotalMB, temperature: gpu.temperatureSummary,
                     processes: gpu.processes.map { process in
                         Process(pid: process.pid, user: process.userSummary == "--" ? (process.userID.map { "uid \($0)" } ?? "--") : process.userSummary,
                                 name: process.displayProcessName, memoryText: process.memorySummary,
-                                command: process.showsSeparateCommandSummary ? process.commandSummary : nil)
-                    })
-            }
+                                command: process.showsSeparateCommandSummary ? process.commandSummary : nil,
+                                isMine: mine(process))
+                    },
+                    hasMine: gpu.processes.contains(where: mine))
+            },
+            myUser: settings.highlightsMyProcesses && config.isPollable ? state.detectedSSHUsername : nil,
+            loadingDetailGPUs: Array(state.loadingDetailGPUs).sorted(),
+            detailError: state.detailError
         )
     }
 

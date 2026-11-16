@@ -25,8 +25,24 @@ public struct DemoTransport: RemoteCommandExecuting {
 
     public init(target: String) { self.target = target }
 
+    /// The demo servers' login user, so "Mine" highlighting can be tried too.
+    public static let loginUser = "alice"
+
     public func execute(_ command: String) async throws -> RemoteCommandOutput {
         try await Task.sleep(for: .milliseconds(300))
+        if command.hasPrefix("id -u") {
+            return RemoteCommandOutput(standardOutput: "1001\n", standardError: "", exitStatus: 0)
+        }
+        if command.hasPrefix("ps -o pid= -o uid=") {
+            // pid = 41000 + index × 17; even GPU indexes run alice's jobs (see below).
+            let pids = command.split(separator: "\"").dropFirst().first?.split(separator: ",").compactMap { Int($0) } ?? []
+            let lines = pids.map { pid -> String in
+                let index = (pid - 41_000) / 17
+                let user = index.isMultiple(of: 2) ? "alice" : "bob"
+                return "\(pid) \(user == "alice" ? 1001 : 1002) \(user) python train.py --config configs/run\(index).yaml --seed \(index)"
+            }
+            return RemoteCommandOutput(standardOutput: lines.joined(separator: "\n"), standardError: "", exitStatus: 0)
+        }
         let t = Date().timeIntervalSince1970
         let wave = { (phase: Double, low: Double, high: Double) -> Int in
             Int(low + (high - low) * (0.5 + 0.5 * sin(t / 7 + phase)))

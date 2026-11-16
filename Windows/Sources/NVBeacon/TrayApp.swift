@@ -83,7 +83,9 @@ final class TrayApp {
 
     private static func makeMonitor(servers: [ServerSettings], settings: WindowsSettings) -> ServerMonitor {
         ServerMonitor(servers: servers, interval: .seconds(settings.pollIntervalSeconds),
-                      hostMetrics: settings.hostMetricsOptions) {
+                      hostMetrics: settings.hostMetricsOptions,
+                      highlightsMyProcesses: settings.highlightsMyProcesses,
+                      sshConfigHosts: SSHConfigHosts.load()) {
             PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
         }
     }
@@ -98,6 +100,10 @@ final class TrayApp {
             case "refresh": monitor.refreshNow()
             case "refreshServer":
                 if let id = message["id"] as? String { monitor.refresh(serverID: id) }
+            case "loadProcessDetails":
+                if let id = message["serverId"] as? String, let gpu = message["gpu"] as? Int {
+                    monitor.loadProcessDetails(serverID: id, gpuIndex: gpu)
+                }
             case "settings": openSettings()
             default: break
             }
@@ -252,6 +258,7 @@ final class TrayApp {
         }
         let pollingChanged = old.servers != newSettings.servers || old.pollIntervalSeconds != newSettings.pollIntervalSeconds
             || old.hostMetricsOptions != newSettings.hostMetricsOptions
+            || old.highlightsMyProcesses != newSettings.highlightsMyProcesses
         if pollingChanged, sessionServers == nil {
             monitor.stop()
             monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings)

@@ -137,6 +137,7 @@ function headerStrip(state) {
     strip.append(h("span", "caption secondary", text));
   }
   strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
+  if (servers.length === 1 && servers[0].myUser) strip.append(myProcessesLabel(servers[0].myUser));
   return strip;
 }
 
@@ -212,15 +213,23 @@ function hostInformation(server) {
   return box;
 }
 
+function mineBadge() {
+  return h("span", "mine-badge", t("Mine", "내 프로세스"));
+}
+
+function myProcessesLabel(user) {
+  return h("span", "my-processes", icon("person"), t("My processes: " + user, "내 프로세스: " + user));
+}
+
 function processRow(process) {
+  const nameLine = h("span", "row", h("span", "caption semibold truncate", process.name), process.isMine ? mineBadge() : null);
+  nameLine.style.gap = "6px";
   const main = h("div", "process-main",
     h("span", "process-user truncate", process.user),
-    h("div", "process-name",
-      h("span", "caption semibold truncate", process.name),
-      h("span", "caption2 secondary mono", "PID " + process.pid)),
+    h("div", "process-name", nameLine, h("span", "caption2 secondary mono", "PID " + process.pid)),
     h("span", "spacer"),
     h("span", "caption2 secondary mono", process.memoryText));
-  const row = h("div", "process", main);
+  const row = h("div", "process" + (process.isMine ? " mine" : ""), main);
   if (process.command) {
     const command = h("div", "process-command caption2 secondary truncate", process.command);
     command.title = process.command;
@@ -237,6 +246,7 @@ function gpuRow(server, gpu) {
     h("span", "caption secondary truncate gpu-name", gpu.name),
     h("span", "spacer"),
     h("span", "gpu-stats", gpu.temperature + " · " + gpu.processes.length + "p · " + gpu.utilization + "%"),
+    gpu.hasMine ? mineBadge() : null,
     icon("chevronCircle", "chevron-circle"));
   const bars = h("div", "metrics",
     metricBar("Util", gpu.utilization + "%", gpu.utilization / 100, "var(--util)"),
@@ -246,14 +256,25 @@ function gpuRow(server, gpu) {
   toggle.setAttribute("aria-expanded", String(expanded));
   toggle.dataset.key = "gpu:" + key;
   toggle.addEventListener("click", () => {
-    expanded ? view.expandedGPUs.delete(key) : view.expandedGPUs.add(key);
+    if (expanded) {
+      view.expandedGPUs.delete(key);
+    } else {
+      view.expandedGPUs.add(key);
+      // Like macOS: expanding fetches user names and full command lines.
+      if (gpu.processes.length) send({ type: "loadProcessDetails", serverId: server.id, gpu: gpu.index });
+    }
     view.justToggled = "gpu:" + key;
     render();
   });
 
-  const card = h("div", "gpu" + (expanded ? " expanded" : ""), toggle);
+  const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), toggle);
   if (expanded) {
     const list = h("div", "processes" + (view.justToggled === "gpu:" + key ? " appear" : ""), h("div", "divider"));
+    if ((server.loadingDetailGPUs || []).includes(gpu.index)) {
+      const loading = h("div", "row", spinner(), h("span", "caption secondary", t("Loading process details...", "프로세스 상세를 불러오는 중...")));
+      loading.style.gap = "6px";
+      list.append(loading);
+    }
     if (!gpu.processes.length) {
       list.append(h("span", "caption secondary", t("There are no active compute processes reported on this GPU.", "이 GPU에서 보고된 active compute process가 없습니다.")));
     }
@@ -315,6 +336,10 @@ function serverSection(server) {
     if (server.host) details.append(hostInformation(server));
     for (const gpu of server.gpus) details.append(gpuRow(server, gpu));
     if (server.error) details.append(h("div", "message orange", server.error));
+    if (server.detailError) {
+      details.append(h("div", "message orange", t("Failed to load process details: ", "프로세스 상세를 가져오지 못했습니다: ") + server.detailError));
+    }
+    if (server.myUser && view.state.servers.length > 1) details.append(myProcessesLabel(server.myUser));
   } else {
     details.append(h("div", "message" + (server.error ? " orange" : " secondary"),
       server.error || t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.")));

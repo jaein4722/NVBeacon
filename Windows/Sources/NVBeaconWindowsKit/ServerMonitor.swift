@@ -9,18 +9,36 @@ public struct ServerState: Sendable {
     public var lastError: String?
     public var lastAttempt: Date?
     public var isRefreshing = false
+    /// The remote login user, from the target, the ssh config, or the local user name.
+    public var detectedSSHUsername: String?
+    /// Resolved with `id -u` once per monitor when highlighting is on.
+    public var detectedSSHUserID: Int?
+    /// GPU indexes whose process details are being fetched.
+    public var loadingDetailGPUs: Set<Int> = []
+    public var detailError: String?
 
-    public init(server: ServerSettings) { self.server = server }
+    public init(server: ServerSettings, detectedSSHUsername: String? = nil) {
+        self.server = server
+        self.detectedSSHUsername = detectedSSHUsername
+    }
 
     public var id: String { server.id }
     public var target: String { server.trimmedTarget }
     public var displayName: String { server.displayName }
+
+    /// Matches the macOS rule: compare uids when both are known, otherwise user names.
+    public func isCurrentUserProcess(_ process: GPUProcessReading) -> Bool {
+        if let uid = detectedSSHUserID, let processUID = process.userID { return uid == processUID }
+        guard let name = detectedSSHUsername else { return false }
+        return process.user?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == name
+    }
 }
 
 /// Polls every enabled server on a fixed interval and reports each change.
 public final class ServerMonitor: @unchecked Sendable {
     public let interval: Duration
     public let hostMetrics: HostMetricsOptions
+    public let highlightsMyProcesses: Bool
     private let lock = NSLock()
     private var states: [ServerState]
     private var refreshRequested = false
@@ -28,11 +46,34 @@ public final class ServerMonitor: @unchecked Sendable {
     private let onChange: @Sendable () -> Void
 
     public init(servers: [ServerSettings], interval: Duration, hostMetrics: HostMetricsOptions = .init(),
+                highlightsMyProcesses: Bool = false, sshConfigHosts: [SSHConfigHost] = [],
+                localUsername: String? = ProcessInfo.processInfo.environment["USERNAME"],
                 onChange: @escaping @Sendable () -> Void) {
         self.interval = interval
         self.hostMetrics = hostMetrics
-        self.states = servers.map(ServerState.init)
+        self.highlightsMyProcesses = highlightsMyProcesses
+        self.states = servers.map { server in
+            ServerState(server: server, detectedSSHUsername: highlightsMyProcesses
+                ? Self.detectedSSHUsername(for: server, sshConfigHosts: sshConfigHosts, localUsername: localUsername) : nil)
+        }
         self.onChange = onChange
+    }
+
+    /// Ported from macOS `ServerConfig.detectedSSHUsername`: `user@` in the target,
+    /// then the alias's `User` in the ssh config, then the local account name
+    /// (which OpenSSH also uses when nothing else is set).
+    public static func detectedSSHUsername(for server: ServerSettings, sshConfigHosts: [SSHConfigHost],
+                                           localUsername: String?) -> String? {
+        let target = server.trimmedTarget
+        func normalized(_ value: String?) -> String? {
+            let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            return trimmed.isEmpty ? nil : trimmed.lowercased()
+        }
+        if target.contains("@") { return normalized(target.components(separatedBy: "@").first) }
+        if let user = normalized(sshConfigHosts.first { $0.alias == target }?.user) { return user }
+        if target.hasPrefix(DemoTransport.targetPrefix) { return DemoTransport.loginUser }
+        guard !target.isEmpty else { return nil }
+        return normalized(localUsername)
     }
 
     /// Command-line and demo targets: plain SSH targets with default commands.
@@ -96,15 +137,16 @@ public final class ServerMonitor: @unchecked Sendable {
     }
 
     private func poll(index: Int) async {
-        let server: ServerSettings? = lock.withLock {
+        let claimed: (ServerSettings, String?, Int?)? = lock.withLock {
             guard !states[index].isRefreshing, states[index].server.isPollable else { return nil }
             states[index].isRefreshing = true
-            return states[index].server
+            return (states[index].server, states[index].detectedSSHUsername, states[index].detectedSSHUserID)
         }
-        guard let server else { return }
+        guard let (server, username, knownUserID) = claimed else { return }
         onChange()
 
-        let collector = MetricsCollector(transport: Self.transport(for: server))
+        let transport = Self.transport(for: server)
+        let collector = MetricsCollector(transport: transport)
         let result: Result<GPUSnapshot, Error>
         do {
             result = .success(try await collector.fetchSummary(
@@ -114,6 +156,11 @@ public final class ServerMonitor: @unchecked Sendable {
                 hostCommand: server.resolvedHostCommand))
         } catch {
             result = .failure(error)
+        }
+        // Like macOS: look the login user's uid up once, after a successful poll.
+        var userID = knownUserID
+        if highlightsMyProcesses, userID == nil, let username, case .success = result {
+            userID = try? await Self.fetchRemoteUserID(username: username, transport: transport)
         }
         let maximum = maximumSampleInterval
         lock.withLock {
@@ -130,7 +177,9 @@ public final class ServerMonitor: @unchecked Sendable {
                     NetworkUsageEvaluator.usage(previous: state.snapshot?.networkSample, current: current,
                                                 maximumInterval: maximum)
                 }
-                state.snapshot = snapshot
+                // Keep user names and command lines already resolved for processes that are still running.
+                state.snapshot = snapshot.mergingResolvedProcessMetadata(from: state.snapshot)
+                state.detectedSSHUserID = userID
                 state.lastError = nil
             case .failure(let error):
                 state.lastError = Self.message(for: error)
@@ -138,6 +187,83 @@ public final class ServerMonitor: @unchecked Sendable {
             states[index] = state
         }
         onChange()
+    }
+
+    // MARK: Process details (macOS `loadProcessDetails`)
+
+    /// Looks up user names and full command lines for one GPU's processes with `ps`.
+    ///
+    /// Unlike the macOS app, the reply is merged into the snapshot that is current
+    /// when it arrives, and only into processes that are still listed, so a slow
+    /// reply can never bring back an older process list.
+    public func loadProcessDetails(serverID: String, gpuIndex: Int) {
+        let claimed: (ServerSettings, [GPUProcessReading])? = lock.withLock {
+            guard let index = states.firstIndex(where: { $0.id == serverID }),
+                  states[index].server.isPollable,
+                  !states[index].loadingDetailGPUs.contains(gpuIndex),
+                  let gpu = states[index].snapshot?.gpus.first(where: { $0.index == gpuIndex }),
+                  !gpu.processes.isEmpty else { return nil }
+            states[index].loadingDetailGPUs.insert(gpuIndex)
+            return (states[index].server, gpu.processes)
+        }
+        guard let (server, processes) = claimed else { return }
+        onChange()
+        Task.detached { [self] in
+            let result: Result<[RemoteProcessStatus], Error>
+            do {
+                result = .success(try await Self.fetchProcessStatuses(pids: processes.map(\.pid), transport: Self.transport(for: server)))
+            } catch {
+                result = .failure(error)
+            }
+            lock.withLock {
+                guard let index = states.firstIndex(where: { $0.id == serverID }) else { return }
+                states[index].loadingDetailGPUs.remove(gpuIndex)
+                switch result {
+                case .success(let statuses):
+                    let byPID = Dictionary(statuses.map { ($0.pid, $0) }, uniquingKeysWith: { _, last in last })
+                    let enriched = processes.compactMap { process -> GPUProcessReading? in
+                        guard let details = byPID[process.pid] else { return nil }
+                        return GPUProcessReading(gpuUUID: process.gpuUUID, pid: process.pid, processName: process.processName,
+                                                 usedGPUMemoryMB: process.usedGPUMemoryMB, userID: details.userID ?? process.userID,
+                                                 user: details.user, commandLine: details.commandLine)
+                    }
+                    states[index].snapshot = states[index].snapshot?.applyingResolvedProcessMetadata(enriched)
+                    states[index].detailError = nil
+                case .failure(let error):
+                    states[index].detailError = Self.message(for: error)
+                }
+            }
+            onChange()
+        }
+    }
+
+    // The two commands below are copied unchanged from the macOS SSHMetricsFetcher.
+
+    static func detailedPSLookupCommand(pids: [Int]) -> String {
+        let pidList = pids.map(String.init).joined(separator: ",")
+        return """
+        ps -o pid= -o uid= -o user= -o args= -p "\(pidList)" 2>/dev/null || true
+        """
+    }
+
+    static func remoteUIDLookupCommand(username: String) -> String {
+        "id -u -- \(SSHTransport.shellQuoted(username))"
+    }
+
+    static func fetchProcessStatuses(pids: [Int], transport: AnyRemoteCommandExecutor) async throws -> [RemoteProcessStatus] {
+        let unique = Array(Set(pids)).sorted()
+        guard !unique.isEmpty else { return [] }
+        let output = try await transport.execute(detailedPSLookupCommand(pids: unique))
+        guard output.exitStatus == 0 else {
+            throw MetricsCollectionError.commandFailed(output.exitStatus, output.standardError.isEmpty ? output.standardOutput : output.standardError)
+        }
+        return try MetricsParser.parseDetailedPSSection(output.standardOutput)
+    }
+
+    static func fetchRemoteUserID(username: String, transport: AnyRemoteCommandExecutor) async throws -> Int? {
+        let output = try await transport.execute(remoteUIDLookupCommand(username: username))
+        guard output.exitStatus == 0 else { return nil }
+        return Int(output.standardOutput.trimmingCharacters(in: .whitespacesAndNewlines))
     }
 
     static func message(for error: Error) -> String {

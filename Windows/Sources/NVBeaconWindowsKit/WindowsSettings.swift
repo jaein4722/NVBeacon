@@ -80,6 +80,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
     public var appearanceMode = AppearancePreference.system
     public var popoverWidth = 500
     public var closesPopoverOnOutsideClick = true
+    public var highlightsMyProcesses = true
 
     public init() {}
 
@@ -100,6 +101,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         appearanceMode = try container.decodeIfPresent(AppearancePreference.self, forKey: .appearanceMode) ?? defaults.appearanceMode
         popoverWidth = try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? defaults.popoverWidth
         closesPopoverOnOutsideClick = try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? defaults.closesPopoverOnOutsideClick
+        highlightsMyProcesses = try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? defaults.highlightsMyProcesses
     }
 
     /// Clamps numbers into their ranges and drops duplicate server ids.

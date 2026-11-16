@@ -92,6 +92,42 @@ import Testing
     #expect(hosts[1].port == nil)
 }
 
+@Test func loginUserDetectionMatchesMacOS() {
+    let hosts = [SSHConfigHost(alias: "lab", hostName: "10.0.0.5", user: "Alice")]
+    func detect(_ target: String) -> String? {
+        ServerMonitor.detectedSSHUsername(for: ServerSettings(sshTarget: target), sshConfigHosts: hosts, localUsername: "Gamjo")
+    }
+    #expect(detect("bob@gpu") == "bob")
+    #expect(detect("lab") == "alice")
+    #expect(detect("other") == "gamjo")
+    #expect(detect("") == nil)
+}
+
+@Test func processDetailsMergeIntoTheCurrentListOnly() async throws {
+    var settings = WindowsSettings()
+    settings.servers = [ServerSettings(sshTarget: "demo:a100")]
+    let monitor = ServerMonitor(servers: settings.servers, interval: .seconds(60), highlightsMyProcesses: true) {}
+    await monitor.pollAll()
+    let state = try #require(monitor.snapshot.first)
+    #expect(state.detectedSSHUsername == "alice")
+    #expect(state.detectedSSHUserID == 1001)
+    let busy = try #require(state.snapshot?.gpus.first { !$0.processes.isEmpty })
+    #expect(busy.processes.allSatisfy { state.isCurrentUserProcess($0) == ($0.user == "alice") })
+
+    monitor.loadProcessDetails(serverID: state.id, gpuIndex: busy.index)
+    for _ in 0..<50 where !(monitor.snapshot.first?.loadingDetailGPUs.isEmpty ?? true) {
+        try await Task.sleep(for: .milliseconds(50))
+    }
+    let after = try #require(monitor.snapshot.first?.snapshot?.gpus.first { $0.index == busy.index })
+    #expect(after.processes.allSatisfy { $0.commandLine?.contains("--seed") == true })
+    #expect(after.processes.map(\.pid) == busy.processes.map(\.pid))
+}
+
+@Test func psCommandsAreTheMacOSText() {
+    #expect(ServerMonitor.detailedPSLookupCommand(pids: [12, 7]) == #"ps -o pid= -o uid= -o user= -o args= -p "12,7" 2>/dev/null || true"#)
+    #expect(ServerMonitor.remoteUIDLookupCommand(username: "o'neil") == #"id -u -- 'o'\''neil'"#)
+}
+
 @Test func transportPassesPortAndIdentityFile() {
     let arguments = SSHTransport.arguments(target: "gpu", port: 2222, identityFile: #"C:\keys\id_ed25519"#, remoteCommand: "true")
     let target = arguments.firstIndex(of: "gpu")!
