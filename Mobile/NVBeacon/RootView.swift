@@ -28,12 +28,12 @@ struct RootView: View {
         self.store = store
 #if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
         let scene = ScreenshotFixtures.scene
-        _selectedTab = State(initialValue: scene == "settings" ? 1 : 0)
+        _selectedTab = State(initialValue: ["settings", "monitoring-settings"].contains(scene) ? 1 : 0)
         _transferPresented = State(initialValue: scene == "mac-transfer")
-        if ["gpu-overview", "gpu-details", "host-details"].contains(scene) {
+        if ["gpu-overview", "gpu-details", "host-details", "ipad-overview"].contains(scene) {
             _selectedServerID = State(initialValue: store.servers.first?.id)
             _compactColumn = State(initialValue: .detail)
-            _serverDisclosure = State(initialValue: scene == "gpu-details"
+            _serverDisclosure = State(initialValue: ["gpu-details", "ipad-overview"].contains(scene)
                 ? ServerDetailDisclosure(gpus: [0], processes: ["gpu-0:28410:python train.py"])
                 : ServerDetailDisclosure())
         }
