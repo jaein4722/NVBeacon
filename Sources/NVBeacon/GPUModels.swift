@@ -533,6 +533,17 @@ struct ServerRuntimeState: Identifiable, Equatable, Sendable {
         self.detectedSSHUsername = detectedSSHUsername
         self.detectedSSHUserID = detectedSSHUserID
     }
+
+    /// Applies an edited server configuration. A server that is turned off is no longer
+    /// monitored, so its last readings and error leave the menu bar totals and overview.
+    mutating func update(to newServer: ServerConfig) {
+        if server.isEnabled, !newServer.isEnabled {
+            snapshot = nil
+            networkUsage = nil
+            lastErrorMessage = nil
+        }
+        server = newServer
+    }
 }
 
 struct AppSettings: Codable, Equatable, Sendable {

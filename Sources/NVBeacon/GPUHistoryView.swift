@@ -128,7 +128,7 @@ struct GPUHistoryRenderData: Sendable {
             sample.sampleCount = 1
             let measured = values.filter { $0.user != GPUHistoryPlot.totalLabel }
             if sample.users != nil {
-                sample.users = Dictionary(uniqueKeysWithValues: measured.map { ($0.user, $0.value) })
+                sample.users = Dictionary(measured.map { ($0.user, $0.value) }, uniquingKeysWith: { _, last in last })
             }
             return sample
         }.sorted { $0.timestamp < $1.timestamp }

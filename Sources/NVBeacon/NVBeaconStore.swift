@@ -1397,7 +1397,7 @@ final class NVBeaconStore: ObservableObject {
                 cpuSamples.removeValue(forKey: server.id)
                 networkSamples.removeValue(forKey: server.id)
             }
-            state.server = server
+            state.update(to: server)
             state.detectedSSHUsername = Self.detectedSSHUsername(for: server)
             state.passwordSessionState = synchronizedPasswordSessionState(for: server)
 

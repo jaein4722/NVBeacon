@@ -25,6 +25,7 @@ struct SettingsView: View {
     @State private var utilityNotice: String?
     @State private var isPreparingExport = false
     @State private var isReadingBackup = false
+    @State private var showsResetConfirmation = false
 
     private var selectedSSHConfigHost: SSHConfigHost? {
         sshConfigHosts.first { $0.alias == selectedSSHConfigAlias }
@@ -133,9 +134,14 @@ struct SettingsView: View {
         .onAppear {
             reloadSSHConfigHosts()
             loadCurrentSettings()
+            launchAtLoginManager.refreshStatus()
             Task {
                 await store.refreshNotificationPermissionState()
             }
+        }
+        // Login items can be approved or removed in System Settings while this window is open.
+        .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
+            launchAtLoginManager.refreshStatus()
         }
         .onChange(of: draft) { _, _ in
             scheduleAutoApply()
@@ -624,9 +630,21 @@ struct SettingsView: View {
                     loadCurrentSettings()
                 }
 
-                Button(t("Clear Saved Settings", "저장된 설정 지우기"), role: .destructive) {
-                    store.resetConfiguration()
-                    loadCurrentSettings()
+                Button(t("Clear Saved Settings…", "저장된 설정 지우기…"), role: .destructive) {
+                    showsResetConfirmation = true
+                }
+                .confirmationDialog(
+                    t("Clear all saved settings?", "저장된 설정을 모두 지울까요?"),
+                    isPresented: $showsResetConfirmation,
+                    titleVisibility: .visible
+                ) {
+                    Button(t("Clear Saved Settings", "저장된 설정 지우기"), role: .destructive) {
+                        store.resetConfiguration()
+                        loadCurrentSettings()
+                    }
+                } message: {
+                    Text(t("This removes every server, its saved password in Keychain, all GPU and process alerts, and the notification history. It cannot be undone.",
+                           "모든 서버와 Keychain에 저장된 비밀번호, GPU·프로세스 알림, 알림 기록이 삭제됩니다. 되돌릴 수 없습니다."))
                 }
             } header: {
                 Text(t("Saved State", "저장 상태"))

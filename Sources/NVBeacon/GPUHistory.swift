@@ -33,6 +33,26 @@ struct GPUHistorySample: Codable, Equatable, Sendable, Identifiable {
         }
         return result
     }
+
+    /// Combines samples of the same GPU and minute, keeping first-seen order.
+    /// Quitting and relaunching within one minute saves that minute twice, and the
+    /// chart keys its points by minute and user.
+    static func merged(_ samples: [Self]) -> [Self] {
+        var order: [String] = []
+        var byID: [String: Self] = [:]
+        for sample in samples {
+            guard var existing = byID[sample.id] else {
+                order.append(sample.id)
+                byID[sample.id] = sample
+                continue
+            }
+            existing.totalSum += sample.totalSum
+            existing.sampleCount += sample.sampleCount
+            if let users = sample.users { existing.users = users }
+            byID[sample.id] = existing
+        }
+        return order.compactMap { byID[$0] }
+    }
 }
 
 /// Per-user utilization via `nvidia-smi pmon`. Sampled at most once a minute because
@@ -125,10 +145,10 @@ actor GPUHistoryArchive {
             let decoder = JSONDecoder()
             let cutoff = now.addingTimeInterval(-Self.retention)
             // A line cut short by a crash is skipped; the next compaction drops it.
-            samples = data.split(separator: UInt8(ascii: "\n"))
+            samples = GPUHistorySample.merged(data.split(separator: UInt8(ascii: "\n"))
                 .compactMap { try? decoder.decode(GPUHistorySample.self, from: Data($0)) }
                 .filter { $0.timestamp >= cutoff && $0.timestamp <= now }
-                .sorted { $0.timestamp < $1.timestamp }
+                .sorted { $0.timestamp < $1.timestamp })
         }
         servers[key] = Server(samples: samples)
         return samples
@@ -163,7 +183,7 @@ actor GPUHistoryArchive {
     private func commit(_ completed: [GPUHistorySample], key: String, now: Date) throws -> [GPUHistorySample] {
         guard var server = servers[key] else { return [] }
         let cutoff = now.addingTimeInterval(-Self.retention)
-        server.samples.append(contentsOf: completed)
+        server.samples = GPUHistorySample.merged(server.samples + completed)
         if let firstKept = server.samples.firstIndex(where: { $0.timestamp >= cutoff }) {
             server.samples.removeFirst(firstKept)
         } else {

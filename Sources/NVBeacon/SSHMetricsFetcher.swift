@@ -332,13 +332,28 @@ struct SSHMetricsFetcher: Sendable {
         }
 
         arguments.append(settings.sshTarget)
-        arguments.append(contentsOf: [
-            "/bin/sh",
-            "-lc",
-            shellQuoted(remoteCommand),
-        ])
+        arguments.append(contentsOf: loginShellArguments(remoteCommand))
 
         return arguments
+    }
+
+    /// The words ssh joins and hands to the remote login shell, which runs `/bin/sh -l`.
+    static func loginShellArguments(_ remoteCommand: String) -> [String] {
+        ["/bin/sh", "-lc", shellQuoted(loginShellPortable(remoteCommand))]
+    }
+
+    /// ssh passes the command to the user's login shell before `/bin/sh` sees it.
+    /// csh/tcsh reject newlines inside single quotes, and fish treats `\\` and `\'`
+    /// there as escapes. A script containing any of those characters is therefore sent
+    /// on one line as `printf %b` octal escapes, which every login shell leaves intact.
+    static func loginShellPortable(_ script: String) -> String {
+        let escapes: [Unicode.Scalar: String] = ["\\": "\\0134", "\n": "\\0012", "\r": "\\0015", "'": "\\0047", "!": "\\0041"]
+        guard script.unicodeScalars.contains(where: { escapes[$0] != nil }) else { return script }
+        var encoded = ""
+        for scalar in script.unicodeScalars {
+            if let escape = escapes[scalar] { encoded += escape } else { encoded.unicodeScalars.append(scalar) }
+        }
+        return "exec /bin/sh -c \"$(printf '%b' '\(encoded)')\""
     }
 
     private static func shouldRetryWithoutConnectionReuse(after error: FetchError) -> Bool {
