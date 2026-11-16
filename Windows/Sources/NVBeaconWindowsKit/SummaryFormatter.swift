@@ -16,8 +16,8 @@ public enum SummaryFormatter {
     }
 
     public static func processLine(_ process: GPUProcessReading) -> String {
-        let owner = process.userID.map { "uid \($0)" } ?? "uid ?"
-        return "PID \(process.pid)  ·  \(owner)  ·  \(process.usedGPUMemoryMB) MB  ·  \(process.displayProcessName)"
+        let owner = process.user ?? process.userID.map { "uid \($0)" } ?? "uid ?"
+        return "PID \(process.pid)  ·  \(owner)  ·  \(process.usedGPUMemoryMB) MB  ·  \(process.commandSummary)"
     }
 
     public static func hostLine(_ state: ServerState) -> String? {

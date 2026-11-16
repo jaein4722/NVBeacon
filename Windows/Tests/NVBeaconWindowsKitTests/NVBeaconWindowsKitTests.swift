@@ -111,6 +111,16 @@ private func echoedArguments(_ arguments: [String]) async throws -> [String] {
     #expect(SSHTransport.decodeStandardError(Array("tail \\12".utf8)) == "tail \\12")
 }
 
+@Test func demoServersParseThroughCore() async throws {
+    #expect(try LaunchOptions.parse(["--demo"]).targets == DemoTransport.demoTargets)
+    let snapshot = try await MetricsCollector(transport: DemoTransport(target: "demo:h100")).fetchSummary()
+    #expect(snapshot.gpus.count == 8)
+    #expect(snapshot.gpus.contains { !$0.processes.isEmpty })
+    #expect(snapshot.gpus.flatMap(\.processes).allSatisfy { $0.user != nil && $0.userID != nil })
+    #expect(snapshot.hostMemory != nil)
+    #expect(snapshot.hostCPUSample != nil)
+}
+
 @Test func formatterSummaries() {
     let gpu = GPUReading(index: 0, name: "A100", uuid: "GPU-1", utilization: 45, memoryUsedMB: 12_288,
                          memoryTotalMB: 81_920, temperatureCelsius: 52, processes: [])

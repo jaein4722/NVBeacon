@@ -61,7 +61,10 @@ public final class ServerMonitor: @unchecked Sendable {
     }
 
     private func poll(index: Int, target: String) async {
-        let collector = MetricsCollector(transport: SSHTransport(target: target))
+        let transport = target.hasPrefix(DemoTransport.targetPrefix)
+            ? AnyRemoteCommandExecutor(DemoTransport(target: target))
+            : AnyRemoteCommandExecutor(SSHTransport(target: target))
+        let collector = MetricsCollector(transport: transport)
         let result: Result<GPUSnapshot, Error>
         do { result = .success(try await collector.fetchSummary()) } catch { result = .failure(error) }
         if Task.isCancelled { return }

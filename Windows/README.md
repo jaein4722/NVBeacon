@@ -26,7 +26,8 @@ swift test
 .build\debug\nvbeacon-cli.exe --once gpu-box
 ```
 
-Both take `[--interval SECONDS] [TARGET ...]`; the CLI also takes `--once`. Without
+Both take `[--interval SECONDS] [--demo] [TARGET ...]`; the CLI also takes `--once`.
+`--demo` adds two sample servers with made-up data, for trying the UI without a GPU server. Without
 targets they read `%APPDATA%\NVBeacon\servers.txt`, one SSH target per line.
 
 Current limits:

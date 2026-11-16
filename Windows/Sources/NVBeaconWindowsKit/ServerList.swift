@@ -27,7 +27,7 @@ public struct LaunchOptions: Equatable, Sendable {
         }
     }
 
-    /// `[--interval SECONDS] [--once] [TARGET ...]`
+    /// `[--interval SECONDS] [--once] [--demo] [TARGET ...]`; `--demo` adds sample servers.
     public static func parse(_ arguments: [String]) throws -> LaunchOptions {
         var options = LaunchOptions()
         var index = 0
@@ -41,6 +41,8 @@ public struct LaunchOptions: Equatable, Sendable {
                 index += 1
             case "--once":
                 options.once = true
+            case "--demo":
+                options.targets += DemoTransport.demoTargets
             default:
                 guard SSHTransport.isValidTarget(argument) else { throw ParseError.invalidTarget(argument) }
                 options.targets.append(argument)
