@@ -3,21 +3,26 @@
     <channel>
         <title>NVBeacon</title>
         <item>
-            <title>0.8.0</title>
-            <pubDate>Tue, 10 Nov 2026 06:38:03 +0000</pubDate>
+            <title>0.8.1</title>
+            <pubDate>Mon, 16 Nov 2026 15:02:15 +0000</pubDate>
             <link>https://github.com/jaein4722/NVBeacon</link>
-            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.8.0</sparkle:fullReleaseNotesLink>
-            <sparkle:version>27</sparkle:version>
-            <sparkle:shortVersionString>0.8.0</sparkle:shortVersionString>
+            <sparkle:fullReleaseNotesLink>https://github.com/jaein4722/NVBeacon/releases/tag/v0.8.1</sparkle:fullReleaseNotesLink>
+            <sparkle:version>28</sparkle:version>
+            <sparkle:shortVersionString>0.8.1</sparkle:shortVersionString>
             <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
             <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
             <description sparkle:format="markdown"><![CDATA[NVBeacon is a native macOS menu bar app for monitoring remote NVIDIA GPU servers over SSH with `nvidia-smi`, process exit alerts, and GPU idle notifications.
 
-- Added an opt-in GPU History window with up to 24 hours of per-user GPU utilization. Turn on **Record GPU history** in Settings, then open the chart from the menu bar popover to view activity by server and GPU.
-- Fixed GPU and host metrics collection on servers that use fish as their login shell.
-- Thanks @Moviw for contributing GPU history and the fish compatibility fix in [#5](https://github.com/jaein4722/NVBeacon/pull/5) and [#11](https://github.com/jaein4722/NVBeacon/pull/11).
+- Fixed a crash when opening GPU History after quitting and relaunching NVBeacon within the same minute, for example after an update. History files that already hold a repeated minute are merged when loaded.
+- Fixed polling on servers whose login shell is csh or tcsh. Remote scripts are now sent in a form that sh, bash, zsh, csh, tcsh, and fish all pass through unchanged.
+- **Clear Saved Settings** now asks for confirmation before it removes every server, saved password, alert, and the notification history.
+- A paired Mac-to-iPhone transfer now stays open after the three-minute QR code lifetime, so reviewing servers on the iPhone no longer ends in an expired pairing.
+- The **System** language setting now uses the first supported language in your macOS preferred languages, instead of Korean whenever Korean appears anywhere in the list.
+- Turning off a server now removes its last readings from the menu bar totals and the popover overview.
+- The launch-at-login status now refreshes when Settings opens or NVBeacon becomes active, so changes made in System Settings show up without pressing Refresh.
+- Replaced the app icon with a new design.
 ]]></description>
-            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.8.0/NVBeacon-0.8.0.dmg" length="4910527" type="application/octet-stream" sparkle:edSignature="BTj+rcJNr3MObHTF7YhRALDJiL8mb/G4eY3s5ajT2Ofe9+Sf9GbnQeGTWQ8M4AIV+lX2di0llPoj3TWJj5p3AQ=="/>
+            <enclosure url="https://github.com/jaein4722/NVBeacon/releases/download/v0.8.1/NVBeacon-0.8.1.dmg" length="4693597" type="application/octet-stream" sparkle:edSignature="kmq7LDCltOHhI1s2BYBZZN+6f8QwEzQaO6hB/OOAOk7uOmkMtD0TSi/pi3WtAx0LM61ZsXWoQjA6pUmFgnPsDw=="/>
         </item>
     </channel>
 </rss>
