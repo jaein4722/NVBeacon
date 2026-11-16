@@ -95,7 +95,11 @@ struct RootView: View {
                             Text("Passwords and imported SSH private keys stay in this device’s Keychain. Verify the host fingerprint on your first connection.")
                         }.font(.footnote)
                         Section("About") {
-                            LabeledContent("NVBeacon for iOS", value: "Preview")
+                            LabeledContent("NVBeacon for iOS") {
+                                let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "—"
+                                let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "—"
+                                Text(verbatim: "\(version) (\(build))").monospacedDigit()
+                            }
                             NavigationLink("Diagnostics") { MobileDiagnosticsView(store: store) }
                             Link("Support", destination: URL(string: "https://jaein4722.github.io/NVBeacon/support.html")!)
                             Link("Privacy Policy", destination: URL(string: "https://jaein4722.github.io/NVBeacon/privacy.html")!)
