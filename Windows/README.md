@@ -26,6 +26,18 @@ swift test
 .build\debug\nvbeacon-cli.exe --once gpu-box
 ```
 
+Before the first build, fetch the WebView2 SDK (headers and loader, kept out of git):
+
+```powershell
+.\scripts\fetch-webview2.ps1
+```
+
+Left-clicking the tray icon opens a flyout whose content is an HTML page in
+Microsoft Edge WebView2 (`Sources/NVBeacon/UI`); right-clicking opens the native menu.
+WebView2 is created when the flyout first opens and released 60 seconds after it
+closes (`--release-after SECONDS`). `--diag` writes timings to
+`%LOCALAPPDATA%\NVBeacon\diag.log`.
+
 Both take `[--interval SECONDS] [--demo] [TARGET ...]`; the CLI also takes `--once`.
 `--demo` adds two sample servers with made-up data, for trying the UI without a GPU server. Without
 targets they read `%APPDATA%\NVBeacon\servers.txt`, one SSH target per line.

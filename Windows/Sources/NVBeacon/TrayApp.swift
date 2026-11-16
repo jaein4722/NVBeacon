@@ -5,6 +5,9 @@ import WinSDK
 
 let trayCallbackMessage = UINT(WM_APP) + 1
 let stateChangedMessage = UINT(WM_APP) + 2
+/// Test hooks, honoured only with --diag.
+let diagnosticsMenuMessage = UINT(WM_APP) + 3
+let diagnosticsEndMenuMessage = UINT(WM_APP) + 4
 
 /// Only touched on the UI thread (the window procedure and the message loop).
 nonisolated(unsafe) var trayApp: TrayApp?
@@ -16,13 +19,21 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
         switch message {
         case trayCallbackMessage:
             let event = UINT(truncatingIfNeeded: lParam & 0xFFFF)
-            if event == UINT(WM_LBUTTONUP) || event == UINT(WM_RBUTTONUP) { app.showMenu() }
+            if event == UINT(WM_LBUTTONUP) { app.toggleFlyout() }
+            if event == UINT(WM_RBUTTONUP) { app.showMenu() }
             return 0
         case stateChangedMessage:
             app.updateIcon()
+            app.flyout?.push()
             return 0
         case UINT(WM_COMMAND):
             app.handleCommand(UInt(wParam & 0xFFFF))
+            return 0
+        case diagnosticsMenuMessage where Diagnostics.enabled:
+            app.showMenu(fromFlyout: true)   // test hook: what the flyout's "…" button does
+            return 0
+        case diagnosticsEndMenuMessage where Diagnostics.enabled:
+            EndMenu()
             return 0
         case UINT(WM_DESTROY):
             PostQuitMessage(0)
@@ -47,12 +58,33 @@ final class TrayApp {
     private var interval: Duration
     private var monitor: ServerMonitor
     private var icon: HICON?
+    private(set) var flyout: Flyout?
 
     init(window: HWND, targets: [String], interval: Duration) {
         self.window = window
         self.interval = interval
         self.taskbarCreatedMessage = "TaskbarCreated".withCString(encodedAs: UTF16.self) { RegisterWindowMessageW($0) }
         self.monitor = Self.makeMonitor(targets: targets, interval: interval)
+    }
+
+    func attach(_ flyout: Flyout) {
+        self.flyout = flyout
+        flyout.currentState = { [unowned self] in FlyoutState(states: monitor.snapshot).json() }
+        flyout.onMessage = { [unowned self] message in
+            switch message["type"] as? String {
+            case "refresh": run(.refresh)
+            case "menu": showMenu(fromFlyout: true)
+            case "editServers": run(.editServers)
+            case "copyReport": run(.copyReport)
+            case "quit": run(.quit)
+            default: break
+            }
+        }
+    }
+
+    func toggleFlyout() {
+        guard let flyout else { showMenu(); return }
+        flyout.toggle()
     }
 
     private static func makeMonitor(targets: [String], interval: Duration) -> ServerMonitor {
@@ -115,16 +147,21 @@ final class TrayApp {
 
     // MARK: Menu
 
-    func showMenu() {
+    /// The tray's right-click menu, or (from the flyout's "…" button) a short
+    /// menu owned by the flyout so opening it does not close the flyout.
+    func showMenu(fromFlyout: Bool = false) {
         guard let menu = CreatePopupMenu() else { return }
         defer { DestroyMenu(menu) }
+        let owner = fromFlyout ? (flyout?.window ?? window) : window
         let states = monitor.snapshot
-        if states.isEmpty {
-            append(menu, "No servers — add SSH targets to servers.txt", enabled: false)
-        }
-        for state in states {
-            appendServer(state, to: menu)
-            AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
+        if !fromFlyout {
+            if states.isEmpty {
+                append(menu, "No servers — add SSH targets to servers.txt", enabled: false)
+            }
+            for state in states {
+                appendServer(state, to: menu)
+                AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
+            }
         }
         append(menu, "Refresh now", command: .refresh)
         append(menu, "Copy report", command: .copyReport)
@@ -136,10 +173,13 @@ final class TrayApp {
         var cursor = POINT()
         GetCursorPos(&cursor)
         // Without this the menu stays open when the user clicks elsewhere.
-        SetForegroundWindow(window)
+        SetForegroundWindow(owner)
+        Diagnostics.log("menu opened")
         // The choice arrives as WM_COMMAND (TPM_RETURNCMD's id is lost to the BOOL import).
-        TrackPopupMenu(menu, UINT(TPM_RIGHTBUTTON) | UINT(TPM_BOTTOMALIGN), cursor.x, cursor.y, 0, window, nil)
-        PostMessageW(window, UINT(WM_NULL), 0, 0)
+        // TrackPopupMenu runs its own modal message loop until the menu closes.
+        TrackPopupMenu(menu, UINT(TPM_RIGHTBUTTON) | UINT(TPM_BOTTOMALIGN), cursor.x, cursor.y, 0, owner, nil)
+        Diagnostics.log("menu closed")
+        PostMessageW(owner, UINT(WM_NULL), 0, 0)
     }
 
     func handleCommand(_ identifier: UInt) {
@@ -199,6 +239,7 @@ final class TrayApp {
             monitor.start()
         case .quit:
             monitor.stop()
+            flyout?.releaseView()
             removeIcon()
             DestroyWindow(window)
         }

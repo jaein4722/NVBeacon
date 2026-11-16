@@ -13,18 +13,31 @@ let package = Package(
             name: "NVBeaconWindowsKit",
             dependencies: [.product(name: "NVBeaconCore", package: "NVBeaconCore")]
         ),
+        // C wrapper over the WebView2 COM API. Needs the SDK headers from
+        // scripts/fetch-webview2.ps1; WebView2Loader.dll is loaded at run time.
+        .target(
+            name: "CWebView2",
+            cSettings: [.headerSearchPath("../../ThirdParty/webview2/pkg/build/native/include")],
+            linkerSettings: [.linkedLibrary("Ole32"), .linkedLibrary("User32")]
+        ),
         .executableTarget(
             name: "NVBeacon",
             dependencies: [
                 "NVBeaconWindowsKit",
+                "CWebView2",
                 .product(name: "NVBeaconCore", package: "NVBeaconCore"),
             ],
+            resources: [.copy("UI")],
             linkerSettings: [
                 // A tray app must not open a console window.
                 .unsafeFlags(["-Xlinker", "/SUBSYSTEM:WINDOWS", "-Xlinker", "/ENTRY:mainCRTStartup"]),
                 .linkedLibrary("User32"),
                 .linkedLibrary("Shell32"),
                 .linkedLibrary("Gdi32"),
+                .linkedLibrary("Dwmapi"),
+                .linkedLibrary("Ole32"),
+                .linkedLibrary("Advapi32"),
+                .linkedLibrary("Shcore"),
             ]
         ),
         .executableTarget(

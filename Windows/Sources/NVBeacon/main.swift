@@ -1,9 +1,16 @@
+import Dispatch
 import Foundation
 import NVBeaconWindowsKit
 import WinSDK
 
-// Tray client: NVBeacon.exe [--interval SECONDS] [TARGET ...]
+// Tray client: NVBeacon.exe [--interval SECONDS] [--demo] [--diag] [--release-after SECONDS] [TARGET ...]
 // Without targets it reads %APPDATA%\NVBeacon\servers.txt.
+//
+// Threads: all windows, the tray icon and WebView2 live on one STA UI thread with
+// its own message loop. Polling runs on Swift's global executor and reaches the UI
+// thread only through PostMessage. The main thread runs dispatchMain() so any work
+// queued on the main queue still runs, independent of the UI thread's modal loops.
+// The Windows client does not use @MainActor.
 
 func showError(_ text: String) {
     text.withCString(encodedAs: UTF16.self) { body in
@@ -19,52 +26,84 @@ if GetLastError() == DWORD(ERROR_ALREADY_EXISTS) {
     exit(0)
 }
 
-// Per-monitor DPI awareness keeps the rendered icon sharp instead of scaled up.
+// Per-monitor DPI awareness keeps the rendered icon and the flyout sharp.
 _ = SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT(bitPattern: -4))
+
+var arguments = Array(CommandLine.arguments.dropFirst())
+// Recreating WebView2 takes about 0.3 s, while keeping it hidden holds ~150 MB of
+// Chromium memory (measured on the dev PC), so release it soon after the flyout closes.
+var releaseAfterSeconds: UINT = 60
+if let index = arguments.firstIndex(of: "--diag") {
+    Diagnostics.enabled = true
+    arguments.remove(at: index)
+}
+if let index = arguments.firstIndex(of: "--release-after"), index + 1 < arguments.count,
+   let seconds = UINT(arguments[index + 1]) {
+    releaseAfterSeconds = seconds
+    arguments.removeSubrange(index...index + 1)
+}
 
 var options: LaunchOptions
 do {
-    options = try LaunchOptions.parse(Array(CommandLine.arguments.dropFirst()))
+    options = try LaunchOptions.parse(arguments)
 } catch {
-    showError("\(error)\n\nUsage: NVBeacon.exe [--interval SECONDS] [TARGET ...]")
+    showError("\(error)\n\nUsage: NVBeacon.exe [--interval SECONDS] [--demo] [TARGET ...]")
     exit(2)
 }
 if options.targets.isEmpty { options.targets = LaunchOptions.loadServerFile() }
+let launchOptions = options
+let releaseAfter = releaseAfterSeconds
+Diagnostics.log("launch: \(launchOptions.targets.count) servers, release after \(releaseAfter) s")
 
-let instance = GetModuleHandleW(nil)
-let className = "NVBeaconTrayWindow"
-let registered = className.withCString(encodedAs: UTF16.self) { name in
-    var windowClass = WNDCLASSEXW()
-    windowClass.cbSize = UINT(MemoryLayout<WNDCLASSEXW>.size)
-    windowClass.lpfnWndProc = windowProcedure
-    windowClass.hInstance = instance
-    windowClass.lpszClassName = name
-    return RegisterClassExW(&windowClass)
-}
-guard registered != 0 else {
-    showError("Could not register the tray window (error \(GetLastError())).")
-    exit(1)
-}
-
-// A hidden top-level window (not message-only) so the tray menu can take focus.
-let window = className.withCString(encodedAs: UTF16.self) { name in
-    "NVBeacon".withCString(encodedAs: UTF16.self) { title in
-        CreateWindowExW(0, name, title, DWORD(WS_OVERLAPPED), 0, 0, 0, 0, nil, nil, instance, nil)
+func runUIThread() {
+    CoInitializeEx(nil, DWORD(COINIT_APARTMENTTHREADED.rawValue))  // WebView2 requires an STA thread
+    let instance = GetModuleHandleW(nil)
+    let className = "NVBeaconTrayWindow"
+    let registered = className.withCString(encodedAs: UTF16.self) { name in
+        var windowClass = WNDCLASSEXW()
+        windowClass.cbSize = UINT(MemoryLayout<WNDCLASSEXW>.size)
+        windowClass.lpfnWndProc = windowProcedure
+        windowClass.hInstance = instance
+        windowClass.lpszClassName = name
+        return RegisterClassExW(&windowClass)
     }
-}
-guard let window else {
-    showError("Could not create the tray window (error \(GetLastError())).")
-    exit(1)
+    guard registered != 0, Flyout.registerClass(instance: instance) else {
+        showError("Could not register the tray window (error \(GetLastError())).")
+        exit(1)
+    }
+
+    // A hidden top-level window (not message-only) so the tray menu can take focus.
+    let window = className.withCString(encodedAs: UTF16.self) { name in
+        "NVBeacon".withCString(encodedAs: UTF16.self) { title in
+            CreateWindowExW(0, name, title, DWORD(WS_OVERLAPPED), 0, 0, 0, 0, nil, nil, instance, nil)
+        }
+    }
+    guard let window else {
+        showError("Could not create the tray window (error \(GetLastError())).")
+        exit(1)
+    }
+
+    trayWindowBits = Int(bitPattern: window)
+    let app = TrayApp(window: window, targets: launchOptions.targets, interval: launchOptions.interval)
+    trayApp = app
+    if let flyout = Flyout(trayWindow: window, instance: instance, releaseAfterSeconds: releaseAfter) {
+        activeFlyout = flyout
+        app.attach(flyout)
+    }
+    app.start()
+
+    var message = MSG()
+    while GetMessageW(&message, nil, 0, 0) {
+        TranslateMessage(&message)
+        DispatchMessageW(&message)
+    }
+    Diagnostics.log("UI thread finished")
+    CoUninitialize()
+    exit(0)
 }
 
-trayWindowBits = Int(bitPattern: window)
-let app = TrayApp(window: window, targets: options.targets, interval: options.interval)
-trayApp = app
-app.start()
-
-var message = MSG()
-while GetMessageW(&message, nil, 0, 0) {
-    TranslateMessage(&message)
-    DispatchMessageW(&message)
-}
+let uiThread = Thread { runUIThread() }
+uiThread.stackSize = 4 * 1024 * 1024
+uiThread.start()
 _ = instanceMutex
+dispatchMain()
