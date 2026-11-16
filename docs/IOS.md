@@ -1,5 +1,12 @@
 # NVBeacon for iOS
 
+Open `Mobile/NVBeacon.xcodeproj` and use
+the shared **NVBeacon** scheme. It runs on iPhone and iPad with iOS 17 or later.
+Build with the latest installed Xcode and **iOS SDK 27.1 or newer**; the local
+development environment currently has Xcode 27.2 and SDK 27.2. The deployment
+target is independent of the SDK: iOS 17 is the minimum supported OS, not the
+SDK used to compile the app. No legacy appearance compatibility keys are set.
+
 ## Implemented
 
 - The Monitor overview summarizes available GPUs, average utilization and processes
