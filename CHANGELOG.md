@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.8.1 - 2026-11-16
+
+- Fixed a crash when opening GPU History after quitting and relaunching NVBeacon within the same minute, for example after an update. History files that already hold a repeated minute are merged when loaded.
+- Fixed polling on servers whose login shell is csh or tcsh. Remote scripts are now sent in a form that sh, bash, zsh, csh, tcsh, and fish all pass through unchanged.
+- **Clear Saved Settings** now asks for confirmation before it removes every server, saved password, alert, and the notification history.
+- A paired Mac-to-iPhone transfer now stays open after the three-minute QR code lifetime, so reviewing servers on the iPhone no longer ends in an expired pairing.
+- The **System** language setting now uses the first supported language in your macOS preferred languages, instead of Korean whenever Korean appears anywhere in the list.
+- Turning off a server now removes its last readings from the menu bar totals and the popover overview.
+- The launch-at-login status now refreshes when Settings opens or NVBeacon becomes active, so changes made in System Settings show up without pressing Refresh.
+- Replaced the app icon with a new design.
+
 ## 0.8.0 - 2026-11-10
 
 - Added an opt-in GPU History window with up to 24 hours of per-user GPU utilization. Turn on **Record GPU history** in Settings, then open the chart from the menu bar popover to view activity by server and GPU.

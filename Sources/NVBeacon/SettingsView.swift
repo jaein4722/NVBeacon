@@ -75,7 +75,7 @@ struct SettingsView: View {
         case let (shortVersion?, _):
             return shortVersion
         default:
-            return "0.8.0"
+            return "0.8.1"
         }
     }
 
