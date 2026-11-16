@@ -54,13 +54,20 @@ struct MonitorUpdatedTile: View {
 
     var body: some View {
         if let date {
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+            updated(at: ScreenshotFixtures.referenceDate, snapshot: date)
+#else
             TimelineView(.periodic(from: .now, by: 1)) { tick in
-                let age = max(0, Int(tick.date.timeIntervalSince(date)))
-                MonitorSummaryTile("Updated", Text(verbatim: age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"))
+                updated(at: tick.date, snapshot: date)
             }
+#endif
         } else {
             MonitorSummaryTile("Updated", Text(verbatim: "—"))
         }
+    }
+    private func updated(at now: Date, snapshot: Date) -> some View {
+        let age = max(0, Int(now.timeIntervalSince(snapshot)))
+        return MonitorSummaryTile("Updated", Text(verbatim: age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"))
     }
 }
 

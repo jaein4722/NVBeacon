@@ -17,6 +17,12 @@ struct NVBeaconApp: App {
     var body: some Scene {
         WindowGroup {
             RootView(store: store)
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+                .id(store.generation)
+                .onChange(of: ScreenshotFixtures.scene) { _, _ in
+                    store = ScreenshotFixtures.store()
+                }
+#endif
                 .environment(\.locale, language == "system" ? .autoupdatingCurrent : Locale(identifier: language))
                 .preferredColorScheme(appearance == "light" ? .light : appearance == "dark" ? .dark : nil)
                 .tint(.green)

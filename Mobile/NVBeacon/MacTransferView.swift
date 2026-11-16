@@ -19,6 +19,18 @@ struct MacTransferView: View {
 
     @State private var imported: [MobileServer] = []
 
+    init(store: MobileStore) {
+        self.store = store
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+        if ScreenshotFixtures.scene == "mac-transfer" {
+            do {
+                let batch = try ScreenshotFixtures.incomingTransfer()
+                _phase = State(initialValue: .review(batch, try store.reviewTransfer(batch)))
+            } catch { preconditionFailure("Invalid transfer screenshot fixture: \(error)") }
+        }
+#endif
+    }
+
     private enum Phase {
         case networkIssue(PairingError)
         case camera, scanning, connecting, verifying(String)

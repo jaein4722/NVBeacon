@@ -29,10 +29,13 @@ struct RootView: View {
 #if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
         let scene = ScreenshotFixtures.scene
         _selectedTab = State(initialValue: scene == "settings" ? 1 : 0)
-        if scene == "gpu-details" || scene == "host-details" {
+        _transferPresented = State(initialValue: scene == "mac-transfer")
+        if ["gpu-overview", "gpu-details", "host-details"].contains(scene) {
             _selectedServerID = State(initialValue: store.servers.first?.id)
             _compactColumn = State(initialValue: .detail)
-            _serverDisclosure = State(initialValue: ServerDetailDisclosure(gpus: [0]))
+            _serverDisclosure = State(initialValue: scene == "gpu-details"
+                ? ServerDetailDisclosure(gpus: [0], processes: ["gpu-0:28410:python train.py"])
+                : ServerDetailDisclosure())
         }
 #endif
     }
@@ -279,6 +282,13 @@ struct RootView: View {
     }
 
     private func selectServerForSplitView() {
+#if NVBEACON_SCREENSHOTS && targetEnvironment(simulator)
+        if sizeClass == .regular, ScreenshotFixtures.scene == "gpu-overview", store.servers.count > 1 {
+            selectedServerID = store.servers[1].id
+            compactColumn = .detail
+            return
+        }
+#endif
         guard sizeClass == .regular, let id = selectedServerID ?? store.servers.first?.id else { return }
         selectedServerID = id
         compactColumn = .detail
@@ -287,6 +297,7 @@ struct RootView: View {
     private var monitor: some View {
         NavigationSplitView(preferredCompactColumn: $compactColumn) {
             monitorList
+                .navigationSplitViewColumnWidth(min: 320, ideal: 360, max: 420)
         } detail: {
             if let id = selectedServerID {
                 ServerDetailView(store: store, serverID: id, disclosure: $serverDisclosure) { editor = $0 }
