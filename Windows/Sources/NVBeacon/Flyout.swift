@@ -23,6 +23,15 @@ final class Flyout {
     var closesOnOutsideClick = true
     /// Reported by the page so the flyout hugs its content, like the macOS popover.
     private var contentHeight = 560.0
+    private var shownAt: UInt64 = 0
+    /// A cold start (creating WebView2) can take longer than the settle window.
+    private var awaitingFirstSize = false
+    /// The flyout hangs from the taskbar, so resizing it moves its top edge and
+    /// everything in it. It therefore follows the content only while the first
+    /// layout settles after opening; later changes (expanding a GPU, new data)
+    /// scroll inside the fixed window until the next open. macOS hangs its
+    /// popover from the menu bar, so only the bottom edge moves there.
+    private static let resizeWindowAfterShow: UInt64 = 1_500
     var onMessage: ([String: Any]) -> Void = { _ in }
     var currentState: () -> String = { "{}" }
 
@@ -77,6 +86,8 @@ final class Flyout {
     func show() {
         KillTimer(window, Self.suspendTimer)
         KillTimer(window, Self.releaseTimer)
+        shownAt = GetTickCount64()
+        awaitingFirstSize = true
         position()
         ShowWindow(window, SW_SHOW)
         SetForegroundWindow(window)
@@ -162,9 +173,17 @@ final class Flyout {
         case "close":
             hide()
         case "size":
-            if let height = message["height"] as? Double, abs(height - contentHeight) >= 1 {
+            if let height = message["height"] as? Double {
+                let settling = awaitingFirstSize || GetTickCount64() - shownAt < Self.resizeWindowAfterShow
+                if isVisible { awaitingFirstSize = false }
+                guard abs(height - contentHeight) >= 1 else { break }
                 contentHeight = height
-                if isVisible { position() }
+                if isVisible, settling {
+                    position()
+                    Diagnostics.log("flyout resized to content \(Int(height))")
+                } else if isVisible {
+                    Diagnostics.log("flyout kept its size; content is now \(Int(height))")
+                }
             }
         default:
             onMessage(message)
