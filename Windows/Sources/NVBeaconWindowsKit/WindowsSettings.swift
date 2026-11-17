@@ -89,6 +89,9 @@ public enum AppearancePreference: String, Codable, CaseIterable, Sendable { case
 public enum PopoverHeightMode: String, Codable, CaseIterable, Sendable { case automatic, fixed }
 /// Popover opens from the tray icon; window stays open as a normal window.
 public enum DisplayMode: String, Codable, CaseIterable, Sendable { case popover, window }
+/// What the tray icon shows. Same choices and raw values as the macOS menu bar
+/// text (`MenuBarDisplayMode`); the tray draws the number into the icon.
+public enum TrayIconStyle: String, Codable, CaseIterable, Sendable { case averageAndBusy, averageOnly, busyOnly, iconOnly }
 
 /// The monitor window's last frame in screen pixels.
 public struct WindowFrame: Codable, Equatable, Sendable {
@@ -131,6 +134,9 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
     public var popoverHeight = 600
     public var displayMode = DisplayMode.popover
     public var windowAlwaysOnTop = false
+    public var trayIconStyle = TrayIconStyle.averageAndBusy
+    /// Windows only: tint the tray badge by load (green, amber, red) instead of plain text.
+    public var trayIconUsesColor = true
     /// Saved by the app when the window moves; the Settings page never edits it.
     public var windowFrame: WindowFrame?
 
@@ -161,6 +167,8 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
         popoverHeight = try container.decodeIfPresent(Int.self, forKey: .popoverHeight) ?? defaults.popoverHeight
         displayMode = try container.decodeIfPresent(DisplayMode.self, forKey: .displayMode) ?? defaults.displayMode
         windowAlwaysOnTop = try container.decodeIfPresent(Bool.self, forKey: .windowAlwaysOnTop) ?? defaults.windowAlwaysOnTop
+        trayIconStyle = try container.decodeIfPresent(TrayIconStyle.self, forKey: .trayIconStyle) ?? defaults.trayIconStyle
+        trayIconUsesColor = try container.decodeIfPresent(Bool.self, forKey: .trayIconUsesColor) ?? defaults.trayIconUsesColor
         windowFrame = try container.decodeIfPresent(WindowFrame.self, forKey: .windowFrame)
     }
 

@@ -258,6 +258,18 @@ enum Theme {
         return status == ERROR_SUCCESS && value == 0
     }
 
+    /// The taskbar follows the Windows mode (SystemUsesLightTheme), not the app mode.
+    static var taskbarIsLight: Bool {
+        var value: DWORD = 0
+        var size = DWORD(MemoryLayout<DWORD>.size)
+        let status = #"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"#.withCString(encodedAs: UTF16.self) { key in
+            "SystemUsesLightTheme".withCString(encodedAs: UTF16.self) { name in
+                RegGetValueW(HKEY_CURRENT_USER, key, name, DWORD(RRF_RT_REG_DWORD), nil, &value, &size)
+            }
+        }
+        return status == ERROR_SUCCESS && value == 1
+    }
+
     static var isDark: Bool {
         switch preference {
         case .system: systemPrefersDark

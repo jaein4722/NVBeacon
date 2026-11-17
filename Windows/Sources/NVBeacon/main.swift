@@ -18,6 +18,12 @@ if let account = ProcessInfo.processInfo.environment[AskPass.accountVariable] {
     exit(AskPass.run(arguments: CommandLine.arguments, account: account))
 }
 
+// Development aid: write tray icon previews and exit (see TrayIconRenderer.dumpPreviews).
+if let index = CommandLine.arguments.firstIndex(of: "--dump-tray-icons"), index + 1 < CommandLine.arguments.count {
+    TrayIconRenderer.dumpPreviews(to: CommandLine.arguments[index + 1])
+    exit(0)
+}
+
 func showError(_ text: String) {
     text.withCString(encodedAs: UTF16.self) { body in
         "NVBeacon".withCString(encodedAs: UTF16.self) { title in

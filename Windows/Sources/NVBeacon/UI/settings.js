@@ -424,6 +424,20 @@ function appearancePane() {
         { value: "light", label: t("Light", "라이트") },
         { value: "dark", label: t("Dark", "다크") },
       ], (value) => { d.appearanceMode = value; changed(); })),
+      // macOS "Menu bar text": the tray draws the number into its icon instead.
+      row(t("Tray icon", "트레이 아이콘"), select("tray-style", d.trayIconStyle, [
+        { value: "averageAndBusy", label: t("Average + Busy", "평균 + 사용 중") },
+        { value: "averageOnly", label: t("Average Util", "평균 사용률") },
+        { value: "busyOnly", label: t("Busy Count", "사용 중 개수") },
+        { value: "iconOnly", label: t("Icon Only", "아이콘만") },
+      ], (value) => { d.trayIconStyle = value; changed({ rerender: true }); }),
+        d.trayIconStyle === "averageAndBusy" ? t("Average utilization, with a bar for the share of busy GPUs.", "평균 사용률과 사용 중 GPU 비율 막대를 표시합니다.")
+          : d.trayIconStyle === "averageOnly" ? t("Average utilization of all GPUs.", "전체 GPU의 평균 사용률을 표시합니다.")
+          : d.trayIconStyle === "busyOnly" ? t("Number of busy GPUs.", "사용 중인 GPU 수를 표시합니다.")
+          : t("The app icon. Point at it to see the summary.", "앱 아이콘만 표시합니다. 마우스를 올리면 요약을 볼 수 있습니다.")),
+      toggleRow(t("Color by load", "사용량에 따라 색 표시"), "tray-color", d.trayIconUsesColor,
+        (value) => { d.trayIconUsesColor = value; changed(); },
+        { disabled: d.trayIconStyle === "iconOnly", sublabel: t("Green, amber or red badge. Off: the number in the taskbar's text color.", "초록·주황·빨강 배지로 표시합니다. 끄면 작업 표시줄 글자색으로 숫자만 표시합니다.") }),
       row(t("Display Mode", "표시 방식"), select("display-mode", d.displayMode, [
         { value: "popover", label: t("Popover", "팝오버") },
         { value: "window", label: t("Window", "창") },

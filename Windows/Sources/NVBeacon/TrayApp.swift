@@ -390,6 +390,7 @@ final class TrayApp {
     }
 
     func systemSettingsChanged() {
+        updateIcon()   // the taskbar theme sets the plain tray number's color
         guard settings.appearanceMode == .system else { return }
         applyAppearance()
     }
@@ -404,8 +405,7 @@ final class TrayApp {
         data.uFlags = UINT(NIF_MESSAGE | NIF_ICON | NIF_TIP)
         data.uCallbackMessage = trayCallbackMessage
         data.hIcon = icon
-        let states = monitor.snapshot.filter { $0.server.isPollable }
-        let tip = states.isEmpty ? "NVBeacon" : SummaryFormatter.tooltip(states)
+        let tip = trayTooltip()
         withUnsafeMutableBytes(of: &data.szTip) { buffer in
             let units = buffer.bindMemory(to: UInt16.self)
             let text = Array(tip.utf16.prefix(units.count - 1))
@@ -431,8 +431,23 @@ final class TrayApp {
     @discardableResult
     private func replaceIcon() -> HICON? {
         let old = icon
-        icon = TrayIconRenderer.makeIcon(for: monitor.snapshot.filter { $0.server.isPollable })
+        let summary = TrayIconRenderer.summary(for: monitor.snapshot.filter { $0.server.isPollable }, settings: settings)
+        icon = TrayIconRenderer.makeIcon(summary: summary, style: settings.trayIconStyle, usesColor: settings.trayIconUsesColor)
         return old
+    }
+
+    /// First line: the macOS menu bar text for every style; then one line per server.
+    private func trayTooltip() -> String {
+        let states = monitor.snapshot.filter { $0.server.isPollable }
+        guard !states.isEmpty else { return "NVBeacon" }
+        let summary = TrayIconRenderer.summary(for: states, settings: settings)
+        let korean = Theme.language == "ko"
+        let headline = summary.average.map { average in
+            korean ? "평균 \(average)% · 사용 중 \(summary.busy)/\(summary.total)"
+                   : "Average \(average)% · Busy \(summary.busy)/\(summary.total)"
+        } ?? (korean ? "데이터를 기다리는 중" : "Waiting for data")
+        let text = (["NVBeacon — " + headline] + states.map(SummaryFormatter.compactLine)).joined(separator: "\n")
+        return text.count <= 127 ? text : String(text.prefix(126)) + "…"
     }
 
     func removeIcon() {
