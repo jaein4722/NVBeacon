@@ -209,7 +209,10 @@ public actor SSHTransport: RemoteCommandExecuting {
                     return created.futureResult
                 }
             }.get()
-            try await child.triggerUserOutboundEvent(SSHChannelRequestEvent.ExecRequest(command: command, wantReply: true))
+            // sshd runs the command in the user's login shell. Under zsh `set -- $var`
+            // does not split words, and tcsh or fish cannot run POSIX sh at all.
+            let request = SSHChannelRequestEvent.ExecRequest(command: RemoteShell.shCommand(command), wantReply: true)
+            try await child.triggerUserOutboundEvent(request)
             let output = try await promise.futureResult.get()
             if timedOut { throw MobileError.timedOut }
             return output

@@ -22,6 +22,7 @@ typealias MetricsParser = NVBeaconCore.MetricsParser
 typealias MetricsParseError = NVBeaconCore.MetricsParseError
 typealias MetricsCollectionError = NVBeaconCore.MetricsCollectionError
 typealias RemoteMetricCommands = NVBeaconCore.RemoteMetricCommands
+typealias RemoteShell = NVBeaconCore.RemoteShell
 typealias RemoteCommandOutput = NVBeaconCore.RemoteCommandOutput
 typealias RemoteCommandExecuting = NVBeaconCore.RemoteCommandExecuting
 typealias MetricsCollector<Transport: RemoteCommandExecuting> = NVBeaconCore.MetricsCollector<Transport>
