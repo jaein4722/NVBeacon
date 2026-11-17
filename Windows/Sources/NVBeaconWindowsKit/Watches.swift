@@ -182,7 +182,9 @@ public final class WatchStore: @unchecked Sendable {
         public init() {}
     }
 
-    private struct IdleTracking { var idleSince: Date?; var handled = false }
+    /// `handled`: an alert was already sent for this idle stretch. `lastSample`: when the GPU was
+    /// last seen, so a long gap (sleep, network loss) restarts the idle timing.
+    private struct IdleTracking { var idleSince: Date?; var handled = false; var lastSample: Date? }
 
     private let lock = NSLock()
     private var saved: Saved
@@ -335,9 +337,16 @@ public final class WatchStore: @unchecked Sendable {
                 }
                 var state = tracking[watch.id] ?? IdleTracking()
                 guard gpu.isIdle(memoryThresholdMB: settings.idleMemoryThresholdMB) else {
-                    tracking[watch.id] = IdleTracking()
+                    tracking[watch.id] = IdleTracking(lastSample: snapshot.takenAt)
                     continue
                 }
+                // After a gap of max(120 s, 3 × interval) the idle time starts over (macOS 0.9);
+                // an alert already sent for this stretch is not repeated.
+                if let last = state.lastSample,
+                   snapshot.takenAt.timeIntervalSince(last) > Self.idleSampleGap(pollInterval: settings.pollIntervalSeconds) {
+                    state.idleSince = nil
+                }
+                state.lastSample = snapshot.takenAt
                 let since = state.idleSince ?? snapshot.takenAt
                 state.idleSince = since
                 let duration = snapshot.takenAt.timeIntervalSince(since)
@@ -347,16 +356,28 @@ public final class WatchStore: @unchecked Sendable {
                     appendHistory(NotificationHistoryEntry(kind: .idleNotificationScheduled, idleWatch: watch,
                                                            detail: "Idle \(seconds)s · \(gpu.memoryUsedMB)MB"))
                     let body = [watch.connectionLabel, watch.gpuName,
-                                korean ? "Idle \(seconds)초" : "Idle \(seconds)s",
+                                korean ? "유휴 \(seconds)초" : "Idle \(seconds)s",
                                 korean ? "메모리 \(gpu.memoryUsedMB) MB" : "Mem \(gpu.memoryUsedMB) MB"]
                         .filter { !$0.isEmpty }.joined(separator: " · ")
-                    notifications.append(PendingNotification(title: korean ? "\(watch.title) idle 상태" : "\(watch.title) is idle", body: body))
+                    notifications.append(PendingNotification(title: korean ? "\(watch.title) 유휴 상태" : "\(watch.title) is idle", body: body))
                 }
                 tracking[watch.id] = state
             }
         }
         persist()
         return notifications
+    }
+
+    /// A gap between samples longer than this restarts idle timing: max(120 s, 3 × interval).
+    public static func idleSampleGap(pollInterval: Int) -> TimeInterval {
+        max(120, TimeInterval(pollInterval) * 3)
+    }
+
+    /// The PC woke from sleep: every idle stretch starts over (alerts already sent stay sent).
+    public func restartIdleTiming() {
+        lock.withLock {
+            for key in tracking.keys { tracking[key]?.idleSince = nil }
+        }
     }
 
     /// Copied unchanged from the macOS SSHMetricsFetcher.

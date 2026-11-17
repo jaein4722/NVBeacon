@@ -77,6 +77,10 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
         case UINT(WM_SETTINGCHANGE):
             app.systemSettingsChanged()   // e.g. the Windows light/dark switch
             return 0
+        case UINT(WM_POWERBROADCAST):
+            // PBT_APMRESUMESUSPEND / PBT_APMRESUMEAUTOMATIC: woke from sleep.
+            if wParam == 0x7 || wParam == 0x12 { app.systemResumed() }
+            return 1
         case diagnosticsMenuMessage where Diagnostics.enabled:
             app.showMenu(fromFlyout: true)
             return 0
@@ -387,6 +391,12 @@ final class TrayApp {
         flyout?.push()
         monitorWindow?.push()
         if settingsWindow?.isVisible == true { pushRuntime() }
+    }
+
+    /// After sleep: idle alerts time their stretch again (macOS 0.9) and every server refreshes.
+    func systemResumed() {
+        watches.restartIdleTiming()
+        monitor.refreshNow()
     }
 
     func systemSettingsChanged() {

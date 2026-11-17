@@ -48,6 +48,29 @@ private struct PSFixture: RemoteCommandExecuting {
     #expect(store.recentHistory(now: start.addingTimeInterval(300)).filter { $0.kind == .idleNotificationScheduled }.count == 2)
 }
 
+@Test func idleTimingRestartsAfterASampleGapOrWake() async {
+    let store = WatchStore(fileURL: nil)
+    let server = ServerSettings(name: "Lab", sshTarget: "lab")
+    var settings = WindowsSettings()
+    settings.idleNotificationSeconds = 60
+    settings.pollIntervalSeconds = 10   // gap limit: max(120, 30) = 120 s
+    let transport = AnyRemoteCommandExecutor(PSFixture(running: []))
+    let start = Date(timeIntervalSince1970: 1_000)
+    store.toggleIdleWatch(gpu: gpu(0, util: 50, memory: 500), server: server, snapshotTakenAt: start, idleSeconds: 60, memoryThresholdMB: 50)
+    func poll(_ offset: TimeInterval) async -> Int {
+        await store.evaluate(snapshot: GPUSnapshot(takenAt: start.addingTimeInterval(offset), gpus: [gpu(0, util: 0, memory: 10)]),
+                             server: server, settings: settings, korean: false, transport: transport).count
+    }
+    #expect(await poll(10) == 0)
+    #expect(await poll(40) == 0)
+    #expect(await poll(200) == 0, "a 160 s gap restarts the idle time instead of alerting at 190 s")
+    #expect(await poll(230) == 0)
+    #expect(await poll(265) == 1, "65 s after the gap")
+    store.restartIdleTiming()
+    #expect(await poll(275) == 0, "after waking, an alert already sent for the stretch is not repeated")
+    #expect(WatchStore.idleSampleGap(pollInterval: 60) == 180)
+}
+
 @Test func exitWatchConfirmsWithPSAndRemovesItself() async {
     let store = WatchStore(fileURL: nil)
     let server = ServerSettings(name: "Lab", sshTarget: "lab")
