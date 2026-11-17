@@ -87,7 +87,7 @@ func persistentShellRunsCommandsOneAfterAnother() throws {
     // A syntax error ends only the command's own shell, not the session.
     #expect(try run("if then fi").exitStatus != 0)
     #expect(try run("printf 'no newline'").standardOutput == "no newline")
-    // Quotes, backslashes and newlines arrive intact (the loginShellPortable path).
+    // Quotes, backslashes and newlines arrive intact (the RemoteShell.portable path).
     #expect(try run("printf '%s\\n' \"it's\" 'a\\b'\necho second").standardOutput == "it's\na\\b\nsecond\n")
     // The command cannot read the next request from the session's stdin.
     #expect(try run("cat").standardOutput == "")

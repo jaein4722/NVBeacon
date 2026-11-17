@@ -34,7 +34,7 @@ private func echoedArguments(_ arguments: [String]) async throws -> [String] {
         "alice@gpu", "/bin/sh", "-lc",
         #"'exec /bin/sh -c "$(printf '\''%b'\'' '\''echo \0047hi\0047\0012exit 0'\'')"'"#,
     ])
-    #expect(SSHTransport.loginShellPortable("nvidia-smi -L") == "nvidia-smi -L")
+    #expect(RemoteShell.portable("nvidia-smi -L") == "nvidia-smi -L")
 }
 
 @Test func targetsThatLookLikeOptionsAreRejected() {

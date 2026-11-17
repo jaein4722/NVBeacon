@@ -163,26 +163,12 @@ public struct SSHTransport: RemoteCommandExecuting {
         return arguments
     }
 
-    // The three functions below are copied from the macOS `SSHMetricsFetcher` so
-    // both clients send byte-identical remote commands. They belong in Core.
-
     /// The words ssh joins and hands to the remote login shell, which runs `/bin/sh -l`.
+    /// Same words as the macOS `SSHMetricsFetcher.loginShellArguments`, so both clients
+    /// send byte-identical remote commands; `RemoteShell.portable` keeps the script
+    /// intact through csh, tcsh and fish login shells.
     public static func loginShellArguments(_ remoteCommand: String) -> [String] {
-        ["/bin/sh", "-lc", shellQuoted(loginShellPortable(remoteCommand))]
-    }
-
-    /// ssh passes the command to the user's login shell before `/bin/sh` sees it.
-    /// csh/tcsh reject newlines inside single quotes, and fish treats `\\` and `\'`
-    /// there as escapes. A script containing any of those characters is therefore sent
-    /// on one line as `printf %b` octal escapes, which every login shell leaves intact.
-    public static func loginShellPortable(_ script: String) -> String {
-        let escapes: [Unicode.Scalar: String] = ["\\": "\\0134", "\n": "\\0012", "\r": "\\0015", "'": "\\0047", "!": "\\0041"]
-        guard script.unicodeScalars.contains(where: { escapes[$0] != nil }) else { return script }
-        var encoded = ""
-        for scalar in script.unicodeScalars {
-            if let escape = escapes[scalar] { encoded += escape } else { encoded.unicodeScalars.append(scalar) }
-        }
-        return "exec /bin/sh -c \"$(printf '%b' '\(encoded)')\""
+        ["/bin/sh", "-lc", shellQuoted(RemoteShell.portable(remoteCommand))]
     }
 
     static func shellQuoted(_ string: String) -> String {
