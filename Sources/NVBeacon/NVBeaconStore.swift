@@ -518,6 +518,22 @@ final class NVBeaconStore: ObservableObject {
         restartPollingAndRefresh(resetErrorState: false)
     }
 
+    /// Display preferences changed from the popover, the window or the menu.
+    /// They are not part of `PollingConfiguration`, so collection keeps running.
+    func setDisplayMode(_ mode: MonitorDisplayMode) {
+        guard settings.displayMode != mode else { return }
+        var updated = settings
+        updated.displayMode = mode
+        applySettings(updated)
+    }
+
+    func setKeepsWindowOnTop(_ keepsOnTop: Bool) {
+        guard settings.keepsWindowOnTop != keepsOnTop else { return }
+        var updated = settings
+        updated.keepsWindowOnTop = keepsOnTop
+        applySettings(updated)
+    }
+
     func refreshNow(serverID: String) {
         Task {
             await refresh(serverIDs: [serverID])

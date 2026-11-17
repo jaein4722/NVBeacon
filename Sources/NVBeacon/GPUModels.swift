@@ -62,6 +62,40 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     }
 }
 
+/// Where the monitor appears. The choice is saved, so window mode survives relaunches.
+enum MonitorDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case popover
+    case window
+
+    var id: String { rawValue }
+
+    func title(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .popover:
+            return language.text("Popover", "팝오버")
+        case .window:
+            return language.text("Window", "창")
+        }
+    }
+}
+
+/// How tall the popover is: fit the content (default) or a fixed height that scrolls.
+enum PopoverHeightMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case automatic
+    case fixed
+
+    var id: String { rawValue }
+
+    func title(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .automatic:
+            return language.text("Fit Content", "내용에 맞춤")
+        case .fixed:
+            return language.text("Fixed", "고정")
+        }
+    }
+}
+
 enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
     case system
     case light
@@ -553,6 +587,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     static let defaultHostCommand = RemoteMetricCommands.defaultHostCommand
     static let defaultPopoverWidth = 500
     static let popoverWidthRange = 480...800
+    static let defaultPopoverHeight = 600
+    static let popoverHeightRange = 320...1100
 
     var servers: [ServerConfig] = []
     var sshTarget: String = ""
@@ -580,6 +616,10 @@ struct AppSettings: Codable, Equatable, Sendable {
     var showsDockIcon: Bool = false
     var closesPopoverOnOutsideClick: Bool = true
     var popoverWidth: Int = Self.defaultPopoverWidth
+    var popoverHeightMode: PopoverHeightMode = .automatic
+    var popoverHeight: Int = Self.defaultPopoverHeight
+    var displayMode: MonitorDisplayMode = .popover
+    var keepsWindowOnTop: Bool = false
     var highlightsMyProcesses: Bool = true
     var recordsGPUHistory: Bool = false
     var collectsHostInfo: Bool = true
@@ -609,6 +649,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         showsDockIcon: Bool = false,
         closesPopoverOnOutsideClick: Bool = true,
         popoverWidth: Int = Self.defaultPopoverWidth,
+        popoverHeightMode: PopoverHeightMode = .automatic,
+        popoverHeight: Int = Self.defaultPopoverHeight,
+        displayMode: MonitorDisplayMode = .popover,
+        keepsWindowOnTop: Bool = false,
         highlightsMyProcesses: Bool = true,
         recordsGPUHistory: Bool = false,
         collectsHostInfo: Bool = true,
@@ -637,6 +681,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.showsDockIcon = showsDockIcon
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.popoverWidth = popoverWidth
+        self.popoverHeightMode = popoverHeightMode
+        self.popoverHeight = popoverHeight
+        self.displayMode = displayMode
+        self.keepsWindowOnTop = keepsWindowOnTop
         self.highlightsMyProcesses = highlightsMyProcesses
         self.recordsGPUHistory = recordsGPUHistory
         self.collectsHostInfo = collectsHostInfo
@@ -667,6 +715,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         case showsDockIcon
         case closesPopoverOnOutsideClick
         case popoverWidth
+        case popoverHeightMode
+        case popoverHeight
+        case displayMode
+        case keepsWindowOnTop
         case highlightsMyProcesses
         case recordsGPUHistory
         case collectsHostInfo
@@ -699,6 +751,10 @@ struct AppSettings: Codable, Equatable, Sendable {
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
+            popoverHeightMode: try container.decodeIfPresent(PopoverHeightMode.self, forKey: .popoverHeightMode) ?? .automatic,
+            popoverHeight: try container.decodeIfPresent(Int.self, forKey: .popoverHeight) ?? Self.defaultPopoverHeight,
+            displayMode: try container.decodeIfPresent(MonitorDisplayMode.self, forKey: .displayMode) ?? .popover,
+            keepsWindowOnTop: try container.decodeIfPresent(Bool.self, forKey: .keepsWindowOnTop) ?? false,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
             recordsGPUHistory: try container.decodeIfPresent(Bool.self, forKey: .recordsGPUHistory) ?? false,
             collectsHostInfo: try container.decodeIfPresent(Bool.self, forKey: .collectsHostInfo) ?? true,
@@ -743,6 +799,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
     }
 
+    var resolvedPopoverHeight: Int {
+        min(max(popoverHeight, Self.popoverHeightRange.lowerBound), Self.popoverHeightRange.upperBound)
+    }
+
     func normalized() -> Self {
         var copy = self
         copy.sshTarget = sshTarget.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -750,6 +810,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         copy.sshIdentityFilePath = NSString(string: sshIdentityFilePath.trimmingCharacters(in: .whitespacesAndNewlines)).expandingTildeInPath
         copy.pollIntervalSeconds = min(max(pollIntervalSeconds, 1), 300)
         copy.popoverWidth = resolvedPopoverWidth
+        copy.popoverHeight = resolvedPopoverHeight
         copy.busyMemoryThresholdMB = min(max(busyMemoryThresholdMB, 0), 10_240)
         copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
         copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 1), 3_600)

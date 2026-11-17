@@ -146,6 +146,13 @@ struct SettingsView: View {
         .onChange(of: draft) { _, _ in
             scheduleAutoApply()
         }
+        // The popover, the window and the menu can change these while Settings is open.
+        .onChange(of: store.settings.displayMode) { _, mode in
+            if draft.displayMode != mode { draft.displayMode = mode }
+        }
+        .onChange(of: store.settings.keepsWindowOnTop) { _, keepsOnTop in
+            if draft.keepsWindowOnTop != keepsOnTop { draft.keepsWindowOnTop = keepsOnTop }
+        }
         .task(id: autoApplyRevision) {
             guard autoApplyRevision > 0 else { return }
             do {
@@ -527,6 +534,55 @@ struct SettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 }
+
+                LabeledContent {
+                    HStack(spacing: 10) {
+                        Picker(t("Popover Height", "팝오버 높이"), selection: $draft.popoverHeightMode) {
+                            ForEach(PopoverHeightMode.allCases) { mode in
+                                Text(mode.title(in: language)).tag(mode)
+                            }
+                        }
+                        .labelsHidden()
+                        .fixedSize()
+
+                        if draft.popoverHeightMode == .fixed {
+                            NumericStepperField(
+                                value: $draft.popoverHeight,
+                                range: AppSettings.popoverHeightRange,
+                                suffix: "pt",
+                                fieldWidth: 72,
+                                step: 20
+                            )
+                        }
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Popover Height", "팝오버 높이"))
+                        Text(t("Fixed: 320–1100 pt · Default 600 pt", "고정: 320–1100pt · 기본값 600pt"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                LabeledContent {
+                    Picker(t("Display Mode", "표시 방식"), selection: $draft.displayMode) {
+                        ForEach(MonitorDisplayMode.allCases) { mode in
+                            Text(mode.title(in: language)).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Display Mode", "표시 방식"))
+                        Text(t("Window keeps NVBeacon open like a normal app window.", "창은 NVBeacon을 일반 앱 창처럼 계속 띄워 둡니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                Toggle(t("Keep Window on Top", "항상 위에 표시"), isOn: $draft.keepsWindowOnTop)
+                    .disabled(draft.displayMode != .window)
 
                 Toggle(t("Close popover on outside click", "바깥 클릭 시 팝오버 닫기"), isOn: $draft.closesPopoverOnOutsideClick)
 

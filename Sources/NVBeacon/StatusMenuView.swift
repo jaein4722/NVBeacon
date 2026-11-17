@@ -13,6 +13,8 @@ struct StatusMenuView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     var onOpenHistory: () -> Void = {}
+    /// The same view fills the popover and the monitor window.
+    var presentation: MonitorDisplayMode = .popover
     @State private var expandedGPUIds: Set<String> = []
 
     private var snapshotGPUIds: [String] {
@@ -63,7 +65,13 @@ struct StatusMenuView: View {
             )
         }
         .scrollIndicators(.automatic)
-        .frame(width: CGFloat(store.settings.resolvedPopoverWidth), alignment: .top)
+        .frame(
+            minWidth: presentation == .window ? CGFloat(AppSettings.popoverWidthRange.lowerBound) : nil,
+            idealWidth: CGFloat(store.settings.resolvedPopoverWidth),
+            maxWidth: presentation == .window ? .infinity : CGFloat(store.settings.resolvedPopoverWidth),
+            maxHeight: presentation == .window ? .infinity : nil,
+            alignment: .top
+        )
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: store.collapsedHostServerIDs)
@@ -114,6 +122,8 @@ struct StatusMenuView: View {
                     ProgressView()
                         .controlSize(.small)
                 }
+
+                displayModeButtons
             }
 
             if store.totalGPUCount > 0 {
@@ -159,6 +169,39 @@ struct StatusMenuView: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(nsColor: .controlBackgroundColor))
         )
+    }
+
+    @ViewBuilder
+    private var displayModeButtons: some View {
+        switch presentation {
+        case .popover:
+            headerIconButton("macwindow", help: t("Show as Window", "창으로 보기")) {
+                store.setDisplayMode(.window)
+            }
+        case .window:
+            let pinned = store.settings.keepsWindowOnTop
+            headerIconButton(pinned ? "pin.fill" : "pin", help: pinned
+                ? t("Stop keeping the window on top", "항상 위에 표시 끄기")
+                : t("Keep Window on Top", "항상 위에 표시"), tint: pinned ? .accentColor : .primary) {
+                store.setKeepsWindowOnTop(!pinned)
+            }
+            .accessibilityAddTraits(pinned ? .isSelected : [])
+
+            headerIconButton("menubar.arrow.up.rectangle", help: t("Show as Popover", "팝오버로 보기")) {
+                store.setDisplayMode(.popover)
+            }
+        }
+    }
+
+    private func headerIconButton(_ systemImage: String, help: String, tint: Color = .primary, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(tint)
+        .help(help)
+        .accessibilityLabel(help)
     }
 
     private var headerTitle: String {
