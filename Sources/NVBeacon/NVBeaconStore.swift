@@ -1,9 +1,33 @@
 import Combine
 import Foundation
 
-private struct GPUIdleWatchTrackingState: Sendable {
+struct GPUIdleWatchTrackingState: Equatable, Sendable {
     var idleSince: Date?
     var hasHandledCurrentIdleStretch = false
+    var lastSampleAt: Date?
+
+    /// A gap this long between samples (sleep, a stalled server) means the GPU was
+    /// not observed, so its idle stretch starts again at the next sample.
+    static func maximumSampleGap(pollIntervalSeconds: Int) -> TimeInterval {
+        max(120, TimeInterval(pollIntervalSeconds) * 3)
+    }
+
+    /// Records one sample and returns how long the GPU has been idle, or nil when busy.
+    /// An alert already sent for this stretch is not repeated after a gap.
+    mutating func record(isIdle: Bool, at date: Date, maximumGap: TimeInterval) -> TimeInterval? {
+        defer { lastSampleAt = date }
+        guard isIdle else {
+            idleSince = nil
+            hasHandledCurrentIdleStretch = false
+            return nil
+        }
+        if let lastSampleAt, date.timeIntervalSince(lastSampleAt) > maximumGap {
+            idleSince = nil
+        }
+        let start = idleSince ?? date
+        idleSince = start
+        return date.timeIntervalSince(start)
+    }
 }
 
 private struct ServerRefreshContext: Sendable {
@@ -199,13 +223,6 @@ final class NVBeaconStore: ObservableObject {
         return "NVBeacon"
     }
 
-    var lastUpdatedRelativeText: String? {
-        guard let latestSnapshotDate else { return nil }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: latestSnapshotDate, relativeTo: Date())
-    }
-
     var shouldHighlightMyProcesses: Bool {
         settings.highlightsMyProcesses
     }
@@ -262,8 +279,15 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
-    var latestSnapshotDate: Date? {
-        serverStates.compactMap { $0.snapshot?.takenAt }.max()
+    /// The oldest data that feeds the totals. Servers refresh independently, so the
+    /// newest time would always look fresh and hide a server that stopped answering.
+    var oldestSnapshotDate: Date? {
+        serverStates.compactMap { $0.snapshot?.takenAt }.min()
+    }
+
+    /// Data older than two refresh intervals plus the SSH timeout has missed refreshes.
+    nonisolated static func isSnapshotStale(takenAt: Date, now: Date = Date(), pollIntervalSeconds: Int) -> Bool {
+        now.timeIntervalSince(takenAt) > TimeInterval(pollIntervalSeconds * 2 + 15)
     }
 
     private var hasServerError: Bool {
@@ -525,6 +549,10 @@ final class NVBeaconStore: ObservableObject {
     }
 
     func handleSystemWake() {
+        // Time asleep was not observed: idle stretches start again after waking.
+        for id in idleWatchTrackingStates.keys {
+            idleWatchTrackingStates[id]?.idleSince = nil
+        }
         restartPollingAndRefresh(resetErrorState: false)
     }
 
@@ -726,27 +754,27 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private func pollLoop() async {
-        while !Task.isCancelled {
-            await refresh()
+        await PerServerPolling.run(
+            serverIDs: settings.pollableServers.map(\.id),
+            interval: { [weak self] in await self?.pollInterval ?? .seconds(10) },
+            refresh: { [weak self] serverID in await self?.refresh(serverIDs: [serverID]) }
+        )
+    }
 
-            do {
-                try await Task.sleep(for: .seconds(settings.pollIntervalSeconds))
-            } catch {
-                break
-            }
-        }
+    private var pollInterval: Duration {
+        .seconds(settings.pollIntervalSeconds)
     }
 
     private func refresh(serverIDs: Set<String>? = nil) async {
         let generation = pollingGeneration
+        // Servers refresh independently; skip only the ones already in flight.
         let targetStates = serverStates.filter { state in
-            state.server.isPollable && (serverIDs?.contains(state.id) ?? true)
+            state.server.isPollable && !state.isRefreshing && (serverIDs?.contains(state.id) ?? true)
         }
         guard !targetStates.isEmpty else {
             syncAggregateRuntimeState()
             return
         }
-        guard !isRefreshing else { return }
 
         var contexts = [ServerRefreshContext]()
 
@@ -1115,7 +1143,7 @@ final class NVBeaconStore: ObservableObject {
                 processes: currentGPU.processes,
                 password: password.isEmpty ? nil : password
             )
-            applyProcessDetails(enrichedProcesses, toGPUWithID: gpuID, on: serverID)
+            applyProcessDetails(enrichedProcesses, on: serverID)
             updateServerState(serverID) { state in
                 state.lastErrorMessage = nil
             }
@@ -1130,26 +1158,13 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
-    private func applyProcessDetails(_ processes: [GPUProcessReading], toGPUWithID gpuID: Int, on serverID: String) {
+    /// A poll may replace the snapshot while details are loading. Keep the current
+    /// process list and only fill in owners and commands for processes still running,
+    /// as the iOS app does.
+    private func applyProcessDetails(_ processes: [GPUProcessReading], on serverID: String) {
         guard let currentSnapshot = serverState(for: serverID)?.snapshot else { return }
-
-        let updatedGPUs = currentSnapshot.gpus.map { gpu in
-            guard gpu.id == gpuID else { return gpu }
-
-            return GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: processes
-            )
-        }
-
         updateServerState(serverID) { state in
-            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostMemory: currentSnapshot.hostMemory, hostCPU: currentSnapshot.hostCPU, networkSample: currentSnapshot.networkSample, hostCPUSample: currentSnapshot.hostCPUSample)
+            state.snapshot = currentSnapshot.applyingResolvedProcessMetadata(processes)
         }
     }
 
@@ -1310,25 +1325,15 @@ final class NVBeaconStore: ObservableObject {
             }
 
             var trackingState = idleWatchTrackingStates[watch.id] ?? GPUIdleWatchTrackingState()
-            let isIdle = gpu.isIdle(memoryThresholdMB: settings.idleMemoryThresholdMB)
-
-            if !isIdle {
-                trackingState.idleSince = nil
-                trackingState.hasHandledCurrentIdleStretch = false
+            guard let idleDuration = trackingState.record(
+                isIdle: gpu.isIdle(memoryThresholdMB: settings.idleMemoryThresholdMB),
+                at: snapshot.takenAt,
+                maximumGap: GPUIdleWatchTrackingState.maximumSampleGap(pollIntervalSeconds: settings.pollIntervalSeconds)
+            ) else {
                 idleWatchTrackingStates[watch.id] = trackingState
                 continue
             }
 
-            if trackingState.idleSince == nil {
-                trackingState.idleSince = snapshot.takenAt
-            }
-
-            guard let idleSince = trackingState.idleSince else {
-                idleWatchTrackingStates[watch.id] = trackingState
-                continue
-            }
-
-            let idleDuration = snapshot.takenAt.timeIntervalSince(idleSince)
             let threshold = TimeInterval(settings.idleNotificationSeconds)
 
             guard idleDuration >= threshold, !trackingState.hasHandledCurrentIdleStretch else {
@@ -1443,18 +1448,28 @@ final class NVBeaconStore: ObservableObject {
         idleWatchTrackingStates = idleWatchTrackingStates.filter { watchedIdleIDs.contains($0.key) }
     }
 
+    /// Runs on every server's refresh. Assigning an unchanged value to a published
+    /// property still notifies every observer, so only changed values are set.
     private func syncAggregateRuntimeState() {
-        isRefreshing = serverStates.contains { $0.isRefreshing }
-        detectedSSHUsername = serverStates.first?.detectedSSHUsername
-        passwordSessionState = serverStates.first?.passwordSessionState ?? .notRequired
-        snapshot = aggregateSnapshot()
+        setIfChanged(\.isRefreshing, serverStates.contains { $0.isRefreshing })
+        setIfChanged(\.detectedSSHUsername, serverStates.first?.detectedSSHUsername)
+        setIfChanged(\.passwordSessionState, serverStates.first?.passwordSessionState ?? .notRequired)
+        setIfChanged(\.snapshot, aggregateSnapshot())
 
+        let errorMessage: String?
         if !settings.isConfigured {
-            lastErrorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
+            errorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
         } else if settings.pollableServers.isEmpty {
-            lastErrorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.")
+            errorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.")
         } else {
-            lastErrorMessage = serverStates.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
+            errorMessage = serverStates.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
+        }
+        setIfChanged(\.lastErrorMessage, errorMessage)
+    }
+
+    private func setIfChanged<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<NVBeaconStore, Value>, _ value: Value) {
+        if self[keyPath: keyPath] != value {
+            self[keyPath: keyPath] = value
         }
     }
 
