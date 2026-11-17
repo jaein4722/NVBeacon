@@ -13,6 +13,8 @@ struct SettingsView: View {
     @State private var selectedServerID = ""
     @State private var pendingPasswordAuthServerID: String?
     @State private var autoApplyRevision = 0
+    @State private var testingServerID: String?
+    @State private var connectionTestResults: [String: ConnectionTestOutcome] = [:]
     @State private var suppressAutoApply = true
     @State private var suppressPasswordAuthWarning = false
     @State private var showPasswordAuthWarning = false
@@ -145,6 +147,12 @@ struct SettingsView: View {
         }
         .onChange(of: draft) { _, _ in
             scheduleAutoApply()
+        }
+        // A result describes the settings it ran with; drop it once they change.
+        .onChange(of: draft.servers) { oldServers, newServers in
+            for server in newServers where oldServers.first(where: { $0.id == server.id }).map({ !$0.hasSameConnection(as: server) }) ?? false {
+                connectionTestResults[server.id] = nil
+            }
         }
         // The popover, the window and the menu can change these while Settings is open.
         .onChange(of: store.settings.displayMode) { _, mode in
@@ -1282,9 +1290,57 @@ struct SettingsView: View {
                     .disabled(!selectedPasswordSessionState.supportsForgetAction)
                 }
             }
+            connectionTestRow(for: selectedServer)
         } else {
             Text(t("Add a server to start monitoring remote GPUs.", "원격 GPU 모니터링을 시작하려면 서버를 추가하세요."))
                 .foregroundStyle(.secondary)
+        }
+    }
+
+    private func connectionTestRow(for server: ServerConfig) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button(t("Test Connection", "연결 테스트")) {
+                    runConnectionTest(for: server)
+                }
+                .disabled(testingServerID != nil || server.sshTarget.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if testingServerID == server.id {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(t("Connecting…", "연결 중…"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if testingServerID != server.id, let outcome = connectionTestResults[server.id] {
+                switch outcome {
+                case .success(let gpuCount):
+                    Label(t("Connected · \(gpuCount) GPUs", "연결됨 · GPU \(gpuCount)개"), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                case .failure(let message):
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(DiagnosticsReport.errorCategoryTitle(message, in: language), systemImage: "xmark.octagon.fill")
+                            .foregroundStyle(.red)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
+    }
+
+    private func runConnectionTest(for server: ServerConfig) {
+        testingServerID = server.id
+        connectionTestResults[server.id] = nil
+        let typedPassword = server.sshAuthenticationMode == .passwordBased ? draftPassword : nil
+        Task { @MainActor in
+            let outcome = await store.testConnection(server, password: typedPassword)
+            connectionTestResults[server.id] = outcome
+            testingServerID = nil
         }
     }
 

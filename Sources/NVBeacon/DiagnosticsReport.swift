@@ -77,6 +77,24 @@ enum DiagnosticsReport {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// The same categories as the report, for showing in the app's language.
+    static func errorCategoryTitle(_ message: String?, in language: AppInterfaceLanguage) -> String {
+        let category = errorCategory(message)
+        guard language == .korean else { return category }
+        return switch category {
+        case "Output limit": "출력 제한 초과"
+        case "Timeout": "시간 초과"
+        case "Host key verification": "호스트 키 확인 실패"
+        case "Authentication": "인증 실패"
+        case "Host resolution": "호스트 이름 확인 실패"
+        case "Connection refused": "연결 거부"
+        case "Network unreachable": "네트워크에 연결할 수 없음"
+        case "Metrics output": "수집 결과 오류"
+        case "None": "없음"
+        default: "기타 오류"
+        }
+    }
+
     static func errorCategory(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return "None" }
         let text = message.lowercased()

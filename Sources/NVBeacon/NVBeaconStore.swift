@@ -518,6 +518,28 @@ final class NVBeaconStore: ObservableObject {
         restartPollingAndRefresh(resetErrorState: false)
     }
 
+    /// Runs one collection for `server` as configured right now, without touching
+    /// the monitored state. `password` is a password typed but not yet saved.
+    func testConnection(_ server: ServerConfig, password: String? = nil) async -> ConnectionTestOutcome {
+        let typedPassword = password?.trimmingCharacters(in: .newlines) ?? ""
+        let sessionPassword = currentSessionPassword(for: server.id)
+        let effectivePassword = typedPassword.isEmpty ? sessionPassword : typedPassword
+        if server.sshAuthenticationMode == .passwordBased && effectivePassword.isEmpty {
+            return .failure(message: missingPasswordSessionMessage())
+        }
+        do {
+            let reading = try await fetcher.fetchSummary(
+                settings: server.normalized().connectionSettings(from: settings),
+                password: effectivePassword.isEmpty ? nil : effectivePassword
+            )
+            return .success(gpuCount: reading.snapshot.gpus.count)
+        } catch is CancellationError {
+            return .failure(message: t("The test was cancelled.", "테스트가 취소되었습니다."))
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
     /// Display preferences changed from the popover, the window or the menu.
     /// They are not part of `PollingConfiguration`, so collection keeps running.
     func setDisplayMode(_ mode: MonitorDisplayMode) {

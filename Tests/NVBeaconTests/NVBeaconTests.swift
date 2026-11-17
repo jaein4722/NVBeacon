@@ -944,3 +944,22 @@ private func runNetworkSampleCommand(sysNetPath: URL, procNetDevPath: String) th
     #expect(reading.snapshot.gpus.count == 1)
     #expect(SSHMetricsFetcher.parseHostCPU("__NVBEACON_CPU_SECTION__\ncpu 1 2 3 4\ncpu 1 2 3 4") == nil)
 }
+
+@Test func connectionTestFailuresUseTheDiagnosticCategories() {
+    let message = "Permission denied (publickey)."
+    #expect(DiagnosticsReport.errorCategoryTitle(message, in: .english) == "Authentication")
+    #expect(DiagnosticsReport.errorCategoryTitle(message, in: .korean) == "인증 실패")
+    #expect(DiagnosticsReport.errorCategoryTitle("ssh: connect to host gpu port 22: Operation timed out", in: .korean) == "시간 초과")
+    #expect(DiagnosticsReport.errorCategoryTitle("something unusual", in: .korean) == "기타 오류")
+}
+
+@Test func connectionComparisonIgnoresNameAndEnabledState() {
+    let server = ServerConfig(name: "A", sshTarget: "gpu-a")
+    var renamed = server
+    renamed.name = "B"
+    renamed.isEnabled.toggle()
+    #expect(server.hasSameConnection(as: renamed))
+    var moved = server
+    moved.sshPort = "2222"
+    #expect(!server.hasSameConnection(as: moved))
+}

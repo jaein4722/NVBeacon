@@ -96,6 +96,12 @@ enum PopoverHeightMode: String, Codable, CaseIterable, Equatable, Hashable, Iden
     }
 }
 
+/// Result of Settings → Test Connection.
+enum ConnectionTestOutcome: Equatable, Sendable {
+    case success(gpuCount: Int)
+    case failure(message: String)
+}
+
 enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
     case system
     case light
@@ -470,6 +476,18 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         copy.hostCommand = RemoteMetricCommands.resolveHostCommand(copy.hostCommand)
 
         return copy
+    }
+
+    /// True when both describe the same connection and commands, ignoring name,
+    /// order and the enabled switch.
+    func hasSameConnection(as other: ServerConfig) -> Bool {
+        sshTarget == other.sshTarget
+            && sshPort == other.sshPort
+            && sshIdentityFilePath == other.sshIdentityFilePath
+            && sshAuthenticationMode == other.sshAuthenticationMode
+            && sshConnectionReuseMode == other.sshConnectionReuseMode
+            && remoteCommand == other.remoteCommand
+            && hostCommand == other.hostCommand
     }
 
     func connectionSettings(from settings: AppSettings) -> AppSettings {
