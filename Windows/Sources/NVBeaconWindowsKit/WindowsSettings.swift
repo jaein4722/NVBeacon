@@ -1,5 +1,6 @@
 import Foundation
 import NVBeaconCore
+import WinSDK
 
 /// One monitored server. Field names match the macOS `ServerConfig` so backups
 /// and future sharing line up.
@@ -247,17 +248,17 @@ public enum SettingsStore {
         public var preservedCopy: URL?
     }
 
-    public static func loadResult(from url: URL = fileURL, legacyServerFile: URL = LaunchOptions.serverFile,
-                                  now: Date = Date()) -> LoadResult {
+    public static func loadResult(from url: URL = fileURL, legacyServerFile: URL = LaunchOptions.serverFile) -> LoadResult {
         if FileManager.default.fileExists(atPath: url.path) {
             if let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(WindowsSettings.self, from: data) {
                 return LoadResult(settings: settings.sanitized())
             }
-            let formatter = DateFormatter()
-            formatter.locale = Locale(identifier: "en_US_POSIX")
-            formatter.dateFormat = "yyyyMMdd-HHmmss"
-            let copy = url.deletingLastPathComponent()
-                .appendingPathComponent("settings-unreadable-\(formatter.string(from: now)).json")
+            // Local time from Windows: Foundation's time zone resolves to UTC in this toolchain.
+            var time = SYSTEMTIME()
+            GetLocalTime(&time)
+            let stamp = String(format: "%04d%02d%02d-%02d%02d%02d", Int(time.wYear), Int(time.wMonth), Int(time.wDay),
+                               Int(time.wHour), Int(time.wMinute), Int(time.wSecond))
+            let copy = url.deletingLastPathComponent().appendingPathComponent("settings-unreadable-\(stamp).json")
             let preserved = (try? FileManager.default.copyItem(at: url, to: copy)) != nil
             return LoadResult(settings: WindowsSettings(), unreadable: true, preservedCopy: preserved ? copy : nil)
         }
