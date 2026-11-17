@@ -48,7 +48,7 @@ Tested with:
 Closes #N.
 ```
 
-- List only checks that were actually run, with their results, and state relevant checks that were not completed, such as live SSH collection.
+- List only checks that were actually run, with their results. Leave out checks that were not run.
 - Include `Closes #N` only when the pull request fully resolves that issue.
 - Do not add `Title`, `Body`, or changed-file sections; the pull request and its diff already show them.
 
@@ -87,7 +87,7 @@ When adding, renaming or moving a setting on any client (macOS, iOS or Windows),
 ## Packaging Rules
 
 - `scripts/package_app.sh` is the canonical packaging entrypoint.
-- Release artifacts should be DMG-based: `NVBeacon-<version>.dmg`.
+- Release artifacts should be DMG-based: `NVBeacon-<version>.dmg`. The release workflow also uploads a copy named `NVBeacon.dmg`, so `releases/latest/download/NVBeacon.dmg` always serves the newest build.
 - Local builds are ad-hoc signed by default.
 
 ## Repository Safety
