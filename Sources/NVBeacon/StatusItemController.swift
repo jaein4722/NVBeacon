@@ -77,7 +77,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
         // Window mode is a saved choice: reopen the window after a relaunch.
         if appliedDisplayMode == .window {
-            DispatchQueue.main.async { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
                 guard let self else { return }
                 monitorWindowController.show(anchor: statusItemScreenFrame)
             }
@@ -121,9 +121,15 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         store.setKeepsWindowOnTop(!store.settings.keepsWindowOnTop)
     }
 
+    /// Nil until the menu bar has placed the item.
     private var statusItemScreenFrame: NSRect? {
         guard let button = statusItem.button, let window = button.window else { return nil }
-        return window.convertToScreen(button.convert(button.bounds, to: nil))
+        let frame = window.convertToScreen(button.convert(button.bounds, to: nil))
+        // An item the menu bar has not placed (or has hidden) has a zero-height
+        // window at the screen origin.
+        guard window.frame.height > 0, window.frame.minY > 0, frame.width > 0,
+              NSScreen.screens.contains(where: { $0.frame.contains(NSPoint(x: frame.midX, y: frame.midY)) }) else { return nil }
+        return frame
     }
 
     /// Applies a display mode change from any source (header button, menu, Settings).

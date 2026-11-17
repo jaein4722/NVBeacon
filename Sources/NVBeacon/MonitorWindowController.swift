@@ -108,7 +108,8 @@ final class MonitorWindowController: NSObject, NSWindowDelegate {
 
         let width = min(CGFloat(store.settings.resolvedPopoverWidth), visible.width - 16)
         let height = min(CGFloat(760), visible.height - 48)
-        let preferredX = (anchor?.midX ?? visible.maxX - width / 2 - 16) - width / 2
+        // Without an anchor, the menu bar's status items sit on the right.
+        let preferredX = anchor.map { $0.midX - width / 2 } ?? visible.maxX - width - 16
         let x = min(max(preferredX, visible.minX + 8), visible.maxX - width - 8)
         let y = visible.maxY - 8 - height
         window.setFrame(NSRect(x: x, y: y, width: width, height: height), display: false)
