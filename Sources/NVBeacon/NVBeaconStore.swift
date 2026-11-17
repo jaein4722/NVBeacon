@@ -1448,18 +1448,28 @@ final class NVBeaconStore: ObservableObject {
         idleWatchTrackingStates = idleWatchTrackingStates.filter { watchedIdleIDs.contains($0.key) }
     }
 
+    /// Runs on every server's refresh. Assigning an unchanged value to a published
+    /// property still notifies every observer, so only changed values are set.
     private func syncAggregateRuntimeState() {
-        isRefreshing = serverStates.contains { $0.isRefreshing }
-        detectedSSHUsername = serverStates.first?.detectedSSHUsername
-        passwordSessionState = serverStates.first?.passwordSessionState ?? .notRequired
-        snapshot = aggregateSnapshot()
+        setIfChanged(\.isRefreshing, serverStates.contains { $0.isRefreshing })
+        setIfChanged(\.detectedSSHUsername, serverStates.first?.detectedSSHUsername)
+        setIfChanged(\.passwordSessionState, serverStates.first?.passwordSessionState ?? .notRequired)
+        setIfChanged(\.snapshot, aggregateSnapshot())
 
+        let errorMessage: String?
         if !settings.isConfigured {
-            lastErrorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
+            errorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.")
         } else if settings.pollableServers.isEmpty {
-            lastErrorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.")
+            errorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.")
         } else {
-            lastErrorMessage = serverStates.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
+            errorMessage = serverStates.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
+        }
+        setIfChanged(\.lastErrorMessage, errorMessage)
+    }
+
+    private func setIfChanged<Value: Equatable>(_ keyPath: ReferenceWritableKeyPath<NVBeaconStore, Value>, _ value: Value) {
+        if self[keyPath: keyPath] != value {
+            self[keyPath: keyPath] = value
         }
     }
 
