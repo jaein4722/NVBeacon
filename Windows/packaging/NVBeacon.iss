@@ -36,6 +36,8 @@ VersionInfoVersion={#AppVersion}
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\NVBeacon
 DisableProgramGroupPage=yes
+; Inno Setup 6 skips the welcome page unless asked; show it like most installers.
+DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
