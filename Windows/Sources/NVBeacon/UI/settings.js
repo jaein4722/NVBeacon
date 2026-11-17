@@ -1,7 +1,10 @@
 "use strict";
 
 // Settings page. Mirrors the macOS Settings window (Sources/NVBeacon/SettingsView.swift):
-// five tabs of grouped forms, auto-applied 350 ms after the last change.
+// five tabs of grouped forms, auto-applied 350 ms after the last change. A server's
+// connection fields and commands apply when the field is left or Enter is pressed,
+// so a half-typed login or command never reaches a server. Every edit is also sent
+// as a draft, which Swift applies if the window closes before it was applied.
 // Swift owns validation, saving and every side effect; this page edits a draft.
 const host = window.chrome && window.chrome.webview;
 const send = (message) => host && host.postMessage(JSON.stringify(message));
@@ -77,7 +80,13 @@ function textField(key, value, placeholder, widthClass, onInput, options = {}) {
   input.spellcheck = false;
   input.disabled = !!options.disabled;
   input.addEventListener("input", () => onInput(input.value));
+  if (options.appliesWhenLeft) appliesWhenLeft(input);
   return keyed(input, key);
+}
+/// Enter or leaving the field applies its deferred edit.
+function appliesWhenLeft(node) {
+  node.addEventListener("change", flushApply);
+  node.addEventListener("blur", flushApply);
 }
 function select(key, value, choices, onChange, options = {}) {
   const node = h("select", "text " + (options.widthClass || ""));
@@ -123,10 +132,13 @@ function stepper(key, value, min, max, suffix, onChange, step = 1) {
 function changed(options = {}) {
   clearTimeout(ui.applyTimer);
   ui.applyPending = true;
-  ui.applyTimer = setTimeout(() => {
-    ui.applyPending = false;
-    send({ type: "apply", settings: ui.draft });
-  }, 350);
+  send({ type: "draft", settings: ui.draft });
+  if (!options.deferred) {
+    ui.applyTimer = setTimeout(() => {
+      ui.applyPending = false;
+      send({ type: "apply", settings: ui.draft });
+    }, 350);
+  }
   if (options.rerender) render();
 }
 /// Sends a pending apply now, so an action that reads saved settings sees the latest edits.
@@ -137,11 +149,11 @@ function flushApply() {
   send({ type: "apply", settings: ui.draft });
 }
 function selectedServer() { return ui.draft.servers.find((s) => s.id === ui.selectedServerId) || null; }
-function updateServer(field, value, rerender) {
+function updateServer(field, value, rerender, deferred) {
   const server = selectedServer();
   if (!server) return;
   server[field] = value;
-  changed({ rerender });
+  changed({ rerender, deferred });
 }
 function displayName(server) {
   return (server.name || "").trim() || (server.sshTarget || "").trim() || t("New Server", "새 서버");
@@ -300,15 +312,18 @@ function serversPane() {
     row(t("Name", "이름"), textField("server-name", server.name, server.sshTarget || "GPU Server", "w-240",
       (value) => { updateServer("name", value); refreshServerPickerLabel(); })),
     row(t("SSH target", "SSH 대상"), textField("server-target", server.sshTarget, "gpu-prod or user@host", "w-320",
-      (value) => { updateServer("sshTarget", value); refreshServerPickerLabel(); }), t("A host alias from the ssh config, or user@host", "ssh 설정의 호스트 별칭 또는 user@host")),
-    row(t("SSH port", "SSH 포트"), textField("server-port", server.sshPort, "22", "w-120", (value) => updateServer("sshPort", value)),
+      (value) => { updateServer("sshTarget", value, false, true); refreshServerPickerLabel(); }, { appliesWhenLeft: true }),
+      t("A host alias from the ssh config, or user@host", "ssh 설정의 호스트 별칭 또는 user@host")),
+    row(t("SSH port", "SSH 포트"), textField("server-port", server.sshPort, "22", "w-120",
+      (value) => updateServer("sshPort", value, false, true), { appliesWhenLeft: true }),
       t("Optional · Default 22 or the ssh config", "선택 사항 · 기본값 22 또는 ssh 설정")),
     row(t("Authentication", "인증 방식"), select("server-auth", server.sshAuthenticationMode, [
       { value: "keyBased", label: t("Key-based", "키 기반") },
       { value: "passwordBased", label: t("Password", "비밀번호") },
     ], (value) => updateServer("sshAuthenticationMode", value, true))),
     row(t("Key file", "키 파일"), [
-      textField("server-identity", server.sshIdentityFilePath, t("Optional", "선택 사항"), "w-240", (value) => updateServer("sshIdentityFilePath", value)),
+      textField("server-identity", server.sshIdentityFilePath, t("Optional", "선택 사항"), "w-240",
+        (value) => updateServer("sshIdentityFilePath", value, false, true), { appliesWhenLeft: true }),
       button(t("Browse…", "찾아보기…"), () => send({ type: "browseIdentity", serverId: server.id }))]),
   ];
   if (password) connectionRows.push(...passwordRows(server));
@@ -531,7 +546,8 @@ function commandSection(title, key, field, defaultCommand, footer) {
   area.spellcheck = false;
   area.value = server ? server[field] : "";
   area.disabled = !server;
-  area.addEventListener("input", () => updateServer(field, area.value));
+  area.addEventListener("input", () => updateServer(field, area.value, false, true));
+  appliesWhenLeft(area);
   keyed(area, key);
   const restore = button(t("Restore Default", "기본값으로 복원"), () => { updateServer(field, defaultCommand, true); }, {
     disabled: !server || (server && server[field] === defaultCommand), key: key + ":restore" });
@@ -757,7 +773,8 @@ function receive(message) {
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Escape") {
-    if (!document.getElementById("modal").hidden) closeSheet(); else send({ type: "close" });
+    if (!document.getElementById("modal").hidden) closeSheet();
+    else { flushApply(); send({ type: "close" }); }
   }
 });
 if (host) host.addEventListener("message", (event) => receive(event.data));

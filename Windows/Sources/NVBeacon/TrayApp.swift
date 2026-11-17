@@ -135,6 +135,8 @@ final class TrayApp {
     /// 24 hours of minute samples per server (%LOCALAPPDATA%\NVBeacon\GPUHistory).
     let history = GPUHistoryArchive(directory: GPUHistoryArchive.defaultDirectory)
     private var pendingImport: ServerSettingsBackup?
+    /// The Settings page's latest edits that it has not applied yet.
+    private var pendingSettingsDraft: WindowsSettings?
     /// Process-exit and GPU-idle watches and their history (%APPDATA%\NVBeacon\watches.json).
     let watches = WatchStore(fileURL: WatchStore.defaultFileURL)
     /// SSH passwords in Windows Credential Manager.
@@ -240,6 +242,18 @@ final class TrayApp {
         self.settingsWindow = settingsWindow
         settingsWindow.onPageReady = { [unowned self] in pushSettings() }
         settingsWindow.onMessage = { [unowned self] in handleSettingsMessage($0) }
+        settingsWindow.onClosed = { [unowned self] in
+            // Edits the page had not applied yet, such as a field still being typed in.
+            if let draft = pendingSettingsDraft {
+                pendingSettingsDraft = nil
+                apply(draft)
+            }
+        }
+    }
+
+    private static func decodeSettings(_ object: Any?) -> WindowsSettings? {
+        guard let object, let data = try? JSONSerialization.data(withJSONObject: object) else { return nil }
+        return try? JSONDecoder().decode(WindowsSettings.self, from: data)
     }
 
     func attach(history historyWindow: PageWindow) {
@@ -566,6 +580,7 @@ final class TrayApp {
     /// Saves, then applies whatever changed: polling restarts only when servers,
     /// interval or collected host data change, like the macOS app.
     private func apply(_ incoming: WindowsSettings) {
+        pendingSettingsDraft = nil   // superseded, e.g. by Clear Settings or an import
         var newSettings = incoming.sanitized()
         newSettings.windowFrame = settings.windowFrame   // owned by the window, not the Settings page
         guard newSettings != settings else { return }
@@ -686,10 +701,12 @@ final class TrayApp {
         guard let settingsWindow else { return }
         let owner = settingsWindow.window
         switch message["type"] as? String {
+        case "draft":
+            // Applied if the window closes first (the page applies after a pause or when a field is left).
+            pendingSettingsDraft = Self.decodeSettings(message["settings"])
         case "apply":
-            guard let object = message["settings"],
-                  let data = try? JSONSerialization.data(withJSONObject: object),
-                  let decoded = try? JSONDecoder().decode(WindowsSettings.self, from: data) else { return }
+            pendingSettingsDraft = nil
+            guard let decoded = Self.decodeSettings(message["settings"]) else { return }
             apply(decoded)
         case "browseIdentity":
             let folder = (ProcessInfo.processInfo.environment["USERPROFILE"] ?? "") + #"\.ssh"#
