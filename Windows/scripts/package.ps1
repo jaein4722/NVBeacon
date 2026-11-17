@@ -87,6 +87,10 @@ foreach ($product in "NVBeacon", "nvbeacon-cli") {
 # 4. Release builds with the resources linked in.
 Push-Location $windows
 try {
+    # swift build does not relink when only the -Xlinker resource changed, which would
+    # keep the previous version number in the executables: remove them first.
+    $releaseBin = (swift build -c release --show-bin-path).Trim()
+    Remove-Item (Join-Path $releaseBin "NVBeacon.exe"), (Join-Path $releaseBin "nvbeacon-cli.exe") -ErrorAction SilentlyContinue
     foreach ($product in "NVBeacon", "nvbeacon-cli") {
         swift build -c release --product $product -Xlinker $resources[$product]
         if ($LASTEXITCODE -ne 0) { throw "swift build failed for $product" }
