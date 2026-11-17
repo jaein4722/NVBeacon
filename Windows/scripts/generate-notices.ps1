@@ -105,7 +105,8 @@ $text = (($sections -join "`n`n") -replace "`r", "" -split "`n" | ForEach-Object
 $text = $text.TrimEnd() + "`n"
 $utf8 = New-Object System.Text.UTF8Encoding $false
 if ($Check) {
-    $current = if (Test-Path $output) { [System.IO.File]::ReadAllText($output, $utf8) } else { "" }
+    # Git may check the file out with CRLF line endings; compare the text only.
+    $current = if (Test-Path $output) { [System.IO.File]::ReadAllText($output, $utf8) -replace "`r", "" } else { "" }
     if ($current -ne $text) { throw "THIRD-PARTY-NOTICES.txt is stale; run Windows\scripts\generate-notices.ps1" }
     "Notices verified for $swiftTag"
 } else {
