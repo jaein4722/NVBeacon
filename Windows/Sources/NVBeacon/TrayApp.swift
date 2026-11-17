@@ -772,6 +772,8 @@ final class TrayApp {
         case "openSettingsFile":
             try? SettingsStore.save(settings)
             Shell.openInNotepad(SettingsStore.fileURL.path)
+        case "openLicenses":
+            if let path = Resources.noticesPath { Shell.openInNotepad(path) }
         case "close":
             settingsWindow.close()
         default:

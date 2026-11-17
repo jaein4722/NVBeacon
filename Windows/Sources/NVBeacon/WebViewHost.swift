@@ -168,6 +168,16 @@ enum Resources {
             .map { $0.path.replacingOccurrences(of: "/", with: "\\") }
     }
 
+    /// The open source license notices installed next to NVBeacon.exe.
+    static var noticesPath: String? {
+        let candidates = [
+            executableFolder.appendingPathComponent("THIRD-PARTY-NOTICES.txt"),
+            packageFolder.appendingPathComponent("packaging/THIRD-PARTY-NOTICES.txt"),
+        ]
+        return candidates.first { FileManager.default.fileExists(atPath: $0.path) }
+            .map { $0.path.replacingOccurrences(of: "/", with: "\\") }
+    }
+
     static var loaderPath: String? {
         let candidates = [
             executableFolder.appendingPathComponent("WebView2Loader.dll"),

@@ -12,7 +12,7 @@ NVBeacon has three clients: macOS, iPhone and iPad, and Windows (in the works). 
 | Notifications | Permission, GPU idle alert thresholds, active watches, recent history |
 | Display | Menu bar text, display mode (popover or window), keep window on top, theme, popover width and height, closing on outside click |
 | Advanced | Server backup, import and transfer, diagnostic information, reloading and clearing saved settings |
-| About | App identity, version and build, links, runtime snapshot |
+| About | App identity, version and build, links, open source licenses (Windows), runtime snapshot |
 
 ## iPhone and iPad
 

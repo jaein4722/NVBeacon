@@ -585,6 +585,10 @@ function aboutPane() {
       [t("Developer", "개발자"), "github.com/jaein4722"],
       [t("Settings File", "설정 파일"), ui.data.about.settingsFile],
     ]),
+    section(t("Open Source Licenses", "오픈소스 라이선스"), [
+      row(t("Libraries installed with NVBeacon", "NVBeacon과 함께 설치되는 라이브러리"),
+        button(t("Open Licenses", "라이선스 열기"), () => send({ type: "openLicenses" }))),
+    ]),
     infoCard(t("Current Configuration", "현재 설정"), [
       [t("Servers", "서버"), d.servers.length ? d.servers.filter((s) => s.isEnabled).length + "/" + d.servers.length : t("Not configured", "미설정")],
       [t("Refresh Interval", "새로고침 주기"), d.pollIntervalSeconds + "s"],
