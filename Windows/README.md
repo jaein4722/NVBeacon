@@ -73,7 +73,9 @@ administrator prompt, adds a Start menu entry and an entry in Installed apps, an
 upgrades an existing install in place. The first install can also turn on Launch at
 Login (off by default); upgrades leave that setting to the app. Before copying files it asks a running
 NVBeacon to quit, so GPU History is saved. Uninstalling removes Launch at Login when it
-points to that copy and keeps settings, GPU History and saved passwords. The
+points to that copy and asks whether to also delete NVBeacon's data: settings and
+records (`%APPDATA%\NVBeacon`, `%LOCALAPPDATA%\NVBeacon`) and saved SSH passwords. The
+default answer is No, and a silent uninstall keeps the data. The
 installer is not code-signed, so SmartScreen warns on first run.
 
 Current limits: no automatic updates yet.
