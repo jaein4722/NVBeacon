@@ -24,6 +24,14 @@ private struct StatusMenuContainerView: View {
     }
 }
 
+private struct StatusItemContent: Equatable {
+    let iconOnly: Bool
+    let title: String
+    let symbolName: String
+    let accessibilityDescription: String
+    let toolTip: String
+}
+
 @MainActor
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
@@ -41,6 +49,8 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private lazy var quitMenuItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
     private var measuredContentHeight: CGFloat = 0
+    private var appliedStatusItemContent: StatusItemContent?
+    private var appliedAppearanceMode: AppAppearanceMode?
 
     init(store: NVBeaconStore, settingsOpenBridge: SettingsOpenBridge) {
         self.store = store
@@ -157,9 +167,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             popover.performClose(sender)
         } else {
             updatePopoverSize()
-            updatePopoverAppearance()
+            updatePopoverAppearance(force: true)
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
-            updatePopoverAppearance()
+            updatePopoverAppearance(force: true)
             popover.contentViewController?.view.window?.becomeKey()
             updatePopoverAutoCloseBehavior()
         }
@@ -172,19 +182,35 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         statusItem.menu = nil
     }
 
+    /// The store changes on every server's refresh. Touching the status item only
+    /// when what it shows changes keeps those updates from redrawing the menu bar.
     private func updateStatusItemAppearance() {
         guard let button = statusItem.button else { return }
-        let iconOnly = store.settings.menuBarDisplayMode == .iconOnly
-
-        statusItem.length = iconOnly ? NSStatusItem.squareLength : NSStatusItem.variableLength
-        button.title = store.menuBarTitle
-        button.image = NSImage(
-            systemSymbolName: store.menuBarSymbolName,
-            accessibilityDescription: store.settings.resolvedLanguage.text("GPU Usage", "GPU 사용량")
+        let content = StatusItemContent(
+            iconOnly: store.settings.menuBarDisplayMode == .iconOnly,
+            title: store.menuBarTitle,
+            symbolName: store.menuBarSymbolName,
+            accessibilityDescription: store.settings.resolvedLanguage.text("GPU Usage", "GPU 사용량"),
+            toolTip: store.menuBarToolTip
         )
-        button.image?.isTemplate = true
-        button.imagePosition = iconOnly ? .imageOnly : .imageLeft
-        button.toolTip = store.menuBarToolTip
+        let applied = appliedStatusItemContent
+        guard content != applied else { return }
+
+        if content.iconOnly != applied?.iconOnly {
+            statusItem.length = content.iconOnly ? NSStatusItem.squareLength : NSStatusItem.variableLength
+            button.imagePosition = content.iconOnly ? .imageOnly : .imageLeft
+        }
+        if content.title != applied?.title {
+            button.title = content.title
+        }
+        if content.symbolName != applied?.symbolName || content.accessibilityDescription != applied?.accessibilityDescription {
+            button.image = NSImage(systemSymbolName: content.symbolName, accessibilityDescription: content.accessibilityDescription)
+            button.image?.isTemplate = true
+        }
+        if content.toolTip != applied?.toolTip {
+            button.toolTip = content.toolTip
+        }
+        appliedStatusItemContent = content
     }
 
     private func updateMenuTitles() {
@@ -218,7 +244,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         updatePopoverSize()
     }
 
-    private func updatePopoverAppearance() {
+    private func updatePopoverAppearance(force: Bool = false) {
+        guard force || store.settings.appearanceMode != appliedAppearanceMode else { return }
+        appliedAppearanceMode = store.settings.appearanceMode
         let appearance: NSAppearance? = switch store.settings.appearanceMode {
         case .system:
             nil
