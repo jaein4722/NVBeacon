@@ -46,6 +46,8 @@ public enum SummaryFormatter {
 
     public static func report(_ state: ServerState) -> String {
         var lines = ["== \(state.displayName)"]
+        if state.passwordMissing { lines.append("password: not saved (save it in NVBeacon Settings)") }
+        if state.passwordRejected { lines.append("password: rejected by the server; polling paused until it is saved again") }
         if let error = state.lastError { lines.append("error: \(error)") }
         if let snapshot = state.snapshot {
             for gpu in snapshot.gpus {

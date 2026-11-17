@@ -22,7 +22,8 @@ struct FlyoutState: Encodable {
         let id: String
         let name: String
         let isEnabled: Bool
-        /// Why an enabled server is not polled: "password" (not supported on Windows yet) or "target".
+        /// Why an enabled server shows no readings: "target" (no usable SSH target), "password"
+        /// (no saved password) or "passwordRejected" (the server refused it; polling paused).
         let inactiveReason: String?
         let updatedAt: Double?
         let error: String?
@@ -131,10 +132,12 @@ struct FlyoutState: Encodable {
     private static func server(_ state: ServerState, settings: WindowsSettings, watches: WatchStore) -> Server {
         let config = state.server
         // A disabled server keeps no readings in the popover, as on macOS.
-        let snapshot = config.isPollable ? state.snapshot : nil
+        let inactiveReason: String? = !config.isEnabled ? nil
+            : !config.isPollable ? "target"
+            : state.passwordRejected ? "passwordRejected"
+            : state.passwordMissing ? "password" : nil
+        let snapshot = config.isPollable && inactiveReason == nil ? state.snapshot : nil
         let gpus = snapshot?.gpus ?? []
-        let inactiveReason: String? = !config.isEnabled || config.isPollable ? nil
-            : config.sshAuthenticationMode == .passwordBased ? "password" : "target"
         return Server(
             id: state.id,
             name: state.displayName,

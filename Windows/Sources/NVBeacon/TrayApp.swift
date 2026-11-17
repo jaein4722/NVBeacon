@@ -126,6 +126,8 @@ final class TrayApp {
     private var pendingImport: ServerSettingsBackup?
     /// Process-exit and GPU-idle watches and their history (%APPDATA%\NVBeacon\watches.json).
     let watches = WatchStore(fileURL: WatchStore.defaultFileURL)
+    /// SSH passwords in Windows Credential Manager.
+    let passwordStore = SSHPasswordStore()
     /// What polling tasks read when they evaluate alerts.
     private let alertSettings: Locked<WindowsSettings>
     private let pendingNotifications = Locked<[PendingNotification]>([])
@@ -187,7 +189,8 @@ final class TrayApp {
                       hostMetrics: settings.hostMetricsOptions,
                       highlightsMyProcesses: settings.highlightsMyProcesses,
                       samplesUserUtilization: settings.recordsGPUHistory,
-                      sshConfigHosts: SSHConfigHosts.load()) {
+                      sshConfigHosts: SSHConfigHosts.load(),
+                      askPassExecutable: Resources.executablePath) {
             PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
         }
     }
@@ -522,6 +525,9 @@ final class TrayApp {
         settings = newSettings
         alertSettings.value = newSettings
         save()
+        // A removed server's saved password goes with it, as on macOS.
+        let remaining = Set(newSettings.servers.map(\.id))
+        for server in old.servers where !remaining.contains(server.id) { passwordStore.delete(for: server.id) }
 
         flyout?.logicalWidth = Double(newSettings.popoverWidth)
         flyout?.closesOnOutsideClick = newSettings.closesPopoverOnOutsideClick
@@ -579,6 +585,7 @@ final class TrayApp {
             "about": ["version": DiagnosticsReport.appVersion,
                       "settingsFile": SettingsStore.fileURL.path],
             "notifications": notificationsPayload(),
+            "savedPasswords": Array(passwordStore.savedServerIDs()),
         ])
         pushRuntime()
     }
@@ -634,6 +641,20 @@ final class TrayApp {
             }
         case "reloadHosts":
             pushSettings()
+        case "savePassword", "forgetPassword":
+            guard let serverID = message["serverId"] as? String, !serverID.isEmpty else { return }
+            let korean = Theme.language == "ko"
+            let saving = message["type"] as? String == "savePassword"
+            let saved = saving ? passwordStore.save(message["password"] as? String ?? "", for: serverID)
+                               : passwordStore.delete(for: serverID)
+            if saved {
+                monitor.passwordChanged(serverID: serverID)
+                settingsToast(saving ? (korean ? "비밀번호를 저장했습니다." : "Saved the password.")
+                                     : (korean ? "저장된 비밀번호를 삭제했습니다." : "Removed the saved password."))
+            } else {
+                failure(korean ? "Windows 자격 증명 관리자에 저장하지 못했습니다." : "Could not update Windows Credential Manager.")
+            }
+            pushSettings()
         case "setLaunchAtLogin":
             let error = LaunchAtLogin.setEnabled(message["enabled"] as? Bool ?? false)
             settingsWindow.host.post(["type": "launchAtLogin", "status": LaunchAtLogin.status.rawValue, "error": error ?? NSNull()])
@@ -660,7 +681,8 @@ final class TrayApp {
             settings = SettingsStore.load()
             pushSettings()
         case "clearSettings":
-            // Like macOS: servers, alerts and notification history all go.
+            // Like macOS: servers, saved passwords, alerts and notification history all go.
+            for serverID in passwordStore.savedServerIDs() { passwordStore.delete(for: serverID) }
             SettingsStore.clear()
             watches.clear()
             apply(WindowsSettings())

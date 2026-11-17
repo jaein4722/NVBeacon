@@ -43,10 +43,22 @@ swift test
   flyout closes (`--release-after SECONDS`). `--diag` writes timings to
   `%LOCALAPPDATA%\NVBeacon\diag.log`.
 
-Current limits:
+SSH:
 
-- Key or ssh-agent authentication only. Connect once with `ssh` from a terminal
-  first so the host key is in `known_hosts`.
-- No connection reuse: Win32-OpenSSH does not support `ControlMaster`.
-- Not yet available: notifications, GPU history, highlighting your own
-  processes, automatic updates, and an installer.
+- Uses the system `ssh.exe`, so `~/.ssh/config`, keys, ssh-agent and
+  `known_hosts` work as in a terminal. Connect once with `ssh` first so the host
+  key is in `known_hosts`.
+- Connection reuse (the default, per server): Win32-OpenSSH has no working
+  `ControlMaster`, so NVBeacon keeps one `ssh.exe` per server running a remote
+  `/bin/sh -s` and sends each command framed with random markers. Commands run
+  through the login shell exactly as a fresh connection would run them. GPU
+  History, process details and exit checks use a second connection so they never
+  wait for a poll. A dropped connection is reopened by the next command.
+  "New connection every refresh" starts `ssh.exe` for every command instead.
+- Password authentication: the password is kept in Windows Credential Manager.
+  ssh runs NVBeacon.exe as its `SSH_ASKPASS` program, which answers only the
+  server's password prompt (not host-key questions, passphrases or one-time
+  codes), once per connection. If the server rejects the password, polling of
+  that server stops until the password is saved again.
+
+Current limits: no automatic updates or installer yet.

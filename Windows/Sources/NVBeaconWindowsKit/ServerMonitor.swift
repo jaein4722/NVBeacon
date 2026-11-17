@@ -16,6 +16,11 @@ public struct ServerState: Sendable {
     /// GPU indexes whose process details are being fetched.
     public var loadingDetailGPUs: Set<Int> = []
     public var detailError: String?
+    /// Password authentication with no saved password: not polled until one is saved.
+    public var passwordMissing = false
+    /// The server rejected the saved password. Polling stops until the password is
+    /// saved again, so repeated failures cannot lock the account or get the address banned.
+    public var passwordRejected = false
 
     public init(server: ServerSettings, detectedSSHUsername: String? = nil) {
         self.server = server
@@ -39,6 +44,11 @@ public final class ServerMonitor: @unchecked Sendable {
     public let interval: Duration
     public let hostMetrics: HostMetricsOptions
     public let highlightsMyProcesses: Bool
+    /// Long-lived connections for servers set to "Reuse connection".
+    public let connectionPool: SSHConnectionPool
+    /// NVBeacon.exe, which answers ssh's password prompt (nil: no password authentication).
+    public let askPassExecutable: String?
+    public let passwordStore: SSHPasswordStore
     private let lock = NSLock()
     private var states: [ServerState]
     private var refreshRequested = false
@@ -63,8 +73,13 @@ public final class ServerMonitor: @unchecked Sendable {
                 highlightsMyProcesses: Bool = false, samplesUserUtilization: Bool = false,
                 sshConfigHosts: [SSHConfigHost] = [],
                 localUsername: String? = ProcessInfo.processInfo.environment["USERNAME"],
+                askPassExecutable: String? = nil, passwordStore: SSHPasswordStore = SSHPasswordStore(),
+                connectionPool: SSHConnectionPool = SSHConnectionPool(),
                 onChange: @escaping @Sendable () -> Void) {
         self.interval = interval
+        self.askPassExecutable = askPassExecutable
+        self.passwordStore = passwordStore
+        self.connectionPool = connectionPool
         self.hostMetrics = hostMetrics
         self.highlightsMyProcesses = highlightsMyProcesses
         self.samplesUserUtilization = samplesUserUtilization
@@ -111,7 +126,11 @@ public final class ServerMonitor: @unchecked Sendable {
         }
     }
 
-    public func stop() { loop?.cancel() }
+    /// Stops polling and closes every kept connection.
+    public func stop() {
+        loop?.cancel()
+        connectionPool.closeAll()
+    }
 
     public func refreshNow() { lock.withLock { refreshRequested = true } }
 
@@ -143,34 +162,89 @@ public final class ServerMonitor: @unchecked Sendable {
         max(60, Double(interval.components.seconds) * 4)
     }
 
-    static func transport(for server: ServerSettings) -> AnyRemoteCommandExecutor {
+    /// A fresh connection per command, or a lane of the kept connections.
+    func transport(for server: ServerSettings, lane: SSHConnectionPool.Lane) -> AnyRemoteCommandExecutor {
         let target = server.trimmedTarget
         if target.hasPrefix(DemoTransport.targetPrefix) {
             return AnyRemoteCommandExecutor(DemoTransport(target: target))
         }
-        return AnyRemoteCommandExecutor(SSHTransport(target: target, port: server.resolvedPort,
-                                                     identityFile: server.sshIdentityFilePath))
+        let authentication = self.authentication(for: server) ?? .key
+        let identity = server.sshIdentityFilePath.trimmingCharacters(in: .whitespaces)
+        if server.sshConnectionReuseMode == .newConnectionEachRefresh {
+            return AnyRemoteCommandExecutor(SSHTransport(target: target, port: server.resolvedPort,
+                                                         identityFile: identity, authentication: authentication))
+        }
+        return AnyRemoteCommandExecutor(connectionPool.transport(
+            target: target, port: server.resolvedPort, identityFile: identity.isEmpty ? nil : identity,
+            authentication: authentication, serverID: server.id, lane: lane))
+    }
+
+    /// nil when password authentication is selected but cannot be used.
+    private func authentication(for server: ServerSettings) -> SSHAuthentication? {
+        guard server.sshAuthenticationMode == .passwordBased else { return .key }
+        guard let askPassExecutable else { return nil }
+        return .password(account: server.id, askPassExecutable: askPassExecutable)
+    }
+
+    private func usesPassword(_ server: ServerSettings) -> Bool {
+        server.sshAuthenticationMode == .passwordBased && !server.trimmedTarget.hasPrefix(DemoTransport.targetPrefix)
+    }
+
+    /// The password was saved or removed in Settings: forget the rejection, drop the
+    /// connections that used the old password, and poll again.
+    public func passwordChanged(serverID: String) {
+        connectionPool.close(serverID: serverID)
+        lock.withLock {
+            guard let index = states.firstIndex(where: { $0.id == serverID }) else { return }
+            states[index].passwordRejected = false
+            states[index].passwordMissing = false
+            states[index].lastError = nil
+        }
+        onChange()
+        refresh(serverID: serverID)
+    }
+
+    /// ssh's message when the server refuses the credentials.
+    static func isAuthenticationFailure(_ error: Error) -> Bool {
+        guard let error = error as? MetricsCollectionError, case .commandFailed(let status, let output) = error,
+              status == 255 else { return false }
+        return output.contains("Permission denied") || output.contains("Too many authentication failures")
     }
 
     private func poll(index: Int) async {
         let claimed: (ServerSettings, String?, Int?)? = lock.withLock {
-            guard !states[index].isRefreshing, states[index].server.isPollable else { return nil }
+            guard !states[index].isRefreshing, states[index].server.isPollable,
+                  !states[index].passwordRejected else { return nil }
             states[index].isRefreshing = true
             return (states[index].server, states[index].detectedSSHUsername, states[index].detectedSSHUserID)
         }
         guard let (server, username, knownUserID) = claimed else { return }
         onChange()
 
-        let transport = Self.transport(for: server)
+        if usesPassword(server), askPassExecutable == nil || !passwordStore.hasPassword(for: server.id) {
+            lock.withLock {
+                states[index].isRefreshing = false
+                states[index].passwordMissing = true
+                states[index].lastAttempt = Date()
+            }
+            onChange()
+            return
+        }
+
+        let transport = self.transport(for: server, lane: .polling)
+        let detailsTransport = self.transport(for: server, lane: .details)
         let collector = MetricsCollector(transport: transport)
         // Concurrent with the summary, so pmon's one-second sample adds no latency (as on macOS).
+        // Only after a successful poll, so a new connection with a wrong password is not
+        // opened twice at once.
         let samplesUsers: Bool = samplesUserUtilization && lock.withLock {
+            guard states[index].snapshot != nil, states[index].lastError == nil else { return false }
             let now = Date()
             if let last = lastUserSample[server.id], now.timeIntervalSince(last) < UserUtilizationSampler.minimumInterval { return false }
             lastUserSample[server.id] = now
             return true
         }
-        async let userUtilization: [Int: [String: Double]]? = samplesUsers ? UserUtilizationSampler.fetch(transport: transport) : nil
+        async let userUtilization: [Int: [String: Double]]? = samplesUsers ? UserUtilizationSampler.fetch(transport: detailsTransport) : nil
         let result: Result<GPUSnapshot, Error>
         do {
             result = .success(try await collector.fetchSummary(
@@ -190,6 +264,7 @@ public final class ServerMonitor: @unchecked Sendable {
         lock.withLock {
             var state = states[index]
             state.isRefreshing = false
+            state.passwordMissing = false
             state.lastAttempt = Date()
             switch result {
             case .success(let snapshot):
@@ -207,13 +282,15 @@ public final class ServerMonitor: @unchecked Sendable {
                 state.lastError = nil
             case .failure(let error):
                 state.lastError = Self.message(for: error)
+                if usesPassword(server), Self.isAuthenticationFailure(error) { state.passwordRejected = true }
             }
             states[index] = state
         }
+        if lock.withLock({ states[index].passwordRejected }) { connectionPool.close(serverID: server.id) }
         onChange()
         let users = await userUtilization
         if let afterPoll, let merged = lock.withLock({ states[index].snapshot }), case .success = result {
-            await afterPoll(PollResult(server: server, snapshot: merged, transport: transport, userUtilization: users))
+            await afterPoll(PollResult(server: server, snapshot: merged, transport: detailsTransport, userUtilization: users))
         }
     }
 
@@ -227,7 +304,7 @@ public final class ServerMonitor: @unchecked Sendable {
     public func loadProcessDetails(serverID: String, gpuIndex: Int) {
         let claimed: (ServerSettings, [GPUProcessReading])? = lock.withLock {
             guard let index = states.firstIndex(where: { $0.id == serverID }),
-                  states[index].server.isPollable,
+                  states[index].server.isPollable, !states[index].passwordRejected,
                   !states[index].loadingDetailGPUs.contains(gpuIndex),
                   let gpu = states[index].snapshot?.gpus.first(where: { $0.index == gpuIndex }),
                   !gpu.processes.isEmpty else { return nil }
@@ -239,7 +316,7 @@ public final class ServerMonitor: @unchecked Sendable {
         Task.detached { [self] in
             let result: Result<[RemoteProcessStatus], Error>
             do {
-                result = .success(try await Self.fetchProcessStatuses(pids: processes.map(\.pid), transport: Self.transport(for: server)))
+                result = .success(try await Self.fetchProcessStatuses(pids: processes.map(\.pid), transport: self.transport(for: server, lane: .details)))
             } catch {
                 result = .failure(error)
             }
@@ -301,9 +378,6 @@ public final class ServerMonitor: @unchecked Sendable {
             if detail.isEmpty { return "ssh exited with status \(status)" }
             if detail.contains("Host key verification failed") {
                 return detail + " Connect once with ssh from a terminal to accept the host key."
-            }
-            if detail.contains("Permission denied") {
-                return detail + " Only key or ssh-agent authentication is supported for now."
             }
             return detail
         }

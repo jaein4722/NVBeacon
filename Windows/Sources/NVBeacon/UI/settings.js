@@ -15,6 +15,7 @@ const ui = {
   selectedHostAlias: "",
   launchError: null,
   applyTimer: 0,
+  passwordDraft: "",   // typed SSH password, sent once and never stored in the draft
 };
 
 const t = (english, korean) => (ui.data && ui.data.language === "ko" ? korean : english);
@@ -138,10 +139,37 @@ function updateServer(field, value, rerender) {
 function displayName(server) {
   return (server.name || "").trim() || (server.sshTarget || "").trim() || t("New Server", "새 서버");
 }
+// Password rows (macOS "Password Session" / "SSH Password"). The password goes straight
+// to Swift, which stores it in Windows Credential Manager; it is never part of the draft.
+function passwordRows(server) {
+  const saved = (ui.data.savedPasswords || []).includes(server.id);
+  const status = h("span", saved ? "status-enabled" : "status-warning", saved ? t("Saved", "저장됨") : t("Not saved", "저장 안 됨"));
+  const field = textField("server-password", ui.passwordDraft, saved ? t("Enter a new password", "새 비밀번호 입력") : t("Required", "필수"), "w-240",
+    (value) => { ui.passwordDraft = value; saveButton.disabled = !value; }, { type: "password" });
+  field.autocomplete = "off";
+  const savePassword = () => {
+    if (!ui.passwordDraft) return;
+    send({ type: "savePassword", serverId: server.id, password: ui.passwordDraft });
+    ui.passwordDraft = "";
+    field.value = "";
+    saveButton.disabled = true;
+  };
+  field.addEventListener("keydown", (event) => { if (event.key === "Enter") savePassword(); });
+  const saveButton = button(t("Save Password", "비밀번호 저장"), savePassword, { disabled: !ui.passwordDraft, key: "password-save" });
+  const forget = button(t("Forget Saved Password", "저장된 비밀번호 삭제"), () => send({ type: "forgetPassword", serverId: server.id }),
+    { className: "destructive", disabled: !saved, key: "password-forget" });
+  return [
+    row(t("Password", "비밀번호"), status),
+    row(t("SSH Password", "SSH 비밀번호"), field),
+    h("div", "row", h("div", "row-control", saveButton, forget)),
+    note(t("The password is stored in Windows Credential Manager for your Windows account and is sent only to answer this server's SSH password prompt, once per connection. Programs running as your Windows user can read it, so SSH keys are safer when the server allows them. If the server rejects the password, polling stops until you save it again.",
+      "비밀번호는 현재 Windows 계정의 Windows 자격 증명 관리자에 저장되고, 이 서버의 SSH 비밀번호 질문에만 연결당 한 번 사용됩니다. 같은 Windows 사용자로 실행되는 프로그램은 읽을 수 있으므로, 서버가 허용하면 SSH 키가 더 안전합니다. 서버가 비밀번호를 거부하면 다시 저장할 때까지 수집을 멈춥니다.")),
+  ];
+}
 function newServer(fields) {
   return Object.assign({
     id: crypto.randomUUID().toUpperCase(), name: "", sshTarget: "", sshPort: "", sshIdentityFilePath: "",
-    sshAuthenticationMode: "keyBased", remoteCommand: ui.data.defaults.gpuCommand,
+    sshAuthenticationMode: "keyBased", sshConnectionReuseMode: "reuseWhenPossible", remoteCommand: ui.data.defaults.gpuCommand,
     hostCommand: ui.data.defaults.hostCommand, isEnabled: true,
   }, fields);
 }
@@ -170,7 +198,7 @@ function generalPane() {
 
   const picker = select("server-picker", ui.selectedServerId,
     servers.map((s) => ({ value: s.id, label: displayName(s) })),
-    (value) => { ui.selectedServerId = value; render(); },
+    (value) => { ui.selectedServerId = value; ui.passwordDraft = ""; render(); },
     { widthClass: "w-300", disabled: !servers.length });
   const moveUp = button(t("Move selected server up", "선택된 서버를 위로 이동"), () => {
     [servers[index - 1], servers[index]] = [servers[index], servers[index - 1]];
@@ -227,7 +255,7 @@ function generalPane() {
   if (server) {
     const authChoices = [
       { value: "keyBased", label: t("Key-based", "키 기반") },
-      { value: "passwordBased", label: t("Password-based", "비밀번호"), disabled: server.sshAuthenticationMode !== "passwordBased" },
+      { value: "passwordBased", label: t("Password-based", "비밀번호") },
     ];
     serverRows = [
       toggleRow(t("Enabled", "활성화"), "server-enabled", server.isEnabled, (value) => updateServer("isEnabled", value)),
@@ -239,14 +267,11 @@ function generalPane() {
       row(t("Auth Method", "인증 방식"), select("server-auth", server.sshAuthenticationMode, authChoices,
         (value) => updateServer("sshAuthenticationMode", value, true))),
     ];
-    if (server.sshAuthenticationMode === "passwordBased") {
-      serverRows.push(note(t("Password-based authentication is not available on Windows yet. This server is not polled until you switch it to key-based authentication or ssh-agent.",
-        "Windows에서는 아직 비밀번호 인증을 지원하지 않습니다. 키 기반 인증이나 ssh-agent로 바꾸기 전까지 이 서버는 수집하지 않습니다.")));
-    }
     serverRows.push(row(t("Identity File", "Identity 파일"), [
       textField("server-identity", server.sshIdentityFilePath, t("Optional", "선택 사항"), "w-240", (value) => updateServer("sshIdentityFilePath", value)),
       button(t("Browse…", "찾아보기…"), () => send({ type: "browseIdentity", serverId: server.id })),
     ]));
+    if (server.sshAuthenticationMode === "passwordBased") serverRows.push(...passwordRows(server));
   } else {
     serverRows = [note(t("Add a server to start monitoring remote GPUs.", "원격 GPU 모니터링을 시작하려면 서버를 추가하세요."))];
   }
@@ -258,13 +283,23 @@ function generalPane() {
     { value: "activeProcessOrMemoryThreshold", label: t("Process or Memory", "프로세스 또는 메모리") },
     { value: "utilizationThreshold", label: t("Utilization Threshold", "사용률 임계치") },
   ];
-  const help = svgIcon("question", "help");
-  const helpHolder = h("span", "", help);
-  helpHolder.title = t("Windows OpenSSH does not support connection reuse (ControlMaster), so NVBeacon opens a new SSH connection for every refresh. A longer refresh interval reduces the load on busy servers.",
-    "Windows OpenSSH는 연결 재사용(ControlMaster)을 지원하지 않아 새로고침마다 새 SSH 연결을 엽니다. 서버 부하가 걱정되면 새로고침 주기를 늘리세요.");
+  // Per server, shown here like the macOS Polling section (it edits the selected server).
+  const reuseMode = (server && server.sshConnectionReuseMode) || "reuseWhenPossible";
+  const reuseChoices = [
+    { value: "reuseWhenPossible", label: t("Reuse connection (Recommended)", "연결 재사용 (권장)") },
+    { value: "newConnectionEachRefresh", label: t("New connection every refresh", "매 새로고침마다 새 연결") },
+  ];
+  const helpHolder = h("span", "", svgIcon("question", "help"));
+  helpHolder.title = reuseMode === "reuseWhenPossible"
+    ? t("NVBeacon keeps the SSH connection open and reuses it instead of logging in again for every poll. No extra software is required on the server. If your server behaves strangely, switch to the fresh-connection mode.",
+      "NVBeacon은 polling마다 다시 로그인하지 않고 SSH 연결을 열어 둔 채 재사용합니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요.")
+    : t("Every poll opens a brand-new SSH connection. This is slower, but useful for unusual SSH servers.",
+      "polling마다 완전히 새 SSH 연결을 엽니다. 더 느리지만 특이한 SSH 서버와는 더 잘 맞을 수 있습니다.");
   const pollingRows = [
     row(t("Refresh Interval", "새로고침 주기"), stepper("poll-interval", d.pollIntervalSeconds, 1, 300, "s", (value) => { d.pollIntervalSeconds = value; changed(); })),
-    row(t("SSH Connection", "SSH 연결"), [h("span", "", t("New connection each refresh", "새로고침마다 새 연결")), helpHolder]),
+    row(t("SSH Connection", "SSH 연결"), [
+      select("server-reuse", reuseMode, reuseChoices, (value) => updateServer("sshConnectionReuseMode", value, true), { disabled: !server }),
+      helpHolder]),
     row(t("Busy Detection", "Busy 판정"), select("busy-mode", d.busyDetectionMode, busyChoices, (value) => { d.busyDetectionMode = value; changed({ rerender: true }); })),
   ];
   if (d.busyDetectionMode === "memoryThreshold" || d.busyDetectionMode === "activeProcessOrMemoryThreshold") {

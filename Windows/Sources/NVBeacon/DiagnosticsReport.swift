@@ -9,6 +9,7 @@ enum DiagnosticsReport {
 
     static func make(settings: WindowsSettings, states: [ServerState], now: Date = Date()) -> String {
         let dateFormat = ISO8601DateFormatter()
+        let savedPasswords = SSHPasswordStore().savedServerIDs()
         var lines = [
             "NVBeacon Diagnostics",
             "Generated: " + dateFormat.string(from: now),
@@ -22,7 +23,7 @@ enum DiagnosticsReport {
             "Servers: " + String(states.count) + " configured / " + String(states.filter { $0.server.isEnabled }.count) + " enabled",
             "",
             "Host names, users, addresses, key paths, custom commands, process details",
-            "and raw error messages are omitted. No passwords or private keys are read.",
+            "and raw error messages are omitted. Passwords and private keys are not included.",
         ]
         for (offset, state) in states.enumerated() {
             let server = state.server
@@ -31,7 +32,9 @@ enum DiagnosticsReport {
                 "Server " + String(offset + 1),
                 "  Enabled: " + String(server.isEnabled),
                 "  Authentication: " + server.sshAuthenticationMode.rawValue,
-                "  SSH reuse: unavailable on Windows (new connection each refresh)",
+                "  SSH reuse: " + server.sshConnectionReuseMode.rawValue,
+                "  Password saved: " + (server.sshAuthenticationMode == .passwordBased ? String(savedPasswords.contains(server.id)) : "not required"),
+                "  Password rejected: " + String(state.passwordRejected),
                 "  Identity file configured: " + String(!server.sshIdentityFilePath.trimmingCharacters(in: .whitespaces).isEmpty),
                 "  Port configured: " + String(server.resolvedPort != nil),
                 "  GPU command: " + (server.resolvedRemoteCommand == RemoteMetricCommands.defaultGPUCommand ? "Default" : "Custom (omitted)"),

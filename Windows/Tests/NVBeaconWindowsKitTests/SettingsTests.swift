@@ -56,10 +56,10 @@ import Testing
     #expect(SettingsStore.load(from: file, legacyServerFile: legacy) == migrated)
 }
 
-@Test func pollableRequiresEnabledKeyBasedServerWithTarget() {
+@Test func pollableRequiresEnabledServerWithTarget() {
     #expect(ServerSettings(sshTarget: "gpu").isPollable)
     #expect(!ServerSettings(sshTarget: "gpu", isEnabled: false).isPollable)
-    #expect(!ServerSettings(sshTarget: "gpu", sshAuthenticationMode: .passwordBased).isPollable)
+    #expect(ServerSettings(sshTarget: "gpu", sshAuthenticationMode: .passwordBased).isPollable)
     #expect(!ServerSettings(sshTarget: " ").isPollable)
     #expect(ServerSettings(sshTarget: "gpu", sshPort: "70000").resolvedPort == nil)
     #expect(ServerSettings(sshTarget: "gpu", remoteCommand: "  ").resolvedRemoteCommand == RemoteMetricCommands.defaultGPUCommand)

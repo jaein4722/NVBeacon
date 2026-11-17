@@ -10,12 +10,14 @@ public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
     public var sshPort: String
     public var sshIdentityFilePath: String
     public var sshAuthenticationMode: SSHAuthenticationMode
+    public var sshConnectionReuseMode: SSHConnectionReuseMode
     public var remoteCommand: String
     public var hostCommand: String
     public var isEnabled: Bool
 
     public init(id: String = UUID().uuidString, name: String = "", sshTarget: String = "", sshPort: String = "",
                 sshIdentityFilePath: String = "", sshAuthenticationMode: SSHAuthenticationMode = .keyBased,
+                sshConnectionReuseMode: SSHConnectionReuseMode = .reuseWhenPossible,
                 remoteCommand: String = RemoteMetricCommands.defaultGPUCommand,
                 hostCommand: String = RemoteMetricCommands.defaultHostCommand, isEnabled: Bool = true) {
         self.id = id
@@ -24,9 +26,31 @@ public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
         self.sshPort = sshPort
         self.sshIdentityFilePath = sshIdentityFilePath
         self.sshAuthenticationMode = sshAuthenticationMode
+        self.sshConnectionReuseMode = sshConnectionReuseMode
         self.remoteCommand = remoteCommand
         self.hostCommand = hostCommand
         self.isEnabled = isEnabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, sshTarget, sshPort, sshIdentityFilePath, sshAuthenticationMode, sshConnectionReuseMode
+        case remoteCommand, hostCommand, isEnabled
+    }
+
+    /// Missing fields take their defaults, so settings saved by older builds still load.
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        let defaults = ServerSettings()
+        id = try container.decodeIfPresent(String.self, forKey: .id) ?? defaults.id
+        name = try container.decodeIfPresent(String.self, forKey: .name) ?? ""
+        sshTarget = try container.decodeIfPresent(String.self, forKey: .sshTarget) ?? ""
+        sshPort = try container.decodeIfPresent(String.self, forKey: .sshPort) ?? ""
+        sshIdentityFilePath = try container.decodeIfPresent(String.self, forKey: .sshIdentityFilePath) ?? ""
+        sshAuthenticationMode = try container.decodeIfPresent(SSHAuthenticationMode.self, forKey: .sshAuthenticationMode) ?? .keyBased
+        sshConnectionReuseMode = try container.decodeIfPresent(SSHConnectionReuseMode.self, forKey: .sshConnectionReuseMode) ?? .reuseWhenPossible
+        remoteCommand = try container.decodeIfPresent(String.self, forKey: .remoteCommand) ?? defaults.remoteCommand
+        hostCommand = try container.decodeIfPresent(String.self, forKey: .hostCommand) ?? defaults.hostCommand
+        isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
     }
 
     public var displayName: String {
@@ -42,9 +66,10 @@ public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
         Int(sshPort.trimmingCharacters(in: .whitespaces)).flatMap { (1...65_535).contains($0) ? $0 : nil }
     }
 
-    /// Enabled, has a usable target, and uses an authentication mode Windows supports.
+    /// Enabled with a usable target. (A password server also needs a saved password;
+    /// the monitor reports that as `ServerState.passwordMissing`.)
     public var isPollable: Bool {
-        isEnabled && SSHTransport.isValidTarget(trimmedTarget) && sshAuthenticationMode == .keyBased
+        isEnabled && SSHTransport.isValidTarget(trimmedTarget)
     }
 
     public var resolvedRemoteCommand: String {
@@ -172,9 +197,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
             ServerSettingsBackup.Entry(name: server.name, sshTarget: server.sshTarget, sshPort: server.sshPort,
                                        sshIdentityFilePath: server.sshIdentityFilePath,
                                        sshAuthenticationMode: server.sshAuthenticationMode,
-                                       // Windows cannot reuse connections; export the macOS default so
-                                       // the server behaves normally when imported on a Mac.
-                                       sshConnectionReuseMode: .reuseWhenPossible,
+                                       sshConnectionReuseMode: server.sshConnectionReuseMode,
                                        remoteCommand: server.remoteCommand,
                                        memoryCommand: RemoteMetricCommands.defaultMemoryCommand,
                                        hostCommand: server.hostCommand)
@@ -187,6 +210,7 @@ public struct WindowsSettings: Codable, Equatable, Sendable {
             ServerSettings(name: entry.name, sshTarget: entry.sshTarget, sshPort: entry.sshPort,
                            sshIdentityFilePath: entry.sshIdentityFilePath,
                            sshAuthenticationMode: entry.sshAuthenticationMode,
+                           sshConnectionReuseMode: entry.sshConnectionReuseMode,
                            remoteCommand: entry.remoteCommand, hostCommand: entry.hostCommand, isEnabled: false)
         }
     }

@@ -17,23 +17,60 @@ public enum SSHTransportError: Error, Equatable, Sendable, CustomStringConvertib
     }
 }
 
-/// Runs Core's remote commands through the Windows OpenSSH client (`ssh.exe`).
-///
-/// Win32-OpenSSH has no `ControlMaster`, so every command opens a new connection.
-/// Only key and agent authentication is supported for now (`BatchMode=yes`).
+/// How ssh authenticates. Password authentication answers ssh's prompt through
+/// `SSH_ASKPASS`: NVBeacon.exe started by ssh reads the saved password itself
+/// (see `AskPass`), so the password never appears in arguments, environment or files.
+public enum SSHAuthentication: Sendable, Equatable {
+    case key
+    case password(account: String, askPassExecutable: String)
+
+    /// Matches the macOS app's options for each mode.
+    var options: [String] {
+        switch self {
+        case .key:
+            ["-o", "BatchMode=yes",
+             "-o", "PreferredAuthentications=publickey",
+             "-o", "PasswordAuthentication=no",
+             "-o", "KbdInteractiveAuthentication=no"]
+        case .password:
+            ["-o", "BatchMode=no",
+             "-o", "NumberOfPasswordPrompts=1",
+             "-o", "PreferredAuthentications=password,keyboard-interactive,publickey"]
+        }
+    }
+
+    var environment: [String: String] {
+        switch self {
+        case .key:
+            [:]
+        case .password(let account, let askPassExecutable):
+            ["SSH_ASKPASS": askPassExecutable,
+             "SSH_ASKPASS_REQUIRE": "force",
+             // Not required by Win32-OpenSSH with "force", but harmless and what other ports expect.
+             "DISPLAY": "nvbeacon:0",
+             AskPass.accountVariable: account]
+        }
+    }
+}
+
+/// Runs Core's remote commands through the Windows OpenSSH client (`ssh.exe`),
+/// opening a new connection for every command ("New connection every refresh").
+/// `SSHConnectionPool` keeps connections open instead.
 public struct SSHTransport: RemoteCommandExecuting {
     public let target: String
     public let port: Int?
     public let identityFile: String?
+    public let authentication: SSHAuthentication
     public let sshExecutable: String
     public let timeout: Duration
 
-    public init(target: String, port: Int? = nil, identityFile: String? = nil,
+    public init(target: String, port: Int? = nil, identityFile: String? = nil, authentication: SSHAuthentication = .key,
                 sshExecutable: String = SSHTransport.defaultSSHExecutable, timeout: Duration = .seconds(15)) {
         self.target = target
         self.port = port
         let trimmed = identityFile?.trimmingCharacters(in: .whitespaces) ?? ""
         self.identityFile = trimmed.isEmpty ? nil : trimmed
+        self.authentication = authentication
         self.sshExecutable = sshExecutable
         self.timeout = timeout
     }
@@ -52,7 +89,9 @@ public struct SSHTransport: RemoteCommandExecuting {
         do {
             output = try await WindowsProcessRunner.run(
                 executable: sshExecutable,
-                arguments: Self.arguments(target: target, port: port, identityFile: identityFile, remoteCommand: command),
+                arguments: Self.arguments(target: target, port: port, identityFile: identityFile,
+                                          authentication: authentication, remoteCommand: command),
+                environment: authentication.environment,
                 timeout: timeout
             )
         } catch ProcessRunError.timedOut(let seconds) {
@@ -98,22 +137,30 @@ public struct SSHTransport: RemoteCommandExecuting {
         !target.isEmpty && !target.hasPrefix("-") && !target.contains(where: \.isWhitespace)
     }
 
-    /// Mirrors the macOS app's options, without connection reuse or password auth.
+    /// Mirrors the macOS app's options (`SSHMetricsFetcher.buildSSHArguments`).
     public static func arguments(target: String, port: Int? = nil, identityFile: String? = nil,
-                                 remoteCommand: String) -> [String] {
+                                 authentication: SSHAuthentication = .key, remoteCommand: String) -> [String] {
+        connectionOptions(port: port, identityFile: identityFile, authentication: authentication)
+            + [target] + loginShellArguments(remoteCommand)
+    }
+
+    /// The long-lived connection behind `SSHConnectionPool`: no PTY, a remote `sh -s`.
+    public static func sessionArguments(target: String, port: Int? = nil, identityFile: String? = nil,
+                                        authentication: SSHAuthentication = .key) -> [String] {
+        ["-T"] + connectionOptions(port: port, identityFile: identityFile, authentication: authentication)
+            + [target, SSHSessionFraming.remoteShellCommand]
+    }
+
+    static func connectionOptions(port: Int?, identityFile: String?, authentication: SSHAuthentication) -> [String] {
         var arguments = [
             "-o", "ConnectTimeout=5",
             "-o", "ServerAliveInterval=5",
             "-o", "ServerAliveCountMax=1",
             "-o", "TCPKeepAlive=yes",
-            "-o", "BatchMode=yes",
-            "-o", "PreferredAuthentications=publickey",
-            "-o", "PasswordAuthentication=no",
-            "-o", "KbdInteractiveAuthentication=no",
-        ]
+        ] + authentication.options
         if let identityFile { arguments += ["-i", identityFile] }
         if let port { arguments += ["-p", String(port)] }
-        return arguments + [target] + loginShellArguments(remoteCommand)
+        return arguments
     }
 
     // The three functions below are copied from the macOS `SSHMetricsFetcher` so

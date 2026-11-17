@@ -365,8 +365,12 @@ function serverSection(server) {
   if (!server.isEnabled) {
     details.append(h("div", "message secondary", t("This server is disabled in Settings.", "이 서버는 설정에서 비활성화되어 있습니다.")));
   } else if (server.inactiveReason === "password") {
-    details.append(h("div", "message orange", t("Password-based authentication is not available on Windows yet. Switch this server to key-based authentication in Settings.",
-      "Windows에서는 아직 비밀번호 인증을 지원하지 않습니다. 설정에서 키 기반 인증으로 바꾸세요.")));
+    details.append(h("div", "message orange", t("Save the SSH password for this server in Settings. Polling is paused until a password is saved.",
+      "설정에서 이 서버의 SSH 비밀번호를 저장하세요. 비밀번호를 저장하기 전까지 수집하지 않습니다.")));
+  } else if (server.inactiveReason === "passwordRejected") {
+    details.append(h("div", "message orange", t("The server rejected the saved password, so polling stopped to avoid locking the account. Save the password again in Settings to resume.",
+      "서버가 저장된 비밀번호를 거부해 계정 잠금을 막으려고 수집을 멈췄습니다. 설정에서 비밀번호를 다시 저장하면 재개합니다.")));
+    if (server.error) details.append(h("div", "message secondary", server.error));
   } else if (server.inactiveReason === "target") {
     details.append(h("div", "message secondary", t("Enter an SSH target for this server in Settings.", "설정에서 이 서버의 SSH 대상을 입력하세요.")));
   } else if (server.updatedAt) {

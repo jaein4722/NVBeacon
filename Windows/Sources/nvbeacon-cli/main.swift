@@ -29,9 +29,13 @@ guard !servers.isEmpty else {
     exit(2)
 }
 
+// Password servers use NVBeacon.exe next to this tool to answer ssh's password prompt.
+let askPass = URL(fileURLWithPath: CommandLine.arguments[0]).deletingLastPathComponent()
+    .appendingPathComponent("NVBeacon.exe").path
 let monitor = ServerMonitor(servers: servers, interval: options.interval,
                             hostMetrics: options.targets.isEmpty ? settings.hostMetricsOptions : .init(),
-                            highlightsMyProcesses: showsDetails, sshConfigHosts: SSHConfigHosts.load()) {}
+                            highlightsMyProcesses: showsDetails, sshConfigHosts: SSHConfigHosts.load(),
+                            askPassExecutable: FileManager.default.fileExists(atPath: askPass) ? askPass : nil) {}
 repeat {
     await monitor.pollAll()
     if showsDetails {
@@ -55,6 +59,7 @@ repeat {
         }
     }
     print("")
+    fflush(stdout)   // show each round right away when the output is piped
     if !options.once { try await Task.sleep(for: options.interval) }
 } while !options.once
 exit(monitor.snapshot.contains { $0.lastError != nil } ? 1 : 0)

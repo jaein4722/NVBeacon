@@ -12,6 +12,12 @@ import WinSDK
 // queued on the main queue still runs, independent of the UI thread's modal loops.
 // The Windows client does not use @MainActor.
 
+// ssh starts NVBeacon.exe as its SSH_ASKPASS program for password logins
+// (SSHAuthentication.password): answer the prompt and exit before anything else.
+if let account = ProcessInfo.processInfo.environment[AskPass.accountVariable] {
+    exit(AskPass.run(arguments: CommandLine.arguments, account: account))
+}
+
 func showError(_ text: String) {
     text.withCString(encodedAs: UTF16.self) { body in
         "NVBeacon".withCString(encodedAs: UTF16.self) { title in

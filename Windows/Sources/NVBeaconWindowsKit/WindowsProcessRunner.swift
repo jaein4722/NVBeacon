@@ -22,11 +22,12 @@ public enum ProcessRunError: Error, Equatable, Sendable {
 public enum WindowsProcessRunner {
     /// Handle inheritance is process-wide: while one launch has inheritable pipe
     /// ends open, a concurrent launch would inherit them and keep the pipes open.
-    private static let launchLock = NSLock()
+    static let launchLock = NSLock()
 
     public static func run(
         executable: String,
         arguments: [String],
+        environment: [String: String] = [:],
         timeout: Duration = .seconds(15),
         outputLimit: Int = 8 * 1024 * 1024
     ) async throws -> ProcessOutput {
@@ -35,7 +36,7 @@ public enum WindowsProcessRunner {
             try await withCheckedThrowingContinuation { continuation in
                 Thread.detachNewThread {
                     continuation.resume(with: Result {
-                        try runBlocking(executable: executable, arguments: arguments,
+                        try runBlocking(executable: executable, arguments: arguments, environment: environment,
                                         timeout: timeout, outputLimit: outputLimit, control: control)
                     })
                 }
@@ -46,7 +47,7 @@ public enum WindowsProcessRunner {
     }
 
     private static func runBlocking(
-        executable: String, arguments: [String], timeout: Duration, outputLimit: Int, control: ProcessControl
+        executable: String, arguments: [String], environment: [String: String], timeout: Duration, outputLimit: Int, control: ProcessControl
     ) throws -> ProcessOutput {
         if control.isCancelled { throw CancellationError() }
 
@@ -80,9 +81,13 @@ public enum WindowsProcessRunner {
             startup.hStdError = errWrite
 
             var commandLine = Array(WindowsCommandLine.build(executable: executable, arguments: arguments).utf16) + [0]
+            var block = environment.isEmpty ? [] : WindowsEnvironment.block(adding: environment)
             launched = executable.withCString(encodedAs: UTF16.self) { application in
-                CreateProcessW(application, &commandLine, nil, nil, true,
-                               DWORD(CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT), nil, nil, &startup, &process)
+                block.withUnsafeMutableBufferPointer { environmentBlock in
+                    CreateProcessW(application, &commandLine, nil, nil, true,
+                                   DWORD(CREATE_NO_WINDOW | CREATE_UNICODE_ENVIRONMENT),
+                                   environmentBlock.isEmpty ? nil : environmentBlock.baseAddress, nil, &startup, &process)
+                }
             }
             launchError = launched ? 0 : GetLastError()
             // The child owns its copies now; ours must close or ReadFile never sees EOF.

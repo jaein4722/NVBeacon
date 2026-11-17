@@ -11,7 +11,9 @@ let package = Package(
     targets: [
         .target(
             name: "NVBeaconWindowsKit",
-            dependencies: [.product(name: "NVBeaconCore", package: "NVBeaconCore")]
+            dependencies: [.product(name: "NVBeaconCore", package: "NVBeaconCore")],
+            // Credential Manager (SSH passwords).
+            linkerSettings: [.linkedLibrary("Advapi32")]
         ),
         // C wrapper over the WebView2 COM API. Needs the SDK headers from
         // scripts/fetch-webview2.ps1; WebView2Loader.dll is loaded at run time.
