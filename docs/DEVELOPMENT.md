@@ -163,7 +163,7 @@ Useful examples:
 ```bash
 SKIP_DMG=1 ./scripts/package_app.sh
 BUILD_CONFIGURATION=debug ./scripts/package_app.sh
-VERSION=0.8.1 BUILD_NUMBER=1 ./scripts/package_app.sh
+VERSION=0.9.0 BUILD_NUMBER=1 ./scripts/package_app.sh
 ```
 
 Supported environment variables:
@@ -218,3 +218,4 @@ Notes:
 - In password-based mode, the password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.
 - The app shows a one-time warning before users switch into password-based mode because it is less secure than SSH key authentication.
 - If the remote shell has a limited `PATH`, set `Remote Command` to an absolute path.
+- Settings tabs, help text and wording follow [SETTINGS.md](SETTINGS.md). Check it before adding or moving a setting.

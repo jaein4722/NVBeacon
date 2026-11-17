@@ -13,6 +13,9 @@ struct StatusMenuView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     var onOpenHistory: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
+    /// The same view fills the popover and the monitor window.
+    var presentation: MonitorDisplayMode = .popover
     @State private var expandedGPUIds: Set<String> = []
 
     private var snapshotGPUIds: [String] {
@@ -63,7 +66,13 @@ struct StatusMenuView: View {
             )
         }
         .scrollIndicators(.automatic)
-        .frame(width: CGFloat(store.settings.resolvedPopoverWidth), alignment: .top)
+        .frame(
+            minWidth: presentation == .window ? CGFloat(AppSettings.popoverWidthRange.lowerBound) : nil,
+            idealWidth: CGFloat(store.settings.resolvedPopoverWidth),
+            maxWidth: presentation == .window ? .infinity : CGFloat(store.settings.resolvedPopoverWidth),
+            maxHeight: presentation == .window ? .infinity : nil,
+            alignment: .top
+        )
         .background(Color(nsColor: .windowBackgroundColor))
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: expandedGPUIds)
         .animation(.spring(response: 0.26, dampingFraction: 0.86), value: store.collapsedHostServerIDs)
@@ -88,6 +97,13 @@ struct StatusMenuView: View {
 
                 Spacer()
 
+                // Left of the buttons, so showing it takes space from the spacer
+                // instead of pushing the buttons sideways.
+                if store.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
                 if store.settings.recordsGPUHistory {
                     Button(action: onOpenHistory) {
                         Image(systemName: "chart.xyaxis.line")
@@ -110,10 +126,9 @@ struct StatusMenuView: View {
                     .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침"))
                 }
 
-                if store.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                }
+                displayModeButtons
+
+                headerIconButton("gearshape", help: t("Settings", "설정"), action: onOpenSettings)
             }
 
             if store.totalGPUCount > 0 {
@@ -121,8 +136,8 @@ struct StatusMenuView: View {
                     SummaryPill(title: t("Avg", "평균"), value: "\(store.fleetAverageUtilization)%")
                     SummaryPill(title: t("Busy", "사용중"), value: "\(store.fleetBusyCount)/\(store.totalGPUCount)")
                     SummaryPill(title: t("Proc", "프로세스"), value: "\(store.totalProcessCount)")
-                    if let latestSnapshotDate = store.latestSnapshotDate {
-                        UpdatedPill(date: latestSnapshotDate, language: language)
+                    if let oldestSnapshotDate = store.oldestSnapshotDate {
+                        UpdatedPill(date: oldestSnapshotDate, language: language)
                     }
                 }
             } else {
@@ -130,10 +145,6 @@ struct StatusMenuView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Text(t("Right-click the menu bar item for settings and quit.", "설정과 종료는 메뉴바 아이콘 우클릭으로 열 수 있습니다."))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
 
             if store.shouldHighlightMyProcesses, store.configuredServerCount == 1, let detectedSSHUsername = store.detectedSSHUsername {
                 Label(
@@ -161,6 +172,39 @@ struct StatusMenuView: View {
         )
     }
 
+    @ViewBuilder
+    private var displayModeButtons: some View {
+        switch presentation {
+        case .popover:
+            headerIconButton("macwindow", help: t("Show as Window", "창으로 보기")) {
+                store.setDisplayMode(.window)
+            }
+        case .window:
+            let pinned = store.settings.keepsWindowOnTop
+            headerIconButton(pinned ? "pin.fill" : "pin", help: pinned
+                ? t("Stop keeping the window on top", "항상 위에 표시 끄기")
+                : t("Keep Window on Top", "항상 위에 표시"), tint: pinned ? .accentColor : .primary) {
+                store.setKeepsWindowOnTop(!pinned)
+            }
+            .accessibilityAddTraits(pinned ? .isSelected : [])
+
+            headerIconButton("menubar.arrow.up.rectangle", help: t("Show as Popover", "팝오버로 보기")) {
+                store.setDisplayMode(.popover)
+            }
+        }
+    }
+
+    private func headerIconButton(_ systemImage: String, help: String, tint: Color = .primary, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .semibold))
+        }
+        .buttonStyle(.plain)
+        .foregroundStyle(tint)
+        .help(help)
+        .accessibilityLabel(help)
+    }
+
     private var headerTitle: String {
         guard store.settings.isConfigured else {
             return t("No server configured", "서버 미설정")
@@ -175,7 +219,7 @@ struct StatusMenuView: View {
 
     private var headerEmptyStateText: String {
         if !store.settings.isConfigured {
-            return t("Right-click the menu bar item and open Settings to configure a server.", "우클릭 메뉴에서 Settings를 열어 서버를 설정하세요.")
+            return t("Open Settings with the gear button to configure a server.", "톱니바퀴 버튼으로 설정을 열어 서버를 추가하세요.")
         }
 
         if store.pollableServerCount == 0 {
@@ -191,6 +235,40 @@ struct StatusMenuView: View {
                 serverSection(state)
             }
         }
+    }
+
+    private func serverToggleHelp(_ state: ServerRuntimeState) -> String {
+        let action = store.isServerExpanded(for: state.id)
+            ? t("Collapse this server", "이 서버 접기")
+            : t("Expand this server", "이 서버 펼치기")
+        guard let takenAt = state.snapshot?.takenAt else { return action }
+        let time = takenAt.formatted(date: .omitted, time: .standard)
+        return action + "\n" + t("Last update: \(time)", "마지막 업데이트: \(time)")
+    }
+
+    /// Shown only when a server has missed refreshes, so a growing "Updated" value
+    /// in the summary points to the server behind it.
+    @ViewBuilder
+    private func staleDataLabel(_ state: ServerRuntimeState) -> some View {
+        // Re-evaluated whenever the popover redraws, which happens on every refresh
+        // attempt of any server; the age inside keeps ticking on its own.
+        if state.server.isEnabled, let takenAt = state.snapshot?.takenAt,
+           NVBeaconStore.isSnapshotStale(takenAt: takenAt, pollIntervalSeconds: store.settings.pollIntervalSeconds) {
+            TimelineView(.periodic(from: .now, by: 5)) { context in
+                let age = Self.ageText(context.date.timeIntervalSince(takenAt), language: language)
+                Label(t("Last update \(age) ago", "마지막 업데이트 \(age) 전"), systemImage: "clock.badge.exclamationmark")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .help(state.lastErrorMessage ?? "")
+            }
+        }
+    }
+
+    nonisolated static func ageText(_ seconds: TimeInterval, language: AppInterfaceLanguage) -> String {
+        let seconds = max(Int(seconds), 0)
+        if seconds < 60 { return language.text("\(seconds)s", "\(seconds)초") }
+        if seconds < 3_600 { return language.text("\(seconds / 60)m", "\(seconds / 60)분") }
+        return language.text("\(seconds / 3_600)h \(seconds % 3_600 / 60)m", "\(seconds / 3_600)시간 \(seconds % 3_600 / 60)분")
     }
 
     private func serverSection(_ state: ServerRuntimeState) -> some View {
@@ -210,9 +288,7 @@ struct StatusMenuView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(store.isServerExpanded(for: state.id)
-                      ? t("Collapse this server", "이 서버 접기")
-                      : t("Expand this server", "이 서버 펼치기"))
+                .help(serverToggleHelp(state))
                 .accessibilityValue(store.isServerExpanded(for: state.id) ? t("Expanded", "펼침") : t("Collapsed", "접힘"))
 
                 if !state.server.isEnabled {
@@ -228,6 +304,11 @@ struct StatusMenuView: View {
                 }
 
                 Spacer(minLength: 8)
+
+                if state.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
 
                 if !store.isServerExpanded(for: state.id) {
                     if let snapshot = state.snapshot {
@@ -254,12 +335,9 @@ struct StatusMenuView: View {
                     .foregroundStyle(.primary)
                     .help(t("Refresh this server now", "이 서버를 지금 새로고침"))
                 }
-
-                if state.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
-                }
             }
+
+            staleDataLabel(state)
 
             if store.isServerExpanded(for: state.id) {
                 serverDetails(state)
@@ -430,58 +508,9 @@ private struct GPUListRow: View {
                 .help(isWatchingIdle ? t("Disable GPU idle alert", "GPU idle 알림 해제") : t("Enable GPU idle alert", "GPU idle 알림 받기"))
 
                 Button(action: toggleExpansion) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        HStack(alignment: .firstTextBaseline, spacing: 8) {
-                            Text("GPU \(gpu.index)")
-                                .font(.headline)
-
-                            Text(gpu.name)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-
-                            Spacer(minLength: 8)
-
-                            Text("\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.primary)
-                                .monospacedDigit()
-
-                            if hasCurrentUserProcess {
-                                Text(t("Mine", "내 프로세스"))
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(.green)
-                                    .padding(.horizontal, 6)
-                                    .padding(.vertical, 2)
-                                    .background(
-                                        Capsule(style: .continuous)
-                                            .fill(Color.green.opacity(0.12))
-                                    )
-                            }
-
-                            Image(systemName: isExpanded ? "chevron.up.circle.fill" : "chevron.down.circle.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(isExpanded ? .orange : .secondary)
-                        }
-
-                        HStack(spacing: 10) {
-                            ThinMetricBar(
-                                title: "Util",
-                                valueText: "\(gpu.utilization)%",
-                                ratio: gpu.utilizationRatio,
-                                tint: Color(red: 0.93, green: 0.45, blue: 0.15)
-                            )
-
-                            ThinMetricBar(
-                                title: "Memory",
-                                valueText: "\(gpu.memoryUsagePercent)% · \(gpu.memoryUsedMB)/\(gpu.memoryTotalMB)MB",
-                                ratio: gpu.memoryUsageRatio,
-                                tint: Color(red: 0.12, green: 0.54, blue: 0.94)
-                            )
-                        }
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+                    GPUCardSummary(gpu: gpu, mine: hasCurrentUserProcess, badge: Text(t("Mine", "내 프로세스")),
+                                   expanded: isExpanded, expandable: true)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
@@ -538,20 +567,7 @@ private struct GPUListRow: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill((hasCurrentUserProcess ? Color.green : Color(nsColor: .controlBackgroundColor)).opacity(hasCurrentUserProcess ? 0.08 : 1))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .strokeBorder(
-                    isExpanded ? Color.orange.opacity(0.42) : (hasCurrentUserProcess ? Color.green.opacity(0.26) : Color.primary.opacity(0.05)),
-                    lineWidth: 1
-                )
-        )
+        .gpuCardSurface(mine: hasCurrentUserProcess, expanded: isExpanded)
     }
 }
 
@@ -763,7 +779,10 @@ private struct UpdatedPill: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             SummaryPill(title: language.text("Updated", "업데이트"), value: relativeText(referenceDate: context.date))
-                .help(date.formatted(date: .omitted, time: .standard))
+                .help(language.text(
+                    "Oldest data shown: \(date.formatted(date: .omitted, time: .standard))",
+                    "가장 오래된 데이터: \(date.formatted(date: .omitted, time: .standard))"
+                ))
         }
     }
 
@@ -777,54 +796,6 @@ private struct UpdatedPill: View {
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
         return "\(minutes)m \(remainingSeconds)s"
-    }
-}
-
-private struct ThinMetricBar: View {
-    let title: String
-    let valueText: String
-    let ratio: Double
-    let tint: Color
-
-    private var clampedRatio: Double {
-        min(max(ratio, .zero), 1.0)
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 6) {
-                Text(title)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 4)
-
-                Text(valueText)
-                    .font(.caption2.monospacedDigit())
-                    .lineLimit(1)
-            }
-
-            GeometryReader { proxy in
-                ZStack(alignment: .leading) {
-                    Capsule(style: .continuous)
-                        .fill(Color.primary.opacity(0.08))
-
-                    if clampedRatio > 0 {
-                        Capsule(style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [tint.opacity(0.72), tint],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .frame(width: max(8, proxy.size.width * clampedRatio))
-                    }
-                }
-            }
-            .frame(height: 6)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

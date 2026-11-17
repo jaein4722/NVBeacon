@@ -114,6 +114,17 @@ public struct HostMemoryReading: Equatable, Sendable {
     }
 }
 
+extension GPUSnapshot {
+    /// Data older than two refresh intervals plus the SSH timeout has missed refreshes.
+    public static func staleAge(refreshIntervalSeconds: Int) -> TimeInterval {
+        TimeInterval(refreshIntervalSeconds * 2 + 15)
+    }
+
+    public func isStale(now: Date = Date(), refreshIntervalSeconds: Int) -> Bool {
+        now.timeIntervalSince(takenAt) > Self.staleAge(refreshIntervalSeconds: refreshIntervalSeconds)
+    }
+}
+
 public struct GPUSnapshot: Equatable, Sendable {
     public let takenAt: Date
     public let gpus: [GPUReading]

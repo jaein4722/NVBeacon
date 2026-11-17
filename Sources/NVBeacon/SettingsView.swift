@@ -13,6 +13,10 @@ struct SettingsView: View {
     @State private var selectedServerID = ""
     @State private var pendingPasswordAuthServerID: String?
     @State private var autoApplyRevision = 0
+    @State private var testingServerID: String?
+    @State private var showsGPUHistoryConfirmation = false
+    @State private var showsDeleteGPUHistoryConfirmation = false
+    @State private var connectionTestResults: [String: ConnectionTestOutcome] = [:]
     @State private var suppressAutoApply = true
     @State private var suppressPasswordAuthWarning = false
     @State private var showPasswordAuthWarning = false
@@ -75,7 +79,7 @@ struct SettingsView: View {
         case let (shortVersion?, _):
             return shortVersion
         default:
-            return "0.8.1"
+            return "0.9.0"
         }
     }
 
@@ -110,14 +114,24 @@ struct SettingsView: View {
                     Label(t("General", "일반"), systemImage: "gearshape")
                 }
 
+            serversPane
+                .tabItem {
+                    Label(t("Servers", "서버"), systemImage: "server.rack")
+                }
+
+            monitoringPane
+                .tabItem {
+                    Label(t("Monitoring", "수집"), systemImage: "waveform.path.ecg")
+                }
+
             notificationsPane
                 .tabItem {
                     Label(t("Notifications", "알림"), systemImage: "bell.badge")
                 }
 
-            appearancePane
+            displayPane
                 .tabItem {
-                    Label(t("Appearance", "표시"), systemImage: "menubar.rectangle")
+                    Label(t("Display", "표시"), systemImage: "menubar.rectangle")
                 }
 
             advancedPane
@@ -145,6 +159,19 @@ struct SettingsView: View {
         }
         .onChange(of: draft) { _, _ in
             scheduleAutoApply()
+        }
+        // A result describes the settings it ran with; drop it once they change.
+        .onChange(of: draft.servers) { oldServers, newServers in
+            for server in newServers where oldServers.first(where: { $0.id == server.id }).map({ !$0.hasSameConnection(as: server) }) ?? false {
+                connectionTestResults[server.id] = nil
+            }
+        }
+        // The popover, the window and the menu can change these while Settings is open.
+        .onChange(of: store.settings.displayMode) { _, mode in
+            if draft.displayMode != mode { draft.displayMode = mode }
+        }
+        .onChange(of: store.settings.keepsWindowOnTop) { _, keepsOnTop in
+            if draft.keepsWindowOnTop != keepsOnTop { draft.keepsWindowOnTop = keepsOnTop }
         }
         .task(id: autoApplyRevision) {
             guard autoApplyRevision > 0 else { return }
@@ -174,7 +201,7 @@ struct SettingsView: View {
             Text(
                 t(
                     "Password-based authentication stores the password in Keychain, then keeps it in memory for the current app session after you unlock it once. This is less secure than SSH keys and should be used only when key-based authentication is not available.",
-                    "비밀번호 기반 인증은 비밀번호를 Keychain에 저장한 뒤, 한 번 해제하면 현재 앱 세션 동안 메모리에 유지합니다. 이는 SSH 키 기반 인증보다 덜 안전하므로 키 기반 인증을 사용할 수 없을 때만 권장됩니다."
+                    "비밀번호 기반 인증은 비밀번호를 키체인에 저장한 뒤, 한 번 해제하면 현재 앱 세션 동안 메모리에 유지합니다. 이는 SSH 키 기반 인증보다 덜 안전하므로 키 기반 인증을 사용할 수 없을 때만 권장됩니다."
                 )
             )
         }
@@ -226,7 +253,107 @@ struct SettingsView: View {
         }
     }
 
+    // MARK: - Panes
+    //
+    // Settings rules (docs/SETTINGS.md): tabs by task; per-server settings only in
+    // Servers; item help as a caption under the label, section-wide notes as a
+    // footer; a switch's dependents are disabled, a picker's mode-specific fields
+    // appear only for that mode; destructive actions last, red and confirmed.
+
     private var generalPane: some View {
+        Form {
+            Section {
+                Toggle(
+                    t("Launch NVBeacon at login", "로그인 시 NVBeacon 실행"),
+                    isOn: Binding(
+                        get: { launchAtLoginManager.isEnabled },
+                        set: { launchAtLoginManager.setEnabled($0) }
+                    )
+                )
+                .disabled(!launchAtLoginManager.canConfigure)
+
+                LabeledContent {
+                    Button(t("Refresh", "새로고침")) {
+                        launchAtLoginManager.refreshStatus()
+                    }
+                    .disabled(!launchAtLoginManager.canConfigure)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Startup status", "시작 상태"))
+                        Text(launchAtLoginManager.lastErrorMessage ?? launchAtLoginManager.state.title(in: language))
+                            .font(.caption)
+                            .foregroundStyle(
+                                launchAtLoginManager.lastErrorMessage != nil
+                                ? .red
+                                : launchAtLoginManager.state == .enabled
+                                ? .green
+                                : launchAtLoginManager.state == .requiresApproval
+                                ? .orange
+                                : .secondary
+                            )
+                    }
+                }
+            } header: {
+                Text(t("Startup", "시작"))
+            }
+
+            Section {
+                Toggle(
+                    t("Check for updates automatically", "업데이트 자동 확인"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyChecksForUpdates },
+                        set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable)
+
+                Toggle(
+                    t("Download updates automatically", "업데이트 자동 다운로드"),
+                    isOn: Binding(
+                        get: { appUpdater.automaticallyDownloadsUpdates },
+                        set: { appUpdater.setAutomaticallyDownloadsUpdates($0) }
+                    )
+                )
+                .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
+
+                LabeledContent {
+                    Button(t("Check Now", "지금 확인")) {
+                        appUpdater.checkForUpdates()
+                    }
+                    .disabled(!appUpdater.canCheckForUpdates)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Check for updates", "업데이트 확인"))
+                        Text(lastUpdateCheckText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onAppear { appUpdater.refreshLastUpdateCheckDate() }
+            } header: {
+                Text(t("Updates", "업데이트"))
+            }
+
+            Section {
+                LabeledContent(t("Language", "언어")) {
+                    Picker(t("Language", "언어"), selection: $draft.languagePreference) {
+                        ForEach(AppLanguagePreference.allCases) { preference in
+                            Text(preference.title(in: language)).tag(preference)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                }
+
+                Toggle(t("Show Dock icon", "Dock 아이콘 표시"), isOn: $draft.showsDockIcon)
+            } header: {
+                Text(t("App", "앱"))
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var serversPane: some View {
         Form {
             Section {
                 serverPickerRow
@@ -245,159 +372,203 @@ struct SettingsView: View {
             Section {
                 selectedServerEditor
             } header: {
-                Text(t("Selected Server", "선택된 서버"))
+                Text(t("Selected Server", "선택한 서버"))
             }
 
             Section {
-                LabeledContent(t("Refresh Interval", "새로고침 주기")) {
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand),
+                    defaultCommand: AppSettings.defaultRemoteCommand,
+                    title: t("GPU Query Command", "GPU 조회 명령"),
+                    isEnabled: selectedServer != nil
+                )
+            } header: {
+                Text(t("GPU Query Command", "GPU 조회 명령"))
+            } footer: {
+                Text(t("Applies to the selected server. Leave empty to restore the default command.", "선택한 서버에 적용됩니다. 비워 두면 기본 명령으로 돌아갑니다."))
+            }
+
+            Section {
+                QueryCommandField(
+                    command: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand),
+                    defaultCommand: AppSettings.defaultHostCommand,
+                    title: t("Host Information Query Command", "호스트 정보 조회 명령"),
+                    isEnabled: selectedServer != nil
+                )
+            } header: {
+                Text(t("Host Information Query Command", "호스트 정보 조회 명령"))
+            } footer: {
+                Text(t("Collects CPU, RAM/Swap, and network for the selected server in the same SSH refresh. Keep the section markers and collection switches when customizing. Leave empty to restore the default command.", "선택한 서버의 CPU·RAM/Swap·네트워크를 같은 SSH 새로고침에서 수집합니다. 수정할 때 영역 구분자와 항목별 수집 조건을 유지하세요. 비워 두면 기본 명령으로 돌아갑니다."))
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    private var monitoringPane: some View {
+        Form {
+            Section {
+                LabeledContent {
                     NumericStepperField(
                         value: $draft.pollIntervalSeconds,
                         range: 1...300,
                         suffix: "s",
                         fieldWidth: 72
                     )
-                }
-
-                LabeledContent {
-                    HStack(spacing: 8) {
-                        Picker(t("SSH Connection", "SSH 연결"), selection: selectedServerConnectionReuseBinding()) {
-                            ForEach(SSHConnectionReuseMode.allCases) { mode in
-                                Text(mode.title(in: language)).tag(mode)
-                            }
-                        }
-                        .labelsHidden()
-                        .fixedSize()
-                        .disabled(selectedServer == nil)
-
-                        Button {
-                            showConnectionReuseHelp.toggle()
-                        } label: {
-                            Image(systemName: "questionmark.circle")
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .popover(isPresented: $showConnectionReuseHelp, arrowEdge: .top) {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text(t("About SSH connection reuse", "SSH 연결 재사용 안내"))
-                                    .font(.headline)
-                                Text((selectedServer?.sshConnectionReuseMode ?? .reuseWhenPossible).helpText(in: language))
-                                    .font(.callout)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            .padding(14)
-                            .frame(width: 320, alignment: .leading)
-                        }
-                    }
                 } label: {
-                    Text(t("SSH Connection", "SSH 연결"))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Refresh interval", "새로고침 주기"))
+                        Text(t("1–300 s · Default 10 s", "1–300초 · 기본값 10초"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
+            } header: {
+                Text(t("Collection", "수집"))
+            } footer: {
+                Text(t("Applies to all servers.", "모든 서버에 적용됩니다."))
+            }
 
-                LabeledContent(t("Busy Detection", "Busy 판정")) {
-                    Picker(t("Busy Detection", "Busy 판정"), selection: $draft.busyDetectionMode) {
+            Section {
+                LabeledContent {
+                    Picker(t("Busy GPU detection", "사용 중 판정"), selection: $draft.busyDetectionMode) {
                         ForEach(BusyDetectionMode.allCases) { mode in
                             Text(mode.title(in: language)).tag(mode)
                         }
                     }
                     .labelsHidden()
                     .fixedSize()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Busy GPU detection", "사용 중 판정"))
+                        Text(draft.busyDetectionMode.detailText(in: language))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 if draft.busyDetectionMode == .memoryThreshold || draft.busyDetectionMode == .activeProcessOrMemoryThreshold {
-                    LabeledContent(t("Busy Memory Threshold", "Busy 메모리 임계치")) {
+                    LabeledContent {
                         NumericStepperField(
                             value: $draft.busyMemoryThresholdMB,
                             range: 0...10_240,
                             suffix: "MB",
                             fieldWidth: 82
                         )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t("Memory threshold", "메모리 기준"))
+                            Text(t("0–10,240 MB · Default 50 MB", "0–10,240MB · 기본값 50MB"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
                 if draft.busyDetectionMode == .utilizationThreshold {
-                    LabeledContent(t("Busy Util Threshold", "Busy 사용률 임계치")) {
+                    LabeledContent {
                         NumericStepperField(
                             value: $draft.busyUtilizationThresholdPercent,
                             range: 0...100,
                             suffix: "%",
                             fieldWidth: 72
                         )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t("Utilization threshold", "사용률 기준"))
+                            Text(t("0–100% · Default 10%", "0–100% · 기본값 10%"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Toggle(isOn: $draft.highlightsMyProcesses) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Highlight my processes", "내 프로세스 강조"))
+                        Text(t("Detect the SSH user's processes and highlight matching GPUs and rows. Turning this off also skips the extra owner checks.", "SSH 사용자의 프로세스를 찾아 해당 GPU와 행을 강조합니다. 끄면 추가 소유자 확인도 하지 않습니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             } header: {
-                Text(t("Polling", "폴링"))
+                Text(t("GPUs and Processes", "GPU와 프로세스"))
             }
 
             Section {
                 Toggle(t("Collect host information", "호스트 정보 수집"), isOn: $draft.collectsHostInfo)
-                if draft.collectsHostInfo {
-                    Toggle("CPU", isOn: $draft.collectsHostCPU)
-                    Toggle(t("Memory (RAM / Swap)", "메모리 (RAM / Swap)"), isOn: $draft.collectsHostMemory)
-                    Toggle(t("Network", "네트워크"), isOn: $draft.showsNetworkUsage)
-                }
+                Toggle("CPU", isOn: $draft.collectsHostCPU)
+                    .disabled(!draft.collectsHostInfo)
+                Toggle(t("Memory (RAM / Swap)", "메모리 (RAM / Swap)"), isOn: $draft.collectsHostMemory)
+                    .disabled(!draft.collectsHostInfo)
+                Toggle(t("Network", "네트워크"), isOn: $draft.showsNetworkUsage)
+                    .disabled(!draft.collectsHostInfo)
             } header: {
                 Text(t("Host Information", "호스트 정보"))
             } footer: {
-                Text(t("These settings apply to all servers. Disabled items are not collected. Collapsing a server's host information only hides it; collection continues.", "모든 서버에 적용됩니다. 끈 항목은 수집하지 않습니다. 호스트 정보를 접으면 화면에서만 숨겨지고 수집은 계속됩니다."))
+                Text(t("Disabled items are not collected. Collapsing a server's host information in the popover only hides it; collection continues.", "끈 항목은 수집하지 않습니다. 팝오버에서 호스트 정보를 접으면 화면에서만 숨겨지고 수집은 계속됩니다."))
             }
 
             Section {
-                Toggle(
-                    t("Launch NVBeacon at login", "로그인 시 NVBeacon 자동 시작"),
-                    isOn: Binding(
-                        get: { launchAtLoginManager.isEnabled },
-                        set: { launchAtLoginManager.setEnabled($0) }
-                    )
-                )
-                .disabled(!launchAtLoginManager.canConfigure)
-
-                LabeledContent(t("Startup Status", "시작 상태")) {
-                    Text(launchAtLoginManager.state.title(in: language))
-                        .foregroundStyle(
-                            launchAtLoginManager.state == .enabled
-                            ? .green
-                            : launchAtLoginManager.state == .requiresApproval
-                            ? .orange
-                            : .secondary
-                        )
+                Toggle(isOn: gpuHistoryRecordingBinding) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Record GPU history", "GPU 기록 저장"))
+                        Text(t("Keep 24 hours of per-user GPU utilization on this Mac. Open it from the chart button in the popover.", "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장합니다. 팝오버의 차트 버튼으로 엽니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                if let lastErrorMessage = launchAtLoginManager.lastErrorMessage {
-                    Text(lastErrorMessage)
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                LabeledContent {
+                    Button(t("Delete History…", "기록 삭제…"), role: .destructive) {
+                        showsDeleteGPUHistoryConfirmation = true
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Saved history", "저장된 기록"))
+                        Text(t("Turning recording off keeps the saved history until you delete it.", "기록을 꺼도 저장된 기록은 삭제할 때까지 남아 있습니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
-
-                Button(t("Refresh Startup Status", "시작 상태 새로고침")) {
-                    launchAtLoginManager.refreshStatus()
-                }
-                .disabled(!launchAtLoginManager.canConfigure)
             } header: {
-                Text(t("Startup", "시작"))
-            }
-
-            Section {
-                Toggle(
-                    t("Automatically check for updates", "자동으로 업데이트 확인"),
-                    isOn: Binding(
-                        get: { appUpdater.automaticallyChecksForUpdates },
-                        set: { appUpdater.setAutomaticallyChecksForUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdater.availability.isAvailable)
-
-                Toggle(
-                    t("Automatically download updates", "업데이트 자동 다운로드"),
-                    isOn: Binding(
-                        get: { appUpdater.automaticallyDownloadsUpdates },
-                        set: { appUpdater.setAutomaticallyDownloadsUpdates($0) }
-                    )
-                )
-                .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
-            } header: {
-                Text(t("Updates", "업데이트"))
+                Text(t("GPU History", "GPU 기록"))
+            } footer: {
+                Text(t("Each server runs nvidia-smi pmon at most once a minute while recording.", "기록하는 동안 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다."))
             }
         }
         .formStyle(.grouped)
+        .alert(t("Record GPU history?", "GPU 기록을 저장할까요?"), isPresented: $showsGPUHistoryConfirmation) {
+            Button(t("Record", "저장")) {
+                draft.recordsGPUHistory = true
+            }
+            Button(t("Cancel", "취소"), role: .cancel) {}
+        } message: {
+            Text(t("NVBeacon will keep 24 hours of per-user GPU utilization on this Mac, including the user names of other people on shared servers. Each server runs nvidia-smi pmon (about one second) at most once a minute. Storage is small: about 0.3 MB per GPU. You can delete the history at any time.",
+                   "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장합니다. 공용 서버라면 다른 사용자의 이름도 함께 저장됩니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon(약 1초)을 실행합니다. 저장 공간은 GPU 하나당 약 0.3MB로 작습니다. 기록은 언제든 삭제할 수 있습니다."))
+        }
+        .alert(t("Delete GPU history?", "GPU 기록을 삭제할까요?"), isPresented: $showsDeleteGPUHistoryConfirmation) {
+            Button(t("Delete", "삭제"), role: .destructive) {
+                Task { await store.deleteGPUHistory() }
+            }
+            Button(t("Cancel", "취소"), role: .cancel) {}
+        } message: {
+            Text(t("All saved GPU history on this Mac will be deleted. This cannot be undone.",
+                   "이 Mac에 저장된 GPU 기록이 모두 삭제됩니다. 되돌릴 수 없습니다."))
+        }
+    }
+
+    /// Turning recording on asks first; turning it off does not.
+    private var gpuHistoryRecordingBinding: Binding<Bool> {
+        Binding(
+            get: { draft.recordsGPUHistory },
+            set: { isOn in
+                if isOn && !draft.recordsGPUHistory {
+                    showsGPUHistoryConfirmation = true
+                } else {
+                    draft.recordsGPUHistory = isOn
+                }
+            }
+        )
     }
 
     private var notificationsPane: some View {
@@ -430,40 +601,54 @@ struct SettingsView: View {
             }
 
             Section {
-                LabeledContent(t("Idle Duration", "Idle 시간")) {
+                LabeledContent {
                     NumericStepperField(
                         value: $draft.idleNotificationSeconds,
                         range: 1...3_600,
                         suffix: "s",
                         fieldWidth: 72
                     )
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Idle duration", "유휴 시간"))
+                        Text(t("1–3,600 s · Default 300 s", "1–3,600초 · 기본값 300초"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                LabeledContent(t("Memory Threshold", "메모리 임계치")) {
+                LabeledContent {
                     NumericStepperField(
                         value: $draft.idleMemoryThresholdMB,
                         range: 0...10_240,
                         suffix: "MB",
                         fieldWidth: 88
                     )
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Memory threshold", "메모리 기준"))
+                        Text(t("0–10,240 MB · Default 50 MB", "0–10,240MB · 기본값 50MB"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             } header: {
-                Text(t("GPU Idle Alert", "GPU Idle 알림"))
+                Text(t("GPU Idle Alert", "GPU 유휴 알림"))
             } footer: {
-                Text(t("Starred GPUs send an alert when they stay idle.", "별표된 GPU가 오랫동안 쉬고 있으면 알림을 보냅니다."))
+                Text(t("Starred GPUs send an alert when they stay idle this long with memory at or below the threshold.", "별표한 GPU가 이 시간 동안 기준 이하의 메모리로 쉬고 있으면 알림을 보냅니다."))
             }
 
             Section {
                 activeWatchesContent
             } header: {
-                Text(t("Active Watches", "활성 Watch"))
+                Text(t("Active Watches", "감시 중"))
             }
 
             Section {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if store.recentNotificationHistory.isEmpty {
-                            Text(t("There is no notification history in the last 24 hours.", "최근 24시간 내 notification 설정 내역이 없습니다."))
+                            Text(t("There is no notification history in the last 24 hours.", "최근 24시간 동안 알림 기록이 없습니다."))
                                 .foregroundStyle(.secondary)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                                 .padding(.vertical, 8)
@@ -486,17 +671,45 @@ struct SettingsView: View {
         .formStyle(.grouped)
     }
 
-    private var appearancePane: some View {
+    private var displayPane: some View {
         Form {
             Section {
-                LabeledContent(t("Language", "언어")) {
-                    Picker(t("Language", "언어"), selection: $draft.languagePreference) {
-                        ForEach(AppLanguagePreference.allCases) { preference in
-                            Text(preference.title(in: language)).tag(preference)
+                LabeledContent {
+                    Picker(t("Menu bar text", "메뉴바 텍스트"), selection: $draft.menuBarDisplayMode) {
+                        ForEach(MenuBarDisplayMode.allCases) { mode in
+                            Text(mode.title(in: language)).tag(mode)
                         }
                     }
                     .labelsHidden()
                     .fixedSize()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Menu bar text", "메뉴바 텍스트"))
+                        Text(draft.menuBarDisplayMode.detailText(in: language))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                LabeledContent {
+                    Picker(t("Display mode", "표시 방식"), selection: $draft.displayMode) {
+                        ForEach(MonitorDisplayMode.allCases) { mode in
+                            Text(mode.title(in: language)).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Display mode", "표시 방식"))
+                        Text(t("Window keeps NVBeacon open like a normal app window.", "창은 NVBeacon을 일반 앱 창처럼 계속 띄워 둡니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+
+                if draft.displayMode == .window {
+                    Toggle(t("Keep window on top", "창을 항상 위에 표시"), isOn: $draft.keepsWindowOnTop)
                 }
 
                 LabeledContent(t("Theme", "테마")) {
@@ -508,9 +721,11 @@ struct SettingsView: View {
                     .labelsHidden()
                     .fixedSize()
                 }
+            } header: {
+                Text(t("Menu Bar and Window", "메뉴바와 창"))
+            }
 
-                Toggle(t("Show Dock icon", "Dock 아이콘 표시"), isOn: $draft.showsDockIcon)
-
+            Section {
                 LabeledContent {
                     NumericStepperField(
                         value: $draft.popoverWidth,
@@ -521,47 +736,54 @@ struct SettingsView: View {
                     )
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(t("Popover Width", "팝오버 너비"))
+                        Text(t("Width", "너비"))
                         Text(t("480–800 pt · Default 500 pt", "480–800pt · 기본값 500pt"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
 
-                Toggle(t("Close popover on outside click", "바깥 클릭 시 팝오버 닫기"), isOn: $draft.closesPopoverOnOutsideClick)
-
-                Text(draft.closesPopoverOnOutsideClick
-                     ? t("Automatically close the popover when you click outside it or switch to another app.", "팝오버 바깥 영역이나 다른 앱을 클릭하면 팝오버를 자동으로 닫습니다.")
-                     : t("Keep the popover open until you explicitly toggle it again.", "팝오버를 직접 다시 클릭할 때까지 유지합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle(t("Highlight my processes", "내 프로세스 강조"), isOn: $draft.highlightsMyProcesses)
-
-                Text(draft.highlightsMyProcesses
-                     ? t("Detect the SSH user's processes and highlight matching GPUs and process rows.", "SSH 사용자 프로세스를 감지해 해당 GPU와 프로세스 행을 강조합니다.")
-                     : t("Turn off per-user process highlighting and skip the extra ownership checks during polling.", "사용자별 프로세스 강조를 끄고 polling 중 추가 ownership 확인도 생략합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Toggle(t("Record GPU history", "GPU 기록 저장"), isOn: $draft.recordsGPUHistory)
-
-                Text(t("Keep 24 hours of per-user GPU utilization on this Mac and open it from the chart button in the popover. Adds one nvidia-smi pmon sample per server at most once a minute.",
-                       "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장하고 팝오버의 차트 버튼으로 엽니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                LabeledContent(t("Display", "표시")) {
-                    Picker(t("Display", "표시"), selection: $draft.menuBarDisplayMode) {
-                        ForEach(MenuBarDisplayMode.allCases) { mode in
+                LabeledContent {
+                    Picker(t("Height", "높이"), selection: $draft.popoverHeightMode) {
+                        ForEach(PopoverHeightMode.allCases) { mode in
                             Text(mode.title(in: language)).tag(mode)
                         }
                     }
                     .labelsHidden()
                     .fixedSize()
+                } label: {
+                    Text(t("Height", "높이"))
+                }
+
+                if draft.popoverHeightMode == .fixed {
+                    LabeledContent {
+                        NumericStepperField(
+                            value: $draft.popoverHeight,
+                            range: AppSettings.popoverHeightRange,
+                            suffix: "pt",
+                            fieldWidth: 72,
+                            step: 20
+                        )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t("Fixed height", "고정 높이"))
+                            Text(t("320–1100 pt · Default 600 pt", "320–1100pt · 기본값 600pt"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+
+                Toggle(isOn: $draft.closesPopoverOnOutsideClick) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Close on outside click", "바깥을 클릭하면 닫기"))
+                        Text(t("Also closes when you switch to another app.", "다른 앱으로 전환해도 닫습니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             } header: {
-                Text(t("Menu Bar", "메뉴바"))
+                Text(t("Popover", "팝오버"))
             }
         }
         .formStyle(.grouped)
@@ -569,32 +791,6 @@ struct SettingsView: View {
 
     private var advancedPane: some View {
         Form {
-            Section {
-                QueryCommandField(
-                    command: selectedServerStringBinding(\.remoteCommand, defaultValue: AppSettings.defaultRemoteCommand),
-                    defaultCommand: AppSettings.defaultRemoteCommand,
-                    title: t("GPU Query Command", "GPU 조회 명령"),
-                    isEnabled: selectedServer != nil
-                )
-            } header: {
-                Text(t("GPU Query Command", "GPU 조회 명령"))
-            } footer: {
-                Text(t("Applies to the selected server. Leave empty to restore the default command.", "선택된 서버에 적용됩니다. 비워두면 기본 명령으로 돌아갑니다."))
-            }
-
-            Section {
-                QueryCommandField(
-                    command: selectedServerStringBinding(\.hostCommand, defaultValue: AppSettings.defaultHostCommand),
-                    defaultCommand: AppSettings.defaultHostCommand,
-                    title: t("Host Information Query Command", "호스트 정보 수집 명령"),
-                    isEnabled: selectedServer != nil
-                )
-            } header: {
-                Text(t("Host Information Query Command", "호스트 정보 수집 명령"))
-            } footer: {
-                Text(t("Collects CPU, RAM/Swap, and network for the selected server in the same SSH refresh. Keep the section markers and collection switches when customizing. Leave empty to restore the default command.", "선택된 서버의 CPU·RAM/Swap·네트워크를 같은 SSH 새로고침에서 수집합니다. 수정할 때 영역 구분자와 항목별 수집 조건을 유지하세요. 비워두면 기본 명령으로 돌아갑니다."))
-            }
-
             Section {
                 HStack {
                     Button(t("Export Servers…", "서버 내보내기…"), action: exportServerBackup)
@@ -609,11 +805,11 @@ struct SettingsView: View {
                     Text(utilityNotice).font(.caption).foregroundStyle(.secondary)
                 }
             } header: {
-                Text(t("Server Settings Backup", "서버 설정 백업"))
+                Text(t("Server Backup and Transfer", "서버 백업과 전송"))
             } footer: {
                 Text(t(
                     "Exports host names, key-file paths and remote commands. Keychain passwords, private-key contents and notification watches are excluded. Imports add disabled servers without replacing existing settings.",
-                    "호스트·키 파일 경로·원격 명령을 내보냅니다. Keychain 비밀번호·개인 키 내용·알림 감시는 제외됩니다. 가져온 서버는 비활성 상태로 추가되며 기존 설정을 덮어쓰지 않습니다."
+                    "호스트·키 파일 경로·원격 명령을 내보냅니다. 키체인 비밀번호·개인 키 내용·알림 감시는 제외됩니다. 가져온 서버는 비활성 상태로 추가되며 기존 설정을 덮어쓰지 않습니다."
                 ))
             }
 
@@ -644,12 +840,10 @@ struct SettingsView: View {
                     }
                 } message: {
                     Text(t("This removes every server, its saved password in Keychain, all GPU and process alerts, and the notification history. It cannot be undone.",
-                           "모든 서버와 Keychain에 저장된 비밀번호, GPU·프로세스 알림, 알림 기록이 삭제됩니다. 되돌릴 수 없습니다."))
+                           "모든 서버와 키체인에 저장된 비밀번호, GPU·프로세스 알림, 알림 기록이 삭제됩니다. 되돌릴 수 없습니다."))
                 }
             } header: {
-                Text(t("Saved State", "저장 상태"))
-            } footer: {
-                Text(t("Clears saved app settings.", "저장된 앱 설정을 지웁니다."))
+                Text(t("Saved Settings", "저장된 설정"))
             }
         }
         .formStyle(.grouped)
@@ -684,12 +878,12 @@ struct SettingsView: View {
 
                     HStack(spacing: 10) {
                         Link(destination: repoURL) {
-                            AboutActionLabel(title: "Repository", systemImage: "shippingbox")
+                            AboutActionLabel(title: t("Repository", "저장소"), systemImage: "shippingbox")
                         }
                         .buttonStyle(.plain)
 
                         Link(destination: profileURL) {
-                            AboutActionLabel(title: "GitHub Profile", systemImage: "person.crop.circle")
+                            AboutActionLabel(title: t("GitHub Profile", "GitHub 프로필"), systemImage: "person.crop.circle")
                         }
                         .buttonStyle(.plain)
                     }
@@ -716,38 +910,9 @@ struct SettingsView: View {
                     AboutInfoRow(title: t("Developer", "개발자"), value: "github.com/jaein4722")
                 }
 
-                AboutCard(title: t("Current Configuration", "현재 설정")) {
-                    AboutInfoRow(
-                        title: t("Servers", "서버"),
-                        value: store.settings.isConfigured
-                            ? t("\(store.pollableServerCount) enabled / \(store.configuredServerCount) configured", "\(store.pollableServerCount)개 활성 / \(store.configuredServerCount)개 설정")
-                            : t("Not configured", "미설정")
-                    )
-                    AboutInfoRow(
-                        title: t("Refresh Interval", "새로고침 주기"),
-                        value: t("\(store.settings.pollIntervalSeconds) seconds", "\(store.settings.pollIntervalSeconds)초")
-                    )
-                    AboutInfoRow(title: t("Menu Bar", "메뉴바"), value: store.settings.menuBarDisplayMode.title(in: language))
-                    AboutInfoRow(title: t("Language", "언어"), value: store.settings.languagePreference.title(in: language))
-                    AboutInfoRow(title: t("Theme", "테마"), value: store.settings.appearanceMode.title(in: language))
-                    AboutInfoRow(title: t("Updates", "업데이트"), value: appUpdater.availability.title(in: language))
-                    AboutInfoRow(
-                        title: t("Dock Icon", "Dock 아이콘"),
-                        value: store.settings.showsDockIcon ? t("Visible", "표시") : t("Hidden", "숨김")
-                    )
-                    AboutInfoRow(
-                        title: t("Notifications", "알림"),
-                        value: store.notificationPermissionState.title(in: language)
-                    )
-                    AboutInfoRow(
-                        title: t("Busy Detection", "Busy 판정"),
-                        value: store.settings.busyDetectionMode.title(in: language)
-                    )
-                }
-
                 AboutCard(title: t("Runtime Snapshot", "현재 상태")) {
                     AboutInfoRow(title: t("Process Watches", "프로세스 감시"), value: "\(store.watchedProcesses.count)")
-                    AboutInfoRow(title: t("GPU Idle Watches", "GPU idle 감시"), value: "\(store.watchedIdleGPUs.count)")
+                    AboutInfoRow(title: t("GPU Idle Watches", "GPU 유휴 감시"), value: "\(store.watchedIdleGPUs.count)")
 
                     if store.totalGPUCount > 0 {
                         AboutInfoRow(title: t("Visible GPUs", "표시 중인 GPU"), value: "\(store.totalGPUCount)")
@@ -767,6 +932,20 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var lastUpdateCheckText: String {
+        guard appUpdater.availability.isAvailable else {
+            return appUpdater.availability.title(in: language)
+        }
+        guard let date = appUpdater.lastUpdateCheckDate else {
+            return t("Not checked yet", "아직 확인하지 않음")
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language == .korean ? "ko_KR" : "en_US")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return t("Last checked: \(formatter.string(from: date))", "마지막 확인: \(formatter.string(from: date))")
     }
 
     private func scheduleAutoApply() {
@@ -1089,9 +1268,9 @@ struct SettingsView: View {
 
     private var savedHostAddRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            LabeledContent(t("Saved Host", "저장된 호스트")) {
+            LabeledContent(t("Saved host", "저장된 호스트")) {
                 HStack(spacing: 8) {
-                    Picker(t("Saved Host", "저장된 호스트"), selection: $selectedSSHConfigAlias) {
+                    Picker(t("Saved host", "저장된 호스트"), selection: $selectedSSHConfigAlias) {
                         Text(t("Select a saved host", "저장된 호스트 선택")).tag("")
 
                         ForEach(sshConfigHosts) { host in
@@ -1129,7 +1308,7 @@ struct SettingsView: View {
                     .frame(width: 240)
             }
 
-            LabeledContent(t("SSH Target", "SSH 대상")) {
+            LabeledContent(t("SSH target", "SSH 대상")) {
                 TextField("", text: selectedServerStringBinding(\.sshTarget), prompt: Text("gpu-prod or user@host"))
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -1137,7 +1316,7 @@ struct SettingsView: View {
                     .frame(width: 320)
             }
 
-            LabeledContent("SSH Port") {
+            LabeledContent(t("SSH port", "SSH 포트")) {
                 TextField("", text: selectedServerStringBinding(\.sshPort), prompt: Text(t("Optional", "선택 사항")))
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -1145,8 +1324,8 @@ struct SettingsView: View {
                     .frame(width: 120)
             }
 
-            LabeledContent(t("Auth Method", "인증 방식")) {
-                Picker(t("Auth Method", "인증 방식"), selection: selectedServerAuthModeBinding()) {
+            LabeledContent(t("Authentication", "인증 방식")) {
+                Picker(t("Authentication", "인증 방식"), selection: selectedServerAuthModeBinding()) {
                     ForEach(SSHAuthenticationMode.allCases) { mode in
                         Text(mode.title(in: language)).tag(mode)
                     }
@@ -1155,7 +1334,7 @@ struct SettingsView: View {
                 .fixedSize()
             }
 
-            LabeledContent(t("Identity File", "Identity 파일")) {
+            LabeledContent(t("Key file", "키 파일")) {
                 TextField("", text: selectedServerStringBinding(\.sshIdentityFilePath), prompt: Text(t("Optional", "선택 사항")))
                     .labelsHidden()
                     .textFieldStyle(.roundedBorder)
@@ -1163,13 +1342,47 @@ struct SettingsView: View {
                     .frame(width: 320)
             }
 
+            LabeledContent {
+                HStack(spacing: 8) {
+                    Picker(t("SSH connection", "SSH 연결"), selection: selectedServerConnectionReuseBinding()) {
+                        ForEach(SSHConnectionReuseMode.allCases) { mode in
+                            Text(mode.title(in: language)).tag(mode)
+                        }
+                    }
+                    .labelsHidden()
+                    .fixedSize()
+
+                    Button {
+                        showConnectionReuseHelp.toggle()
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(t("About SSH connection reuse", "SSH 연결 재사용 안내"))
+                    .popover(isPresented: $showConnectionReuseHelp, arrowEdge: .top) {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(t("About SSH connection reuse", "SSH 연결 재사용 안내"))
+                                .font(.headline)
+                            Text(selectedServer.sshConnectionReuseMode.helpText(in: language))
+                                .font(.callout)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(14)
+                        .frame(width: 320, alignment: .leading)
+                    }
+                }
+            } label: {
+                Text(t("SSH connection", "SSH 연결"))
+            }
+
             if selectedServer.sshAuthenticationMode == .passwordBased {
-                LabeledContent(t("Password Session", "비밀번호 세션")) {
+                LabeledContent(t("Password session", "비밀번호 세션")) {
                     Text(selectedPasswordSessionState.title(in: language))
                         .foregroundStyle(passwordSessionTint(for: selectedPasswordSessionState))
                 }
 
-                LabeledContent(t("SSH Password", "SSH 비밀번호")) {
+                LabeledContent(t("SSH password", "SSH 비밀번호")) {
                     SecureField("", text: $draftPassword, prompt: Text(t("Optional", "선택 사항")))
                         .labelsHidden()
                         .textFieldStyle(.roundedBorder)
@@ -1197,22 +1410,70 @@ struct SettingsView: View {
                     .disabled(!selectedPasswordSessionState.supportsForgetAction)
                 }
             }
+            connectionTestRow(for: selectedServer)
         } else {
             Text(t("Add a server to start monitoring remote GPUs.", "원격 GPU 모니터링을 시작하려면 서버를 추가하세요."))
                 .foregroundStyle(.secondary)
         }
     }
 
+    private func connectionTestRow(for server: ServerConfig) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button(t("Test Connection", "연결 테스트")) {
+                    runConnectionTest(for: server)
+                }
+                .disabled(testingServerID != nil || server.sshTarget.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+                if testingServerID == server.id {
+                    ProgressView()
+                        .controlSize(.small)
+                    Text(t("Connecting…", "연결 중…"))
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if testingServerID != server.id, let outcome = connectionTestResults[server.id] {
+                switch outcome {
+                case .success(let gpuCount):
+                    Label(t("Connected · \(gpuCount) GPUs", "연결됨 · GPU \(gpuCount)개"), systemImage: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                case .failure(let message):
+                    VStack(alignment: .leading, spacing: 2) {
+                        Label(DiagnosticsReport.errorCategoryTitle(message, in: language), systemImage: "xmark.octagon.fill")
+                            .foregroundStyle(.red)
+                        Text(message)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(4)
+                            .textSelection(.enabled)
+                    }
+                }
+            }
+        }
+    }
+
+    private func runConnectionTest(for server: ServerConfig) {
+        testingServerID = server.id
+        connectionTestResults[server.id] = nil
+        let typedPassword = server.sshAuthenticationMode == .passwordBased ? draftPassword : nil
+        Task { @MainActor in
+            let outcome = await store.testConnection(server, password: typedPassword)
+            connectionTestResults[server.id] = outcome
+            testingServerID = nil
+        }
+    }
+
     @ViewBuilder
     private var activeWatchesContent: some View {
         if store.watchedIdleGPUs.isEmpty && store.watchedProcesses.isEmpty {
-            Text(t("There are no configured notification watches.", "현재 설정된 notification watch가 없습니다."))
+            Text(t("There are no configured notification watches.", "현재 설정된 알림 감시가 없습니다."))
                 .foregroundStyle(.secondary)
         } else {
             VStack(alignment: .leading, spacing: 14) {
                 if !store.watchedIdleGPUs.isEmpty {
                     watchGroup(
-                        title: t("GPU Idle Alerts", "GPU Idle 알림"),
+                        title: t("GPU Idle Alerts", "GPU 유휴 알림"),
                         rows: store.watchedIdleGPUs.map { watch in
                             AnyView(
                                 NotificationWatchRow(
@@ -1221,7 +1482,7 @@ struct SettingsView: View {
                                     badgeTint: .yellow,
                                     title: watch.title,
                                     primaryMetadata: watch.subtitle,
-                                    secondaryMetadata: t("Idle \(draft.idleNotificationSeconds)s · <=\(draft.idleMemoryThresholdMB)MB", "Idle \(draft.idleNotificationSeconds)초 · <=\(draft.idleMemoryThresholdMB)MB"),
+                                    secondaryMetadata: t("Idle \(draft.idleNotificationSeconds)s · <=\(draft.idleMemoryThresholdMB)MB", "유휴 \(draft.idleNotificationSeconds)초 · \(draft.idleMemoryThresholdMB)MB 이하"),
                                     disableTitle: t("Disable", "해제"),
                                     removeAction: {
                                         store.removeIdleWatch(watch)

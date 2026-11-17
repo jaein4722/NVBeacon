@@ -1,224 +1,494 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="google-site-verification" content="gU78Teeo5bgsVUT1Getom-J1CIPsShfZbfrdI6ppVJg">
-    <title>NVBeacon | macOS menu bar app for remote NVIDIA GPU monitoring over SSH</title>
-    <meta
-      name="description"
-      content="NVBeacon is a native macOS menu bar app for remote NVIDIA GPU monitoring over SSH with nvidia-smi, process exit alerts, GPU idle notifications, and Sparkle updates."
-    >
-    <meta
-      name="keywords"
-      content="NVBeacon, macOS GPU monitor, NVIDIA GPU monitor, SSH GPU monitor, nvidia-smi macOS, menu bar app, remote GPU monitoring"
-    >
-    <link rel="canonical" href="https://jaein4722.github.io/NVBeacon/">
-    <link rel="icon" type="image/png" href="./assets/icon.png">
-    <meta property="og:type" content="website">
-    <meta property="og:title" content="NVBeacon">
-    <meta
-      property="og:description"
-      content="A native macOS menu bar app for remote NVIDIA GPU monitoring over SSH."
-    >
-    <meta property="og:url" content="https://jaein4722.github.io/NVBeacon/">
-    <meta property="og:image" content="https://jaein4722.github.io/NVBeacon/assets/popover-overview-dark.png">
-    <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="NVBeacon">
-    <meta
-      name="twitter:description"
-      content="Remote NVIDIA GPU monitoring from the macOS menu bar."
-    >
-    <meta name="twitter:image" content="https://jaein4722.github.io/NVBeacon/assets/popover-overview-dark.png">
-    <link rel="stylesheet" href="./styles.css">
-    <script type="application/ld+json">
-      {
-        "@context": "https://schema.org",
-        "@type": "SoftwareApplication",
-        "name": "NVBeacon",
-        "applicationCategory": "UtilitiesApplication",
-        "operatingSystem": "macOS 14+",
-        "description": "A native macOS menu bar app for remote NVIDIA GPU monitoring over SSH with nvidia-smi, process exit alerts, GPU idle notifications, and Sparkle updates.",
-        "url": "https://jaein4722.github.io/NVBeacon/",
-        "downloadUrl": "https://github.com/jaein4722/NVBeacon/releases",
-        "softwareVersion": "0.3.4",
-        "author": {
-          "@type": "Person",
-          "name": "jaein4722",
-          "url": "https://github.com/jaein4722"
-        },
-        "image": [
-          "https://jaein4722.github.io/NVBeacon/assets/icon.png",
-          "https://jaein4722.github.io/NVBeacon/assets/popover-overview.png",
-          "https://jaein4722.github.io/NVBeacon/assets/popover-overview-dark.png"
-        ],
-        "offers": {
-          "@type": "Offer",
-          "price": "0",
-          "priceCurrency": "USD"
-        }
-      }
-    </script>
-  </head>
-  <body>
-    <div class="page-shell">
-      <header class="hero">
-        <nav class="topbar">
-          <a class="brand" href="#top">
-            <img src="./assets/icon.png" alt="NVBeacon icon">
-            <span>NVBeacon</span>
-          </a>
-          <div class="topbar-links">
-            <a href="https://github.com/jaein4722/NVBeacon" target="_blank" rel="noreferrer">GitHub</a>
-            <a href="https://github.com/jaein4722/NVBeacon/releases" target="_blank" rel="noreferrer">Releases</a>
-            <a href="https://github.com/jaein4722/NVBeacon/issues" target="_blank" rel="noreferrer">Issues</a>
-          </div>
-        </nav>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="google-site-verification" content="gU78Teeo5bgsVUT1Getom-J1CIPsShfZbfrdI6ppVJg">
+  <title>NVBeacon: remote NVIDIA GPU monitoring over SSH for Mac, iPhone and iPad</title>
+  <meta name="description" content="NVBeacon shows every NVIDIA GPU on your servers over plain SSH with nvidia-smi, in your Mac menu bar and on iPhone and iPad. Nothing to install on the server, no account, free and open source.">
+  <meta name="theme-color" content="#f6f8f4" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#0b0f0c" media="(prefers-color-scheme: dark)">
+  <link rel="canonical" href="https://jaein4722.github.io/NVBeacon/">
+  <link rel="alternate" hreflang="en" href="https://jaein4722.github.io/NVBeacon/">
+  <link rel="alternate" hreflang="ko" href="https://jaein4722.github.io/NVBeacon/ko/">
+  <link rel="alternate" hreflang="x-default" href="https://jaein4722.github.io/NVBeacon/">
+  <link rel="icon" type="image/png" href="./assets/favicon-64.png">
+  <link rel="apple-touch-icon" href="./assets/apple-touch-icon.png">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="NVBeacon">
+  <meta property="og:title" content="NVBeacon: remote GPU monitoring over SSH">
+  <meta property="og:description" content="Every NVIDIA GPU on your servers, in your Mac menu bar and on iPhone and iPad. Nothing to install on the server.">
+  <meta property="og:url" content="https://jaein4722.github.io/NVBeacon/">
+  <meta property="og:image" content="https://jaein4722.github.io/NVBeacon/assets/social-preview.png">
+  <meta property="og:image:width" content="1280">
+  <meta property="og:image:height" content="640">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="ko_KR">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://jaein4722.github.io/NVBeacon/assets/social-preview.png">
+  <link rel="stylesheet" href="./styles.css">
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "NVBeacon",
+    "description": "Remote NVIDIA GPU monitoring over SSH with nvidia-smi, from the Mac menu bar and on iPhone and iPad. Nothing is installed on the server.",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "macOS 14 or later (Apple silicon), iOS 17 or later",
+    "url": "https://jaein4722.github.io/NVBeacon/",
+    "downloadUrl": [
+      "https://github.com/jaein4722/NVBeacon/releases/latest",
+      "https://apps.apple.com/app/nvbeacon/id6830951631"
+    ],
+    "image": "https://jaein4722.github.io/NVBeacon/assets/social-preview.png",
+    "license": "https://opensource.org/licenses/MIT",
+    "author": { "@type": "Person", "name": "jaein4722", "url": "https://github.com/jaein4722" },
+    "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+  }
+  </script>
+</head>
+<body>
+  <a class="skip-link" href="#content">Skip to content</a>
 
-        <section class="hero-grid" id="top">
-          <div class="hero-copy">
-            <div class="eyebrow">macOS menu bar GPU monitoring</div>
-            <h1>Remote NVIDIA GPU visibility without living in Terminal.</h1>
-            <p class="hero-text">
-              NVBeacon keeps an SSH-connected GPU server in your menu bar with
-              live utilization, process detail, exit notifications, idle alerts,
-              bilingual UI, and native Sparkle update support.
-            </p>
-            <div class="hero-actions">
-              <a class="button primary" href="https://github.com/jaein4722/NVBeacon/releases" target="_blank" rel="noreferrer">Download DMG</a>
-              <a class="button secondary" href="https://github.com/jaein4722/NVBeacon" target="_blank" rel="noreferrer">View on GitHub</a>
-            </div>
-            <div class="install-card">
-              <div class="install-label">Homebrew</div>
-              <pre><code>brew install --cask jaein4722/tap/nvbeacon</code></pre>
-            </div>
-          </div>
+  <header class="site-header">
+    <nav class="page-shell topbar" aria-label="Main">
+      <a class="brand" href="./"><img src="./assets/icon-256.png" alt="" width="32" height="32"><span>NVBeacon</span></a>
+      <div class="topbar-links">
+        <a class="nav-optional" href="#features">Features</a>
+        <a href="#download">Download</a>
+        <a class="nav-optional" href="#faq">FAQ</a>
+        <a href="https://github.com/jaein4722/NVBeacon">GitHub</a>
+        <a class="lang-switch" href="./ko/" hreflang="ko" lang="ko">한국어</a>
+      </div>
+    </nav>
+  </header>
 
-          <div class="hero-visual">
-            <div class="stat-card floating">
-              <div class="stat-label">Built for</div>
-              <div class="stat-value">SSH + nvidia-smi</div>
-              <div class="stat-subtitle">Remote GPU servers on macOS</div>
-            </div>
-            <img
-              class="hero-shot"
-              src="./assets/popover-overview-dark.png"
-              alt="NVBeacon dark mode popover showing multiple GPUs, process details, and alerts"
-            >
+  <main id="content">
+    <section class="hero">
+      <div class="beacon" aria-hidden="true"><span></span><span></span><span></span></div>
+      <div class="page-shell hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Free · Open source · Nothing to install on the server</p>
+          <h1>Your GPU servers, <em>at a glance.</em></h1>
+          <p class="hero-text">
+            NVBeacon runs <code>nvidia-smi</code> over plain SSH and shows what every GPU is doing:
+            utilization, memory and who is running what. Right in your Mac menu bar, and on iPhone and iPad.
+          </p>
+          <div class="hero-actions">
+            <a class="button primary" href="https://github.com/jaein4722/NVBeacon/releases/latest" data-dmg-link>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11m0 0l-4.5-4.5M12 15l4.5-4.5M5 19.5h14"/></svg>
+              Download for Mac
+            </a>
+            <a class="store-badge" href="https://apps.apple.com/app/nvbeacon/id6830951631">
+              <img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" width="138" height="46">
+            </a>
           </div>
-        </section>
-      </header>
-
-      <main>
-        <section class="section">
-          <div class="section-heading">
-            <div class="eyebrow">Why NVBeacon</div>
-            <h2>It answers the questions GPU users keep asking.</h2>
-          </div>
-          <div class="feature-grid">
-            <article class="feature-card">
-              <h3>Is the box busy?</h3>
-              <p>Menu bar summary, configurable busy detection, and a compact popover make server load visible at a glance.</p>
-            </article>
-            <article class="feature-card">
-              <h3>Which job is mine?</h3>
-              <p>Per-GPU process detail shows user, PID, GPU memory, and command preview without keeping a shell open.</p>
-            </article>
-            <article class="feature-card">
-              <h3>Can I reuse this GPU?</h3>
-              <p>Star a GPU to watch for long idle periods and get notified when it becomes a candidate for the next run.</p>
-            </article>
-            <article class="feature-card">
-              <h3>Did my job finish?</h3>
-              <p>Track specific processes and get a native macOS notification when they really exit.</p>
-            </article>
-          </div>
-        </section>
-
-        <section class="section showcase">
-          <div class="section-heading">
-            <div class="eyebrow">Screenshots</div>
-            <h2>A focused macOS UI instead of another dashboard tab.</h2>
-          </div>
-          <div class="shot-row compact">
-            <figure class="shot-card compact-shot">
-              <img src="./assets/menu-bar-summary.png" alt="NVBeacon menu bar summary with GPU usage text">
-              <figcaption>At-a-glance menu bar summary</figcaption>
-            </figure>
-          </div>
-          <div class="shot-row dual">
-            <figure class="shot-card">
-              <img src="./assets/popover-overview.png" alt="NVBeacon light mode popover UI">
-              <figcaption>Light mode popover with per-GPU details</figcaption>
-            </figure>
-            <figure class="shot-card">
-              <img src="./assets/popover-overview-dark.png" alt="NVBeacon dark mode popover UI">
-              <figcaption>Dark mode popover with process and alert controls</figcaption>
-            </figure>
-          </div>
-        </section>
-
-        <section class="section">
-          <div class="section-heading">
-            <div class="eyebrow">Highlights</div>
-            <h2>Designed around real remote GPU workflows.</h2>
-          </div>
-          <div class="pill-grid">
-            <div class="pill">Native macOS menu bar UI</div>
-            <div class="pill">Remote monitoring over SSH</div>
-            <div class="pill">Process exit notifications</div>
-            <div class="pill">GPU idle alerts</div>
-            <div class="pill">Busy detection rules</div>
-            <div class="pill">Import from ~/.ssh/config</div>
-            <div class="pill">English / Korean UI</div>
-            <div class="pill">Light, dark, and system appearance</div>
-            <div class="pill">Sparkle update support</div>
-          </div>
-        </section>
-
-        <section class="section split">
-          <div>
-            <div class="section-heading inline">
-              <div class="eyebrow">Quick start</div>
-              <h2>Install, point at a server, and monitor from the menu bar.</h2>
-            </div>
-            <ol class="steps">
-              <li>Install NVBeacon from GitHub Releases or Homebrew.</li>
-              <li>Open <strong>Settings</strong> from the menu bar icon.</li>
-              <li>Set an SSH target directly or import from <code>~/.ssh/config</code>.</li>
-              <li>Choose key-based or password-based authentication.</li>
-              <li>Allow notifications if you want process exit or GPU idle alerts.</li>
-            </ol>
-          </div>
-          <aside class="requirements-card">
-            <h3>Requirements</h3>
-            <ul>
-              <li>macOS 14 or later</li>
-              <li>SSH access to the target machine</li>
-              <li><code>nvidia-smi</code> available on the remote host</li>
-            </ul>
-            <div class="support-links">
-              <a href="https://github.com/jaein4722/NVBeacon/releases" target="_blank" rel="noreferrer">Download releases</a>
-              <a href="https://github.com/jaein4722/NVBeacon/blob/master/README.md" target="_blank" rel="noreferrer">Read the README</a>
-              <a href="https://github.com/jaein4722/NVBeacon/issues" target="_blank" rel="noreferrer">Request a feature</a>
-            </div>
-          </aside>
-        </section>
-      </main>
-
-      <footer class="footer">
-        <div>
-          <strong>NVBeacon</strong>
-          <span>Remote NVIDIA GPU monitoring for macOS.</span>
+          <ul class="platform-line" aria-label="Platforms">
+            <li>Mac with Apple silicon, macOS 14+</li>
+            <li>iPhone &amp; iPad, iOS 17+</li>
+            <li class="soon">Windows in the works</li>
+          </ul>
         </div>
-        <div class="footer-links">
-          <a href="./support.html">Support</a>
-          <a href="./privacy.html">iOS Privacy Policy</a>
-          <a href="https://github.com/jaein4722/NVBeacon" target="_blank" rel="noreferrer">Repository</a>
-          <a href="https://github.com/jaein4722" target="_blank" rel="noreferrer">GitHub Profile</a>
-          <a href="https://github.com/jaein4722/NVBeacon/releases" target="_blank" rel="noreferrer">Latest Release</a>
+
+        <div class="hero-visual">
+          <div class="mock" role="region" aria-label="NVBeacon popover on Mac, with example data">
+            <div class="mk-caption"><span class="mk-caption-dot" aria-hidden="true"></span><span>Example data · click a server or GPU to expand</span></div>
+            <div class="mk-menubar" aria-hidden="true">
+              <span class="mk-menus"><i></i><i></i><i></i><i></i></span>
+              <span class="mk-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5M2.5 9H5M2.5 15H5M19 9h2.5M19 15h2.5"/></svg>GPU 44% · 9/12</span>
+              <span class="mk-sys"><svg viewBox="0 0 24 24"><path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/></svg><svg viewBox="0 0 28 24"><rect x="2" y="7" width="21" height="10" rx="3"/><rect x="4.5" y="9.5" width="13" height="5" rx="1.2" class="fill"/><path d="M25.5 10.5v3"/></svg><span>Tue 9:41</span></span>
+            </div>
+            <div class="mk-popover">
+              <div class="mk-header" aria-hidden="true">
+                <span class="mk-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>2/2 servers</span>
+                <span class="mk-tools"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></svg></span>
+              </div>
+              <div class="mk-pills">
+                <div><span>Avg</span><b>44%</b></div>
+                <div><span>Busy</span><b>9/12</b></div>
+                <div><span>Proc</span><b>9</b></div>
+                <div><span>Updated</span><b>3s</b></div>
+              </div>
+              <div class="mk-scroll">
+              <details class="mk-server" open>
+                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-01</b><span>GPU 6/8 · 39%</span></summary>
+                <div class="mk-host"><span>CPU <b class="o">46%</b></span><span>RAM <b class="b">63%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 12.6 MB/s ↑ 3.1 MB/s</span></div>
+                  <details class="mk-gpu mine">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">74°C · 1p · 14%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>14%</em><i style="--v:14%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python train.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28410</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Watching</span><code class="mk-proc-cmd">python train.py --epochs 40 --batch-size 32</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">75°C · 1p · 37%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>37%</em><i style="--v:37%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python finetune.py</span><span class="mk-proc-pid">PID 30122</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python finetune.py --lr 2e-5</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">37°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span><span class="mk-armed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>Idle notification armed</span></span></summary>
+                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">90°C · 1p · 85%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>85%</em><i style="--v:85%"></i></span><span class="mk-bar mem"><span>Memory</span><em>74%</em><i style="--v:74%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31877</span></span><span class="mk-proc-mem">33.2 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu mine">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 4</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">66°C · 1p · 93%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>93%</em><i style="--v:93%"></i></span><span class="mk-bar mem"><span>Memory</span><em>60%</em><i style="--v:60%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python eval.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28533</span></span><span class="mk-proc-mem">27.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python eval.py --split val</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 5</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">41°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 6</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">58°C · 1p · 22%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>22%</em><i style="--v:22%"></i></span><span class="mk-bar mem"><span>Memory</span><em>20%</em><i style="--v:20%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">jupyter-kernel</span><span class="mk-proc-pid">PID 29960</span></span><span class="mk-proc-mem">8.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python -m ipykernel_launcher</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 7</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">79°C · 1p · 64%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>64%</em><i style="--v:64%"></i></span><span class="mk-bar mem"><span>Memory</span><em>73%</em><i style="--v:73%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31878</span></span><span class="mk-proc-mem">33.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                      </div>
+                  </details>
+              </details>
+              <details class="mk-server">
+                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-02</b><span>GPU 3/4 · 53%</span></summary>
+                <div class="mk-host"><span>CPU <b class="o">28%</b></span><span>RAM <b class="b">25%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 4.2 MB/s ↑ 0.8 MB/s</span></div>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">68°C · 1p · 71%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>71%</em><i style="--v:71%"></i></span><span class="mk-bar mem"><span>Memory</span><em>77%</em><i style="--v:77%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python sweep.py</span><span class="mk-proc-pid">PID 11204</span></span><span class="mk-proc-mem">18.4 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python sweep.py --trial 7</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">35°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">74°C · 1p · 88%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>88%</em><i style="--v:88%"></i></span><span class="mk-bar mem"><span>Memory</span><em>90%</em><i style="--v:90%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">python train_vit.py</span><span class="mk-proc-pid">PID 11391</span></span><span class="mk-proc-mem">21.7 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python train_vit.py</code></div>
+                      </div>
+                  </details>
+                  <details class="mk-gpu">
+                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">63°C · 1p · 52%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>52%</em><i style="--v:52%"></i></span><span class="mk-bar mem"><span>Memory</span><em>40%</em><i style="--v:40%"></i></span></span></span></summary>
+                      <div class="mk-procs">
+                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">python infer.py</span><span class="mk-proc-pid">PID 11455</span></span><span class="mk-proc-mem">9.6 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python infer.py --port 8000</code></div>
+                      </div>
+                  </details>
+              </details>
+              </div>
+            </div>
+          </div>
+          <div class="phone-shot">
+            <picture>
+              <source srcset="./assets/iphone/en/03-gpu-details-dark.jpg" media="(prefers-color-scheme: dark)">
+              <img src="./assets/iphone/en/01-fleet-light.jpg" width="660" height="1434" alt="NVBeacon on iPhone showing an overview of three GPU servers">
+            </picture>
+          </div>
         </div>
-      </footer>
+      </div>
+    </section>
+
+    <div class="trust-wrap">
+      <ul class="page-shell trust" aria-label="Key facts">
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="13" width="18" height="7" rx="2"/><path d="M7 7.5h.01M7 16.5h.01"/></svg>
+          Nothing installed on the server
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5"/><path d="M3 3l18 18"/></svg>
+          No account, no cloud
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+          Passwords stay in the Keychain
+        </li>
+        <li>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 7l-5 5 5 5M16 7l5 5-5 5M14 4l-4 16"/></svg>
+          Free and open source (MIT)
+        </li>
+      </ul>
     </div>
-  </body>
+
+    <section class="section" id="how-it-works">
+      <div class="page-shell">
+        <div class="section-heading">
+          <p class="kicker">How it works</p>
+          <h2>Just SSH. Nothing else to set up.</h2>
+          <p>If you can log in to the server and run <code>nvidia-smi</code>, NVBeacon works.</p>
+        </div>
+        <ol class="steps" data-reveal>
+          <li>
+            <h3>Add a server</h3>
+            <p>Enter a host, user and port, or import it from <code>~/.ssh/config</code> on Mac. Use an SSH key or a password.</p>
+          </li>
+          <li>
+            <h3>NVBeacon asks over SSH</h3>
+            <p>Each refresh is one SSH command that runs <code>nvidia-smi</code> and reads Linux counters such as <code>/proc/meminfo</code>.</p>
+          </li>
+          <li>
+            <h3>See every GPU</h3>
+            <p>Utilization, memory, temperature and processes appear in the menu bar or on your iPhone, for as many servers as you add.</p>
+          </li>
+        </ol>
+        <div class="flow" aria-label="Your device connects to the GPU server over SSH; nothing is installed on the server">
+          <div class="flow-node"><strong>Your Mac, iPhone or iPad</strong><span>NVBeacon</span></div>
+          <div class="flow-link">ssh → nvidia-smi</div>
+          <div class="flow-node"><strong>GPU server</strong><span>Linux with the NVIDIA driver</span><span class="tag">Nothing installed</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tinted" id="features">
+      <div class="page-shell">
+        <div class="section-heading">
+          <p class="kicker">Features</p>
+          <h2>Answers the questions you keep opening Terminal for.</h2>
+        </div>
+        <div class="feature-grid" data-reveal>
+          <article class="feature">
+            <h3>Is the server busy?</h3>
+            <p>Utilization, memory, temperature and process count for every GPU, with a live summary in the menu bar.</p>
+            <div class="labels"><span class="label">nvidia-smi</span></div>
+          </article>
+          <article class="feature">
+            <h3>Which GPU is mine?</h3>
+            <p>Every GPU process with its user, PID, GPU memory and full command line. Your own jobs are highlighted.</p>
+            <div class="labels"><span class="label">nvidia-smi</span></div>
+          </article>
+          <article class="feature">
+            <h3>Busy, by your rules</h3>
+            <p>Decide what counts as busy: running processes, memory use or utilization.</p>
+            <div class="labels"><span class="label">nvidia-smi</span></div>
+          </article>
+          <article class="feature">
+            <h3>The rest of the server</h3>
+            <p>CPU, RAM, swap and network throughput in one collapsible section. Turn off any metric you don't need.</p>
+            <div class="labels"><span class="label">/proc</span><span class="label">/sys/class/net</span></div>
+          </article>
+          <article class="feature">
+            <h3>Did my job finish?</h3>
+            <p>Watch a process and get a notification when it really exits.</p>
+            <div class="labels"><span class="label platform">Mac</span></div>
+          </article>
+          <article class="feature">
+            <h3>Can I use this GPU now?</h3>
+            <p>Star a GPU and get notified once it has stayed idle long enough for your next run.</p>
+            <div class="labels"><span class="label platform">Mac</span></div>
+          </article>
+          <article class="feature">
+            <h3>Who used the GPUs today?</h3>
+            <p>Optional per-user GPU history for the last 24 hours, kept only on your Mac.</p>
+            <div class="labels"><span class="label platform">Mac</span></div>
+          </article>
+          <article class="feature">
+            <h3>Fits your SSH setup</h3>
+            <p>Keys or passwords, many servers at once, ProxyJump on Mac, and JSON backup and restore of server settings.</p>
+            <div class="labels"><span class="label">ssh</span></div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="platforms">
+      <div class="page-shell">
+        <div class="section-heading">
+          <p class="kicker">Mac and iPhone</p>
+          <h2>In the menu bar at your desk. In your pocket everywhere else.</h2>
+          <p>The same servers on both, with features that suit each device.</p>
+        </div>
+        <div class="compare-wrap" data-reveal>
+          <div>
+            <div class="table-scroll">
+              <table class="compare">
+                <thead>
+                  <tr><th scope="col"><span class="visually-hidden">Feature</span></th><th scope="col">Mac</th><th scope="col">iPhone &amp; iPad</th></tr>
+                </thead>
+                <tbody>
+                  <tr><th scope="row">Where it lives</th><td>Menu bar summary and a popover</td><td>Overview of all servers; split view on wider screens</td></tr>
+                  <tr><th scope="row">Refresh</th><td>Every 1–300 seconds, in the background</td><td>Every 5–300 seconds while the app is open</td></tr>
+                  <tr><th scope="row">Job alerts</th><td>Process exit and idle GPU notifications</td><td>—</td></tr>
+                  <tr><th scope="row">GPU history</th><td>Optional, per user, up to 24 hours</td><td>—</td></tr>
+                  <tr><th scope="row">Adding servers</th><td>Manually or from <code>~/.ssh/config</code></td><td>Manually, from a backup, or from your Mac</td></tr>
+                  <tr><th scope="row">Host keys</th><td>Your OpenSSH <code>known_hosts</code></td><td>Fingerprint review before the first login</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <div class="transfer-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3h-3zM20 14v.01M14 20h.01M17 20h4v-3"/></svg>
+              <p><strong>Move every server from Mac to iPhone with one QR code.</strong> Both screens show the same six digits before anything is sent, and credentials travel only over that encrypted local connection. No cloud sync involved.</p>
+            </div>
+          </div>
+          <div class="shots" tabindex="0" aria-label="iPhone screenshots">
+            <figure><img src="./assets/iphone/en/01-fleet-light.jpg" width="660" height="1434" loading="lazy" alt="Overview of all servers with average GPU use and available GPUs"><figcaption>All servers at a glance</figcaption></figure>
+            <figure><img src="./assets/iphone/en/02-gpu-overview-light.jpg" width="660" height="1434" loading="lazy" alt="Every GPU on one server with utilization and VRAM"><figcaption>Every GPU on a server</figcaption></figure>
+            <figure><img src="./assets/iphone/en/03-gpu-details-dark.jpg" width="660" height="1434" loading="lazy" alt="An expanded GPU showing the process, its user, PID and command line"><figcaption>Who is running what</figcaption></figure>
+            <figure><img src="./assets/iphone/en/04-host-details-light.jpg" width="660" height="1434" loading="lazy" alt="Host information with CPU, RAM, swap and network rates"><figcaption>CPU, RAM and network</figcaption></figure>
+            <figure><img src="./assets/iphone/en/05-mac-transfer-light.jpg" width="660" height="1434" loading="lazy" alt="Reviewing servers transferred from a Mac before importing them"><figcaption>Transfer from Mac</figcaption></figure>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section flush-top" id="privacy">
+      <div class="page-shell">
+        <div class="privacy-band" data-reveal>
+          <div class="section-heading">
+            <p class="kicker">Private by design</p>
+            <h2>Your device talks to your servers. Nobody else is in between.</h2>
+            <p>There is no NVBeacon account, cloud service, advertising or analytics.</p>
+          </div>
+          <ul class="privacy-list">
+            <li><strong>Direct connections</strong>Your Mac or iPhone connects straight to your servers over SSH.</li>
+            <li><strong>Nothing on the server</strong>NVBeacon runs <code>nvidia-smi</code> and reads Linux counters such as <code>/proc/meminfo</code>. It installs nothing.</li>
+            <li><strong>Credentials in the Keychain</strong>Passwords are kept in the Keychain. Server backups never contain passwords or private keys.</li>
+            <li><strong>Safe to share diagnostics</strong>Diagnostic reports leave out server names, addresses, users, key paths, commands and process details.</li>
+          </ul>
+          <p class="more">Read the <a href="./privacy.html">iPhone and iPad privacy policy</a>, or check the <a href="https://github.com/jaein4722/NVBeacon">source code</a>.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section tinted" id="download">
+      <div class="page-shell">
+        <div class="section-heading center">
+          <p class="kicker">Download</p>
+          <h2>Get NVBeacon. It's free.</h2>
+        </div>
+        <div class="download-grid" data-reveal>
+          <article class="download-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
+              Mac
+            </h3>
+            <p>Menu bar app with job alerts and optional GPU history.</p>
+            <a class="button primary" href="https://github.com/jaein4722/NVBeacon/releases/latest" data-dmg-link>Download DMG</a>
+            <div class="command">
+              <pre><code>brew install --cask <wbr>jaein4722/tap/<wbr>nvbeacon</code></pre>
+              <button class="copy-button" type="button" data-copy="brew install --cask jaein4722/tap/nvbeacon" data-done="Copied">Copy</button>
+            </div>
+            <p class="meta"><span data-latest-version="Version {v} · " hidden></span>Apple silicon · macOS 14 or later · <a href="https://github.com/jaein4722/NVBeacon/releases">Release notes</a></p>
+          </article>
+          <article class="download-card">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="2.5" width="12" height="19" rx="2.5"/><path d="M11 18.5h2"/></svg>
+              iPhone &amp; iPad
+            </h3>
+            <p>Every server in your pocket, with split view on iPad.</p>
+            <a class="store-badge" href="https://apps.apple.com/app/nvbeacon/id6830951631">
+              <img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" width="138" height="46">
+            </a>
+            <div class="qr-row">
+              <img src="./assets/app-store-qr.png" width="92" height="92" alt="QR code linking to NVBeacon on the App Store">
+              <span>Scan with your iPhone camera to open the App Store.</span>
+            </div>
+            <p class="meta">iOS 17 or later · Free on the App Store</p>
+          </article>
+          <article class="download-card soon">
+            <h3>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>
+              Windows
+            </h3>
+            <span class="pill">In the works</span>
+            <p>NVBeacon 1.0 will launch together with NVBeacon for Windows.</p>
+            <p class="meta"><a href="https://github.com/jaein4722/NVBeacon">Watch the project on GitHub</a></p>
+          </article>
+        </div>
+        <p class="download-note">On each server you only need SSH access and <code>nvidia-smi</code>.</p>
+      </div>
+    </section>
+
+    <section class="section" id="faq">
+      <div class="page-shell">
+        <div class="section-heading center">
+          <p class="kicker">FAQ</p>
+          <h2>Questions, answered.</h2>
+        </div>
+        <div class="faq" data-reveal>
+          <details>
+            <summary>Do I need to install anything on the server?</summary>
+            <p>No. NVBeacon connects over SSH, runs <code>nvidia-smi</code> and reads Linux counters such as <code>/proc/meminfo</code>. You only need an account that can log in and run <code>nvidia-smi</code>.</p>
+          </details>
+          <details>
+            <summary>Do I need an account? Is it really free?</summary>
+            <p>There is no NVBeacon account and no cloud service. Both apps are free, and the source code is on GitHub under the MIT License.</p>
+          </details>
+          <details>
+            <summary>How much load does NVBeacon put on a server?</summary>
+            <p>One SSH command per refresh. GPU, CPU, memory and network data share that call, and both apps reuse the SSH connection between refreshes by default. On Mac, a command times out after 15 seconds.</p>
+          </details>
+          <details>
+            <summary><span>The app says <code>nvidia-smi</code> was not found.</span></summary>
+            <p>Non-interactive SSH shells often have a shorter <code>PATH</code>. In the Mac app, open Settings → Advanced and set the GPU query command for that server to an absolute path such as <code>/usr/bin/nvidia-smi</code>.</p>
+          </details>
+          <details>
+            <summary>Can I monitor a server behind a jump host?</summary>
+            <p>On Mac, yes: NVBeacon uses your OpenSSH setup, including <code>ProxyJump</code> in <code>~/.ssh/config</code>. On iPhone and iPad, connect through a VPN instead.</p>
+          </details>
+          <details>
+            <summary>Does the iPhone app monitor in the background or send alerts?</summary>
+            <p>Not yet. On iPhone and iPad, NVBeacon refreshes while the app is open. Process exit and idle GPU notifications are available in the Mac app.</p>
+          </details>
+          <details>
+            <summary>Where is GPU history stored?</summary>
+            <p>GPU history is off by default. When you turn it on, the Mac app samples per-user GPU usage at most once a minute per server and keeps it on your Mac for 24 hours.</p>
+          </details>
+          <details>
+            <summary>When is the Windows version coming?</summary>
+            <p>It is in the works, and NVBeacon 1.0 will be released together with it. Follow the <a href="https://github.com/jaein4722/NVBeacon">GitHub repository</a> for news.</p>
+          </details>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="page-shell">
+      <div class="footer-grid">
+        <div class="footer-brand">
+          <a class="brand" href="./"><img src="./assets/icon-256.png" alt="" width="32" height="32"><span>NVBeacon</span></a>
+          <p>Remote NVIDIA GPU monitoring over SSH, for Mac, iPhone and iPad.</p>
+        </div>
+        <div class="footer-col">
+          <h2>Download</h2>
+          <ul>
+            <li><a href="https://github.com/jaein4722/NVBeacon/releases/latest" data-dmg-link>Mac</a></li>
+            <li><a href="https://apps.apple.com/app/nvbeacon/id6830951631">iPhone &amp; iPad</a></li>
+            <li><a href="https://github.com/jaein4722/NVBeacon/blob/master/CHANGELOG.md">Changelog</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h2>Project</h2>
+          <ul>
+            <li><a href="https://github.com/jaein4722/NVBeacon">GitHub</a></li>
+            <li><a href="https://github.com/jaein4722/NVBeacon#readme">Documentation</a></li>
+            <li><a href="https://github.com/jaein4722/NVBeacon/issues">Report a bug</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <h2>Help</h2>
+          <ul>
+            <li><a href="./support.html">Support</a></li>
+            <li><a href="./privacy.html">Privacy policy</a></li>
+            <li><a href="#faq">FAQ</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 jaein4722 · <a href="https://github.com/jaein4722/NVBeacon/blob/master/LICENSE">MIT License</a></span>
+        <a href="./ko/" hreflang="ko" lang="ko">한국어로 보기</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./site.js" defer></script>
+</body>
 </html>

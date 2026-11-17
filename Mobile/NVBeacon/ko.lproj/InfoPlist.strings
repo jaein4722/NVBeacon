@@ -1,0 +1,2 @@
+"NSCameraUsageDescription" = "Mac의 NVBeacon에서 표시한 페어링 코드를 스캔하여 서버를 가져옵니다.";
+"NSLocalNetworkUsageDescription" = "같은 네트워크의 Mac에서 서버를 가져오거나 SSH로 GPU를 모니터링합니다.";

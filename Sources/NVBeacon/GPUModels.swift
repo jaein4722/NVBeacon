@@ -11,11 +11,11 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .averageAndBusy:
-            return language.text("Average + Busy", "평균 + 사용중")
+            return language.text("Average + Busy", "평균 + 사용 중")
         case .averageOnly:
             return language.text("Average Util", "평균 사용률")
         case .busyOnly:
-            return language.text("Busy Count", "사용중 개수")
+            return language.text("Busy Count", "사용 중 개수")
         case .iconOnly:
             return language.text("Icon Only", "아이콘만")
         }
@@ -26,7 +26,7 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
         case .averageAndBusy:
             return language.text(
                 "Show both average GPU utilization and busy GPU count.",
-                "평균 GPU 사용률과 busy GPU 수를 함께 표시합니다."
+                "평균 GPU 사용률과 사용 중인 GPU 수를 함께 표시합니다."
             )
         case .averageOnly:
             return language.text(
@@ -36,7 +36,7 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
         case .busyOnly:
             return language.text(
                 "Show only the busy GPU count in the menu bar.",
-                "busy GPU 개수만 메뉴바에 표시합니다."
+                "사용 중인 GPU 개수만 메뉴바에 표시합니다."
             )
         case .iconOnly:
             return language.text(
@@ -60,6 +60,46 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
             return ""
         }
     }
+}
+
+/// Where the monitor appears. The choice is saved, so window mode survives relaunches.
+enum MonitorDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case popover
+    case window
+
+    var id: String { rawValue }
+
+    func title(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .popover:
+            return language.text("Popover", "팝오버")
+        case .window:
+            return language.text("Window", "창")
+        }
+    }
+}
+
+/// How tall the popover is: fit the content (default) or a fixed height that scrolls.
+enum PopoverHeightMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
+    case automatic
+    case fixed
+
+    var id: String { rawValue }
+
+    func title(in language: AppInterfaceLanguage) -> String {
+        switch self {
+        case .automatic:
+            return language.text("Fit Content", "내용에 맞춤")
+        case .fixed:
+            return language.text("Fixed", "고정")
+        }
+    }
+}
+
+/// Result of Settings → Test Connection.
+enum ConnectionTestOutcome: Equatable, Sendable {
+    case success(gpuCount: Int)
+    case failure(message: String)
 }
 
 enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
@@ -116,12 +156,12 @@ extension SSHAuthenticationMode {
         case .keyBased:
             return language.text(
                 "Use SSH keys and ssh-agent. The app does not read Keychain during background polling.",
-                "SSH key와 ssh-agent를 사용합니다. background polling 중 Keychain을 읽지 않습니다."
+                "SSH 키와 ssh-agent를 사용합니다. 백그라운드 수집 중에는 키체인을 읽지 않습니다."
             )
         case .passwordBased:
             return language.text(
                 "Use the SSH password stored in the macOS Keychain.",
-                "macOS Keychain에 저장된 SSH 비밀번호를 사용합니다."
+                "macOS 키체인에 저장된 SSH 비밀번호를 사용합니다."
             )
         }
     }
@@ -157,12 +197,12 @@ extension SSHConnectionReuseMode {
         case .reuseWhenPossible:
             return language.text(
                 "NVBeacon can reuse the SSH connection for a short time instead of logging in again for every poll. No extra software is required on the server. If your server behaves strangely, switch to the fresh-connection mode.",
-                "NVBeacon은 polling마다 다시 로그인하지 않고 SSH 연결을 잠시 재사용할 수 있습니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요."
+                "NVBeacon은 수집할 때마다 다시 로그인하지 않고 SSH 연결을 잠시 재사용할 수 있습니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요."
             )
         case .newConnectionEachRefresh:
             return language.text(
                 "This disables SSH connection reuse and starts a fresh session on every poll.",
-                "SSH 연결 재사용을 끄고 polling마다 새 세션을 시작합니다."
+                "SSH 연결 재사용을 끄고 수집할 때마다 새 세션을 시작합니다."
             )
         }
     }
@@ -197,17 +237,17 @@ enum SSHPasswordSessionState: Equatable, Sendable {
         case .missing:
             return language.text(
                 "Save an SSH password first. Background polling will stay paused until a password is saved and unlocked.",
-                "먼저 SSH 비밀번호를 저장해야 합니다. 저장 후 세션에서 한 번 해제하기 전까지 background polling은 멈춘 상태를 유지합니다."
+                "먼저 SSH 비밀번호를 저장해야 합니다. 저장 후 세션에서 한 번 해제하기 전까지 백그라운드 수집은 멈춘 상태를 유지합니다."
             )
         case .locked:
             return language.text(
                 "A password is saved in Keychain, but this app session has not unlocked it yet. Unlock once to avoid repeated Keychain prompts during polling.",
-                "Keychain에 저장된 비밀번호는 있지만 현재 앱 세션에서 아직 해제하지 않았습니다. polling 중 반복 prompt를 막으려면 한 번만 해제하세요."
+                "키체인에 저장된 비밀번호는 있지만 현재 앱 세션에서 아직 해제하지 않았습니다. 수집할 때 반복해서 묻지 않도록 한 번만 해제하세요."
             )
         case .unlocked:
             return language.text(
                 "The saved SSH password is cached in memory for this app session. Background polling will not read Keychain again until the app restarts.",
-                "저장된 SSH 비밀번호가 현재 앱 세션 메모리에 캐시되어 있습니다. 앱을 다시 시작하기 전까지 background polling은 Keychain을 다시 읽지 않습니다."
+                "저장된 SSH 비밀번호가 현재 앱 세션 메모리에 캐시되어 있습니다. 앱을 다시 시작하기 전까지 백그라운드 수집은 키체인을 다시 읽지 않습니다."
             )
         }
     }
@@ -227,11 +267,11 @@ extension BusyDetectionMode {
         case .activeProcess:
             return language.text("Active Process", "활성 프로세스")
         case .memoryThreshold:
-            return language.text("Memory Threshold", "메모리 임계치")
+            return language.text("Memory Threshold", "메모리 기준")
         case .activeProcessOrMemoryThreshold:
             return language.text("Process or Memory", "프로세스 또는 메모리")
         case .utilizationThreshold:
-            return language.text("Utilization Threshold", "사용률 임계치")
+            return language.text("Utilization Threshold", "사용률 기준")
         }
     }
 
@@ -240,22 +280,22 @@ extension BusyDetectionMode {
         case .activeProcess:
             return language.text(
                 "Count a GPU as busy when `nvidia-smi` reports at least one active compute process.",
-                "`nvidia-smi`에서 active compute process가 하나 이상 보이면 busy로 판단합니다."
+                "`nvidia-smi`에 실행 중인 연산 프로세스가 하나 이상 보이면 사용 중으로 판단합니다."
             )
         case .memoryThreshold:
             return language.text(
                 "Count a GPU as busy when used memory is above the configured threshold.",
-                "사용 중인 메모리가 지정 임계치를 넘으면 busy로 판단합니다."
+                "사용 중인 메모리가 지정 기준을 넘으면 사용 중으로 판단합니다."
             )
         case .activeProcessOrMemoryThreshold:
             return language.text(
                 "Count a GPU as busy when either an active process exists or used memory is above the threshold.",
-                "active process가 있거나 사용 메모리가 임계치를 넘으면 busy로 판단합니다."
+                "실행 중인 프로세스가 있거나 사용 메모리가 기준을 넘으면 사용 중으로 판단합니다."
             )
         case .utilizationThreshold:
             return language.text(
                 "Legacy behavior: count a GPU as busy when utilization is above the configured threshold.",
-                "기존 방식입니다. 사용률이 지정 임계치를 넘으면 busy로 판단합니다."
+                "기존 방식입니다. 사용률이 지정 기준을 넘으면 사용 중으로 판단합니다."
             )
         }
     }
@@ -300,7 +340,7 @@ enum NotificationPermissionState: Equatable, Sendable {
         case .authorized:
             return language.text(
                 "Notifications are ready for process exit and GPU idle alerts.",
-                "프로세스 종료 알림과 GPU idle 알림을 보낼 준비가 되어 있습니다."
+                "프로세스 종료 알림과 GPU 유휴 알림을 보낼 준비가 되어 있습니다."
             )
         }
     }
@@ -438,6 +478,18 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         return copy
     }
 
+    /// True when both describe the same connection and commands, ignoring name,
+    /// order and the enabled switch.
+    func hasSameConnection(as other: ServerConfig) -> Bool {
+        sshTarget == other.sshTarget
+            && sshPort == other.sshPort
+            && sshIdentityFilePath == other.sshIdentityFilePath
+            && sshAuthenticationMode == other.sshAuthenticationMode
+            && sshConnectionReuseMode == other.sshConnectionReuseMode
+            && remoteCommand == other.remoteCommand
+            && hostCommand == other.hostCommand
+    }
+
     func connectionSettings(from settings: AppSettings) -> AppSettings {
         var copy = settings
         copy.sshTarget = sshTarget
@@ -553,6 +605,8 @@ struct AppSettings: Codable, Equatable, Sendable {
     static let defaultHostCommand = RemoteMetricCommands.defaultHostCommand
     static let defaultPopoverWidth = 500
     static let popoverWidthRange = 480...800
+    static let defaultPopoverHeight = 600
+    static let popoverHeightRange = 320...1100
 
     var servers: [ServerConfig] = []
     var sshTarget: String = ""
@@ -580,6 +634,10 @@ struct AppSettings: Codable, Equatable, Sendable {
     var showsDockIcon: Bool = false
     var closesPopoverOnOutsideClick: Bool = true
     var popoverWidth: Int = Self.defaultPopoverWidth
+    var popoverHeightMode: PopoverHeightMode = .automatic
+    var popoverHeight: Int = Self.defaultPopoverHeight
+    var displayMode: MonitorDisplayMode = .popover
+    var keepsWindowOnTop: Bool = false
     var highlightsMyProcesses: Bool = true
     var recordsGPUHistory: Bool = false
     var collectsHostInfo: Bool = true
@@ -609,6 +667,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         showsDockIcon: Bool = false,
         closesPopoverOnOutsideClick: Bool = true,
         popoverWidth: Int = Self.defaultPopoverWidth,
+        popoverHeightMode: PopoverHeightMode = .automatic,
+        popoverHeight: Int = Self.defaultPopoverHeight,
+        displayMode: MonitorDisplayMode = .popover,
+        keepsWindowOnTop: Bool = false,
         highlightsMyProcesses: Bool = true,
         recordsGPUHistory: Bool = false,
         collectsHostInfo: Bool = true,
@@ -637,6 +699,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         self.showsDockIcon = showsDockIcon
         self.closesPopoverOnOutsideClick = closesPopoverOnOutsideClick
         self.popoverWidth = popoverWidth
+        self.popoverHeightMode = popoverHeightMode
+        self.popoverHeight = popoverHeight
+        self.displayMode = displayMode
+        self.keepsWindowOnTop = keepsWindowOnTop
         self.highlightsMyProcesses = highlightsMyProcesses
         self.recordsGPUHistory = recordsGPUHistory
         self.collectsHostInfo = collectsHostInfo
@@ -667,6 +733,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         case showsDockIcon
         case closesPopoverOnOutsideClick
         case popoverWidth
+        case popoverHeightMode
+        case popoverHeight
+        case displayMode
+        case keepsWindowOnTop
         case highlightsMyProcesses
         case recordsGPUHistory
         case collectsHostInfo
@@ -699,6 +769,10 @@ struct AppSettings: Codable, Equatable, Sendable {
             showsDockIcon: try container.decodeIfPresent(Bool.self, forKey: .showsDockIcon) ?? false,
             closesPopoverOnOutsideClick: try container.decodeIfPresent(Bool.self, forKey: .closesPopoverOnOutsideClick) ?? true,
             popoverWidth: try container.decodeIfPresent(Int.self, forKey: .popoverWidth) ?? Self.defaultPopoverWidth,
+            popoverHeightMode: try container.decodeIfPresent(PopoverHeightMode.self, forKey: .popoverHeightMode) ?? .automatic,
+            popoverHeight: try container.decodeIfPresent(Int.self, forKey: .popoverHeight) ?? Self.defaultPopoverHeight,
+            displayMode: try container.decodeIfPresent(MonitorDisplayMode.self, forKey: .displayMode) ?? .popover,
+            keepsWindowOnTop: try container.decodeIfPresent(Bool.self, forKey: .keepsWindowOnTop) ?? false,
             highlightsMyProcesses: try container.decodeIfPresent(Bool.self, forKey: .highlightsMyProcesses) ?? true,
             recordsGPUHistory: try container.decodeIfPresent(Bool.self, forKey: .recordsGPUHistory) ?? false,
             collectsHostInfo: try container.decodeIfPresent(Bool.self, forKey: .collectsHostInfo) ?? true,
@@ -743,6 +817,10 @@ struct AppSettings: Codable, Equatable, Sendable {
         min(max(popoverWidth, Self.popoverWidthRange.lowerBound), Self.popoverWidthRange.upperBound)
     }
 
+    var resolvedPopoverHeight: Int {
+        min(max(popoverHeight, Self.popoverHeightRange.lowerBound), Self.popoverHeightRange.upperBound)
+    }
+
     func normalized() -> Self {
         var copy = self
         copy.sshTarget = sshTarget.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -750,6 +828,7 @@ struct AppSettings: Codable, Equatable, Sendable {
         copy.sshIdentityFilePath = NSString(string: sshIdentityFilePath.trimmingCharacters(in: .whitespacesAndNewlines)).expandingTildeInPath
         copy.pollIntervalSeconds = min(max(pollIntervalSeconds, 1), 300)
         copy.popoverWidth = resolvedPopoverWidth
+        copy.popoverHeight = resolvedPopoverHeight
         copy.busyMemoryThresholdMB = min(max(busyMemoryThresholdMB, 0), 10_240)
         copy.busyUtilizationThresholdPercent = min(max(busyUtilizationThresholdPercent, 0), 100)
         copy.idleNotificationSeconds = min(max(idleNotificationSeconds, 1), 3_600)
@@ -1034,19 +1113,19 @@ enum NotificationHistoryKind: String, Codable, Equatable, Sendable {
         case .permissionDenied:
             return language.text("Permission denied", "권한 거부")
         case .watchAdded:
-            return language.text("Process watch enabled", "프로세스 watch 등록")
+            return language.text("Process watch enabled", "프로세스 감시 등록")
         case .watchRemoved:
-            return language.text("Process watch removed", "프로세스 watch 해제")
+            return language.text("Process watch removed", "프로세스 감시 해제")
         case .idleWatchAdded:
-            return language.text("GPU idle watch enabled", "GPU idle watch 등록")
+            return language.text("GPU idle watch enabled", "GPU 유휴 감시 등록")
         case .idleWatchRemoved:
-            return language.text("GPU idle watch removed", "GPU idle watch 해제")
+            return language.text("GPU idle watch removed", "GPU 유휴 감시 해제")
         case .testNotificationScheduled:
             return language.text("Test notification sent", "테스트 알림 전송")
         case .exitNotificationScheduled:
             return language.text("Process exit notification sent", "프로세스 종료 알림 전송")
         case .idleNotificationScheduled:
-            return language.text("GPU idle notification sent", "GPU idle 알림 전송")
+            return language.text("GPU idle notification sent", "GPU 유휴 알림 전송")
         }
     }
 }

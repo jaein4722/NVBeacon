@@ -1,0 +1,3 @@
+/* English uses the source text as the localization key. Keep an explicit
+   English resource so the app also advertises its development language. */
+"Monitor" = "Monitor";
