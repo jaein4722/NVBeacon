@@ -115,7 +115,12 @@ while ($pending.Count) {
     $imports = & $dumpbin /nologo /dependents $binary | ForEach-Object { $_.Trim() } | Where-Object { $_ -match '\.dll$' }
     foreach ($dll in $imports) {
         $candidate = Join-Path $runtime $dll
-        if ($copied.ContainsKey($dll.ToLower()) -or -not (Test-Path $candidate)) { continue }
+        if ($copied.ContainsKey($dll.ToLower())) { continue }
+        if (-not (Test-Path $candidate)) {
+            # Anything else not found there is part of Windows, except the C++ runtime and debug CRT.
+            if ($dll -match '^(msvcp|vcruntime|concrt|vcomp|vccorlib|ucrtbased)') { throw "$dll (imported by $(Split-Path $binary -Leaf)) is not in $runtime" }
+            continue
+        }
         Copy-Item $candidate $dist
         $copied[$dll.ToLower()] = $true
         $pending.Enqueue((Join-Path $dist $dll))
@@ -125,6 +130,12 @@ while ($pending.Count) {
 foreach ($dll in "_FoundationICU.dll", "FoundationInternationalization.dll") {
     if (-not $copied.ContainsKey($dll.ToLower()) -and (Test-Path (Join-Path $runtime $dll))) { Copy-Item (Join-Path $runtime $dll) $dist }
 }
+# A PC without Visual Studio has no C++ runtime, so the package must carry it (the walk
+# above takes it from the Swift runtime folder, which ships it). Stop rather than build
+# a package that only starts on developer machines.
+$required = "swiftCore.dll", "Foundation.dll", "_FoundationICU.dll", "VCRUNTIME140.dll", "VCRUNTIME140_1.dll", "MSVCP140.dll", "WebView2Loader.dll"
+$missing = $required | Where-Object { -not (Test-Path (Join-Path $dist $_)) }
+if ($missing) { throw "Runtime DLLs missing from the package: $($missing -join ', '). Check $runtime." }
 
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $dist "LICENSE.txt")
 # Full license texts of every bundled library (WebView2's included); fails if stale.
