@@ -85,3 +85,19 @@ private func snapshot(at seconds: TimeInterval, utilization: Int) -> GPUSnapshot
     #expect(render.samples.count == 1)
     #expect(GPUHistorySample.merged([sample, sample]).first?.sampleCount == 2)
 }
+
+@Test func deletingHistoryRemovesFilesAndLoadedSamples() async throws {
+    let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+    defer { try? FileManager.default.removeItem(at: directory) }
+    let start = floor(Date().timeIntervalSince1970 / 60) * 60 - 600
+
+    let archive = GPUHistoryArchive(directory: directory)
+    _ = try await archive.record(snapshot(at: start, utilization: 10), users: nil, serverID: "s", fingerprint: "f")
+    _ = try await archive.record(snapshot(at: start + 60, utilization: 20), users: nil, serverID: "s", fingerprint: "f")
+    #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).contains { $0.hasSuffix(".jsonl") })
+
+    await archive.deleteAll()
+    #expect(try FileManager.default.contentsOfDirectory(atPath: directory.path).filter { $0.hasSuffix(".jsonl") }.isEmpty)
+    #expect(try await archive.load(serverID: "s", fingerprint: "f").isEmpty)
+    #expect(try await GPUHistoryArchive(directory: directory).load(serverID: "s", fingerprint: "f").isEmpty)
+}

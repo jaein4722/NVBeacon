@@ -14,6 +14,8 @@ struct SettingsView: View {
     @State private var pendingPasswordAuthServerID: String?
     @State private var autoApplyRevision = 0
     @State private var testingServerID: String?
+    @State private var showsGPUHistoryConfirmation = false
+    @State private var showsDeleteGPUHistoryConfirmation = false
     @State private var connectionTestResults: [String: ConnectionTestOutcome] = [:]
     @State private var suppressAutoApply = true
     @State private var suppressPasswordAuthWarning = false
@@ -623,13 +625,6 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Toggle(t("Record GPU history", "GPU 기록 저장"), isOn: $draft.recordsGPUHistory)
-
-                Text(t("Keep 24 hours of per-user GPU utilization on this Mac and open it from the chart button in the popover. Adds one nvidia-smi pmon sample per server at most once a minute.",
-                       "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장하고 팝오버의 차트 버튼으로 엽니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 LabeledContent(t("Display", "표시")) {
                     Picker(t("Display", "표시"), selection: $draft.menuBarDisplayMode) {
                         ForEach(MenuBarDisplayMode.allCases) { mode in
@@ -642,8 +637,64 @@ struct SettingsView: View {
             } header: {
                 Text(t("Menu Bar", "메뉴바"))
             }
+
+            Section {
+                Toggle(t("Record GPU history", "GPU 기록 저장"), isOn: gpuHistoryRecordingBinding)
+
+                Text(t("Keep 24 hours of per-user GPU utilization on this Mac and open it from the chart button in the popover. Adds one nvidia-smi pmon sample per server at most once a minute.",
+                       "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장하고 팝오버의 차트 버튼으로 엽니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                LabeledContent {
+                    Button(t("Delete History…", "기록 삭제…"), role: .destructive) {
+                        showsDeleteGPUHistoryConfirmation = true
+                    }
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Saved History", "저장된 기록"))
+                        Text(t("Turning recording off keeps the saved history until you delete it.", "기록을 꺼도 저장된 기록은 삭제할 때까지 남아 있습니다."))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } header: {
+                Text(t("GPU History", "GPU 기록"))
+            }
         }
         .formStyle(.grouped)
+        .alert(t("Record GPU history?", "GPU 기록을 저장할까요?"), isPresented: $showsGPUHistoryConfirmation) {
+            Button(t("Record", "저장")) {
+                draft.recordsGPUHistory = true
+            }
+            Button(t("Cancel", "취소"), role: .cancel) {}
+        } message: {
+            Text(t("NVBeacon will keep 24 hours of per-user GPU utilization on this Mac, including the user names of other people on shared servers. Each server runs nvidia-smi pmon (about one second) at most once a minute. Storage is small: about 0.3 MB per GPU. You can delete the history at any time.",
+                   "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장합니다. 공용 서버라면 다른 사용자의 이름도 함께 저장됩니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon(약 1초)을 실행합니다. 저장 공간은 GPU 하나당 약 0.3MB로 작습니다. 기록은 언제든 삭제할 수 있습니다."))
+        }
+        .alert(t("Delete GPU history?", "GPU 기록을 삭제할까요?"), isPresented: $showsDeleteGPUHistoryConfirmation) {
+            Button(t("Delete", "삭제"), role: .destructive) {
+                Task { await store.deleteGPUHistory() }
+            }
+            Button(t("Cancel", "취소"), role: .cancel) {}
+        } message: {
+            Text(t("All saved GPU history on this Mac will be deleted. This cannot be undone.",
+                   "이 Mac에 저장된 GPU 기록이 모두 삭제됩니다. 되돌릴 수 없습니다."))
+        }
+    }
+
+    /// Turning recording on asks first; turning it off does not.
+    private var gpuHistoryRecordingBinding: Binding<Bool> {
+        Binding(
+            get: { draft.recordsGPUHistory },
+            set: { isOn in
+                if isOn && !draft.recordsGPUHistory {
+                    showsGPUHistoryConfirmation = true
+                } else {
+                    draft.recordsGPUHistory = isOn
+                }
+            }
+        )
     }
 
     private var advancedPane: some View {

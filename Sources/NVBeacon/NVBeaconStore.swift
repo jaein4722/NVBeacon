@@ -940,6 +940,14 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
+    /// Removes every saved history file and the loaded charts. Recording, if on,
+    /// starts again from the next minute.
+    func deleteGPUHistory() async {
+        await historyArchive.deleteAll()
+        gpuHistory = [:]
+        gpuHistoryErrors = [:]
+    }
+
     /// Saves the partial minute so a normal quit loses nothing.
     func flushGPUHistory() async {
         await historyArchive.flush()
