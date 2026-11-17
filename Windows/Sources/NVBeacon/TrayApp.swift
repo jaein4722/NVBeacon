@@ -656,6 +656,37 @@ final class TrayApp {
             }
         case "reloadHosts":
             pushSettings()
+        case "testConnection":
+            guard let serverID = message["serverId"] as? String,
+                  let server = settings.servers.first(where: { $0.id == serverID }) else { return }
+            let korean = Theme.language == "ko"
+            Task.detached {
+                let result = await ServerMonitor.testConnection(server, askPassExecutable: Resources.executablePath)
+                let ok: Bool, text: String
+                switch result {
+                case .success(let count, let seconds):
+                    ok = true
+                    let time = String(format: "%.1f", seconds)
+                    text = korean ? "연결됨 · GPU \(count)개 · \(time)초" : "Connected · \(count) GPU\(count == 1 ? "" : "s") · \(time) s"
+                case .passwordMissing:
+                    ok = false
+                    text = korean ? "비밀번호를 먼저 저장하세요." : "Save the password first."
+                case .failure(let message):
+                    ok = false
+                    let category = DiagnosticsReport.errorCategory(message)
+                    text = (korean ? DiagnosticsReport.koreanCategory(category) : category) + " — " + message
+                }
+                UIThread.run { trayApp?.postToSettings(["type": "testResult", "serverId": serverID, "ok": ok, "text": text]) }
+            }
+        case "deleteHistory":
+            let history = history, korean = Theme.language == "ko"
+            Task.detached {
+                await history.deleteAll()
+                UIThread.run {
+                    trayApp?.postToSettings(["type": "notice", "text": korean ? "GPU 기록을 삭제했습니다." : "Deleted the GPU history."])
+                    trayApp?.historyChanged()
+                }
+            }
         case "savePassword", "forgetPassword":
             guard let serverID = message["serverId"] as? String, !serverID.isEmpty else { return }
             let korean = Theme.language == "ko"
@@ -724,6 +755,10 @@ final class TrayApp {
         default:
             break
         }
+    }
+
+    func postToSettings(_ message: [String: Any]) {
+        settingsWindow?.host.post(message)
     }
 
     private func settingsToast(_ text: String) {

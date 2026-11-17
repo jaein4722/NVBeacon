@@ -204,6 +204,44 @@ public final class ServerMonitor: @unchecked Sendable {
         refresh(serverID: serverID)
     }
 
+    public enum ConnectionTestResult: Sendable {
+        case success(gpuCount: Int, seconds: Double)
+        case passwordMissing
+        case failure(String)
+    }
+
+    /// Settings › Servers › Test Connection: runs the GPU query once over a new
+    /// connection with the server's current settings. Nothing is stored.
+    public static func testConnection(_ server: ServerSettings, askPassExecutable: String?,
+                                      passwordStore: SSHPasswordStore = SSHPasswordStore()) async -> ConnectionTestResult {
+        let target = server.trimmedTarget
+        guard SSHTransport.isValidTarget(target) else { return .failure(SSHTransportError.invalidTarget(target).description) }
+        let transport: AnyRemoteCommandExecutor
+        if target.hasPrefix(DemoTransport.targetPrefix) {
+            transport = AnyRemoteCommandExecutor(DemoTransport(target: target))
+        } else {
+            var authentication = SSHAuthentication.key
+            if server.sshAuthenticationMode == .passwordBased {
+                guard let askPassExecutable, passwordStore.hasPassword(for: server.id) else { return .passwordMissing }
+                authentication = .password(account: server.id, askPassExecutable: askPassExecutable)
+            }
+            transport = AnyRemoteCommandExecutor(SSHTransport(target: target, port: server.resolvedPort,
+                                                              identityFile: server.sshIdentityFilePath, authentication: authentication))
+        }
+        let started = ContinuousClock.now
+        do {
+            let snapshot = try await MetricsCollector(transport: transport).fetchSummary(
+                gpuCommand: server.resolvedRemoteCommand, includesNetworkUsage: false,
+                hostMetrics: HostMetricsOptions(cpu: false, memory: false, network: false),
+                hostCommand: server.resolvedHostCommand)
+            let elapsed = ContinuousClock.now - started
+            return .success(gpuCount: snapshot.gpus.count,
+                            seconds: Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18)
+        } catch {
+            return .failure(message(for: error))
+        }
+    }
+
     /// ssh's message when the server refuses the credentials.
     static func isAuthenticationFailure(_ error: Error) -> Bool {
         guard let error = error as? MetricsCollectionError, case .commandFailed(let status, let output) = error,

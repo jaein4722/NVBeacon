@@ -156,6 +156,13 @@ public actor GPUHistoryArchive {
 
     private func file(_ key: String) -> URL { directory.appendingPathComponent(key + ".jsonl") }
 
+    /// Settings › Monitoring › Delete History…: forgets every server's samples, on disk too.
+    public func deleteAll() {
+        servers = [:]
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for url in files where url.pathExtension == "jsonl" { try? FileManager.default.removeItem(at: url) }
+    }
+
     public func samples(serverID: String, fingerprint: String, now: Date = Date()) -> [GPUHistorySample] {
         load(serverID: serverID, fingerprint: fingerprint, now: now)
     }

@@ -67,6 +67,16 @@ enum DiagnosticsReport {
         return lines.joined(separator: "\n") + "\n"
     }
 
+    /// The categories in Korean, for Settings › Servers › Test Connection.
+    static func koreanCategory(_ category: String) -> String {
+        [
+            "None": "없음", "Output limit": "출력 한도 초과", "Timeout": "시간 초과",
+            "Host key verification": "호스트 키 확인", "Authentication": "인증", "Host resolution": "호스트 이름 확인",
+            "Connection refused": "연결 거부", "Network unreachable": "네트워크 연결 불가",
+            "OpenSSH client missing": "OpenSSH 클라이언트 없음", "Metrics output": "수집 결과", "Other (details omitted)": "기타",
+        ][category] ?? category
+    }
+
     static func errorCategory(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return "None" }
         let text = message.lowercased()
