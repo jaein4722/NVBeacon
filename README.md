@@ -26,12 +26,7 @@
 > **NVBeacon 1.0 is on its way.** It will be released together with the launch of NVBeacon for Windows. Stay tuned!
 
 <div align="center">
-  <img src="assets/menu-bar-summary.png" alt="NVBeacon menu bar summary" width="320">
-</div>
-
-<div align="center">
-  <img src="assets/popover-overview.png" alt="NVBeacon popover in light mode" width="46%">
-  <img src="assets/popover-overview-dark.png" alt="NVBeacon popover in dark mode" width="46%">
+  <img src="assets/demo.gif" alt="NVBeacon demo: the menu bar item opens a popover with every server and GPU, and a GPU expands to show who is running what" width="100%">
 </div>
 
 NVBeacon connects to your GPU servers over plain SSH, runs `nvidia-smi`, and shows what every GPU is doing. Nothing is installed on the server, and there is no account or cloud service. It answers the questions you keep opening Terminal for:
@@ -45,7 +40,7 @@ NVBeacon connects to your GPU servers over plain SSH, runs `nvidia-smi`, and sho
 
 | Platform | Get NVBeacon | Requires |
 | --- | --- | --- |
-| **macOS** | `brew install --cask jaein4722/tap/nvbeacon`<br>or the DMG from [GitHub Releases](https://github.com/jaein4722/NVBeacon/releases) | macOS 14 or later |
+| **macOS** | `brew install --cask jaein4722/tap/nvbeacon`<br>or the DMG from [GitHub Releases](https://github.com/jaein4722/NVBeacon/releases) | Mac with Apple silicon, macOS 14 or later |
 | **iPhone & iPad** | <a href="https://apps.apple.com/app/nvbeacon/id6830951631"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" height="40"></a> | iOS 17 or later |
 | **Windows** | In the works | |
 
@@ -67,6 +62,18 @@ On each server you only need SSH access and `nvidia-smi`.
 - SSH keys or passwords, several servers at once, and JSON backup and restore of server settings.
 - Move every server from your Mac to iPhone with a QR code.
 - English and Korean, light and dark appearance.
+
+### In action
+
+<table>
+  <tr>
+    <td width="40%" align="center"><img src="assets/clip-popover.gif" alt="Clicking the menu bar item opens and closes the NVBeacon popover" width="100%"><br><sub><b>One click from the menu bar</b></sub></td>
+    <td width="60%" align="center"><img src="assets/clip-alert.gif" alt="A macOS notification saying python finished on gpu-01, GPU 0" width="100%"><br><sub><b>Know when your job really ends</b></sub><br><br><img src="assets/clip-window.gif" alt="The popover turns into a window that is moved next to a terminal running a training job" width="100%"><br><sub><b>Keep it next to your work</b></sub></td>
+  </tr>
+  <tr>
+    <td colspan="2" align="center"><img src="assets/history-light.jpg" alt="GPU History window: four users sharing one GPU over 24 hours" width="70%"><br><sub><b>See who used the GPUs today</b></sub></td>
+  </tr>
+</table>
 
 ### Mac and iPhone
 
