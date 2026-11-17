@@ -447,24 +447,38 @@ struct SettingsView: View {
                 }
 
                 if draft.busyDetectionMode == .memoryThreshold || draft.busyDetectionMode == .activeProcessOrMemoryThreshold {
-                    LabeledContent(t("Memory threshold", "메모리 기준")) {
+                    LabeledContent {
                         NumericStepperField(
                             value: $draft.busyMemoryThresholdMB,
                             range: 0...10_240,
                             suffix: "MB",
                             fieldWidth: 82
                         )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t("Memory threshold", "메모리 기준"))
+                            Text(t("0–10,240 MB · Default 50 MB", "0–10,240MB · 기본값 50MB"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
                 if draft.busyDetectionMode == .utilizationThreshold {
-                    LabeledContent(t("Utilization threshold", "사용률 기준")) {
+                    LabeledContent {
                         NumericStepperField(
                             value: $draft.busyUtilizationThresholdPercent,
                             range: 0...100,
                             suffix: "%",
                             fieldWidth: 72
                         )
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(t("Utilization threshold", "사용률 기준"))
+                            Text(t("0–100% · Default 10%", "0–100% · 기본값 10%"))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
 
@@ -587,22 +601,36 @@ struct SettingsView: View {
             }
 
             Section {
-                LabeledContent(t("Idle duration", "유휴 시간")) {
+                LabeledContent {
                     NumericStepperField(
                         value: $draft.idleNotificationSeconds,
                         range: 1...3_600,
                         suffix: "s",
                         fieldWidth: 72
                     )
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Idle duration", "유휴 시간"))
+                        Text(t("1–3,600 s · Default 300 s", "1–3,600초 · 기본값 300초"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
-                LabeledContent(t("Memory threshold", "메모리 기준")) {
+                LabeledContent {
                     NumericStepperField(
                         value: $draft.idleMemoryThresholdMB,
                         range: 0...10_240,
                         suffix: "MB",
                         fieldWidth: 88
                     )
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Memory threshold", "메모리 기준"))
+                        Text(t("0–10,240 MB · Default 50 MB", "0–10,240MB · 기본값 50MB"))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 }
             } header: {
                 Text(t("GPU Idle Alert", "GPU 유휴 알림"))
@@ -1240,9 +1268,9 @@ struct SettingsView: View {
 
     private var savedHostAddRow: some View {
         VStack(alignment: .leading, spacing: 6) {
-            LabeledContent(t("Saved Host", "저장된 호스트")) {
+            LabeledContent(t("Saved host", "저장된 호스트")) {
                 HStack(spacing: 8) {
-                    Picker(t("Saved Host", "저장된 호스트"), selection: $selectedSSHConfigAlias) {
+                    Picker(t("Saved host", "저장된 호스트"), selection: $selectedSSHConfigAlias) {
                         Text(t("Select a saved host", "저장된 호스트 선택")).tag("")
 
                         ForEach(sshConfigHosts) { host in
