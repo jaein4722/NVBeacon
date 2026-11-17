@@ -59,7 +59,10 @@ SSH:
   ssh runs NVBeacon.exe as its `SSH_ASKPASS` program, which answers only the
   server's password prompt (not host-key questions, passphrases or one-time
   codes), once per connection. If the server rejects the password, polling of
-  that server stops until the password is saved again.
+  that server stops until the password is saved again or its login changes.
+  This needs OpenSSH 8.4 or later (`SSH_ASKPASS_REQUIRE`), as in Windows 11; the
+  OpenSSH 8.1 built into Windows 10 cannot do it, and NVBeacon says so instead of
+  connecting. Use key authentication there.
 
 Packaging: `scripts\package.ps1 -Version 1.2.3` builds a release folder and zip in
 `dist\` that runs without the Swift toolchain (Swift and C++ runtime DLLs, the
