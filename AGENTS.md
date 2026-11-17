@@ -48,7 +48,7 @@ Tested with:
 Closes #N.
 ```
 
-- List only checks that were actually run, with their results, and state relevant checks that were not completed, such as live SSH collection.
+- List only checks that were actually run, with their results. Leave out checks that were not run.
 - Include `Closes #N` only when the pull request fully resolves that issue.
 - Do not add `Title`, `Body`, or changed-file sections; the pull request and its diff already show them.
 
