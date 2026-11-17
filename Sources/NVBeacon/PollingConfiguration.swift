@@ -45,3 +45,28 @@ struct PollingConfiguration: Equatable, Sendable {
         servers = settings.pollableServers.map { Server($0, hostMetrics: hostMetrics) }.sorted { $0.id < $1.id }
     }
 }
+
+/// One polling loop per server, so a server that is slow or times out only delays
+/// itself. Cancelling the calling task stops every loop.
+enum PerServerPolling {
+    static func run(
+        serverIDs: [String],
+        interval: @escaping @Sendable () async -> Duration,
+        refresh: @escaping @Sendable (String) async -> Void
+    ) async {
+        await withTaskGroup(of: Void.self) { group in
+            for serverID in serverIDs {
+                group.addTask {
+                    while !Task.isCancelled {
+                        await refresh(serverID)
+                        do {
+                            try await Task.sleep(for: await interval())
+                        } catch {
+                            return
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

@@ -726,27 +726,27 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private func pollLoop() async {
-        while !Task.isCancelled {
-            await refresh()
+        await PerServerPolling.run(
+            serverIDs: settings.pollableServers.map(\.id),
+            interval: { [weak self] in await self?.pollInterval ?? .seconds(10) },
+            refresh: { [weak self] serverID in await self?.refresh(serverIDs: [serverID]) }
+        )
+    }
 
-            do {
-                try await Task.sleep(for: .seconds(settings.pollIntervalSeconds))
-            } catch {
-                break
-            }
-        }
+    private var pollInterval: Duration {
+        .seconds(settings.pollIntervalSeconds)
     }
 
     private func refresh(serverIDs: Set<String>? = nil) async {
         let generation = pollingGeneration
+        // Servers refresh independently; skip only the ones already in flight.
         let targetStates = serverStates.filter { state in
-            state.server.isPollable && (serverIDs?.contains(state.id) ?? true)
+            state.server.isPollable && !state.isRefreshing && (serverIDs?.contains(state.id) ?? true)
         }
         guard !targetStates.isEmpty else {
             syncAggregateRuntimeState()
             return
         }
-        guard !isRefreshing else { return }
 
         var contexts = [ServerRefreshContext]()
 
