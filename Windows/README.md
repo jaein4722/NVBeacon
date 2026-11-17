@@ -64,8 +64,8 @@ SSH:
   OpenSSH 8.1 built into Windows 10 cannot do it, and NVBeacon says so instead of
   connecting. Use key authentication there.
 
-Packaging: `scripts\package.ps1 -Version 1.2.3` builds a release folder and zip in
-`dist\` that runs without the Swift toolchain (Swift and C++ runtime DLLs, the
+Packaging: `scripts\package.ps1 -Version 1.2.3` (or a pre-release such as
+`1.2.3-beta.1`) builds a release folder and zip in `dist\` that runs without the Swift toolchain (Swift and C++ runtime DLLs, the
 WebView2 loader, the UI files and license notices). The icon and version
 information are compiled into the executables from `packaging\NVBeacon.rc.in`.
 `packaging\THIRD-PARTY-NOTICES.txt` holds the full license texts of the bundled

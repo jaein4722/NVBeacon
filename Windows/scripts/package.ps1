@@ -6,6 +6,7 @@ With -Installer it also builds the per-user installer
   dist\NVBeacon-<version>-windows-x64-setup.exe  (from packaging\NVBeacon.iss)
 
   powershell -ExecutionPolicy Bypass -File Windows\scripts\package.ps1 -Version 1.0.0 -Installer
+  powershell -ExecutionPolicy Bypass -File Windows\scripts\package.ps1 -Version 1.0.0-beta.1 -Installer
 
 Needs the Swift toolchain, the Windows SDK (rc.exe) and Visual Studio Build Tools
 (dumpbin.exe), plus Inno Setup 6 for -Installer (winget install JRSoftware.InnoSetup).
@@ -17,7 +18,10 @@ param(
     [switch]$Installer
 )
 $ErrorActionPreference = "Stop"
-if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.2.3" }
+# A pre-release adds -alpha.N, -beta.N or -rc.N (shown as is). The numeric file version
+# Windows keeps in the executables and the installer has no room for it: 1.0.0-beta.1 is 1.0.0.0.
+if ($Version -notmatch '^(\d+\.\d+\.\d+)(-(alpha|beta|rc)\.\d+)?$') { throw "Version must look like 1.2.3 or 1.2.3-beta.1" }
+$numericVersion = $Matches[1]
 
 $windows = Split-Path $PSScriptRoot
 $repo = Split-Path $windows
@@ -75,7 +79,7 @@ $include = "${env:ProgramFiles(x86)}\Windows Kits\10\Include\$sdkVersion"
 $template = Get-Content (Join-Path $windows "packaging\NVBeacon.rc.in") -Raw
 $resources = @{}
 foreach ($product in "NVBeacon", "nvbeacon-cli") {
-    $script = $template.Replace("@VERSION_COMMAS@", ($Version -replace '\.', ',') + ",0").Replace("@VERSION@", $Version).Replace("@NAME@", $product)
+    $script = $template.Replace("@VERSION_COMMAS@", ($numericVersion -replace '\.', ',') + ",0").Replace("@VERSION@", $Version).Replace("@NAME@", $product)
     $rcFile = Join-Path $work "$product.rc"
     [System.IO.File]::WriteAllText($rcFile, $script, (New-Object System.Text.UTF8Encoding $false))
     $res = Join-Path $work "$product.res"
@@ -205,7 +209,7 @@ if ($Installer) {
         }
     } finally { $appIcon.Dispose() }
 
-    & $iscc /Q "/DAppVersion=$Version" "/DSourceDir=$dist" "/DOutputDir=$(Split-Path $dist)" "/DIconFile=$icon" `
+    & $iscc /Q "/DAppVersion=$Version" "/DAppNumericVersion=$numericVersion" "/DSourceDir=$dist" "/DOutputDir=$(Split-Path $dist)" "/DIconFile=$icon" `
         "/DWizardImages=$($wizardImages -join ',')" "/DWizardSmallImages=$($smallImages -join ',')" (Join-Path $windows "packaging\NVBeacon.iss")
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
     $setup = Join-Path (Split-Path $dist) "$name-setup.exe"

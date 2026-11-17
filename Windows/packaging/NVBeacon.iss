@@ -11,6 +11,10 @@
 #ifndef AppVersion
   #error Pass /DAppVersion=x.y.z
 #endif
+; The file version must be numbers only: 1.0.0 for AppVersion 1.0.0-beta.1.
+#ifndef AppNumericVersion
+  #define AppNumericVersion AppVersion
+#endif
 #ifndef SourceDir
   #error Pass /DSourceDir=<folder made by package.ps1>
 #endif
@@ -33,7 +37,7 @@ AppPublisherURL=https://github.com/jaein4722/NVBeacon
 AppSupportURL=https://github.com/jaein4722/NVBeacon/issues
 AppUpdatesURL=https://github.com/jaein4722/NVBeacon/releases
 AppCopyright=Copyright (c) 2026 Lee Jaein. MIT License.
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppNumericVersion}
 PrivilegesRequired=lowest
 DefaultDirName={autopf}\NVBeacon
 DisableProgramGroupPage=yes
