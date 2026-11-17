@@ -59,6 +59,11 @@ function spinner() {
   node.setAttribute("role", "progressbar");
   return node;
 }
+// Always takes the spinner's width, so the buttons next to it never move when a
+// refresh starts or ends (a click could otherwise land on a different button).
+function spinnerSlot(active) {
+  return h("span", "spinner-slot", active ? spinner() : null);
+}
 
 // ---------- Formatting ----------
 
@@ -128,7 +133,8 @@ function headerStrip(state) {
   else if (servers.length === 1) title = servers[0].name;
   else title = t(pollable + "/" + servers.length + " servers", pollable + "/" + servers.length + " 서버");
 
-  const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"));
+  const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"),
+    spinnerSlot(fleet.isRefreshing));
   if (state.recordsGPUHistory) {
     top.append(iconButton("chart", t("Open GPU history", "GPU 기록 열기"), () => send({ type: "openHistory" }), "open-history"));
   }
@@ -143,7 +149,6 @@ function headerStrip(state) {
       () => send({ type: "refresh" }), "refresh-all"));
   }
   top.append(iconButton("gear", t("Settings…", "설정…"), () => send({ type: "settings" }), "open-settings"));
-  if (fleet.isRefreshing) top.append(spinner());
 
   const strip = h("div", "card header", top);
   if (fleet.gpuCount > 0) {
@@ -364,10 +369,10 @@ function serverSection(server) {
   }
   const pollable = server.isEnabled && !server.inactiveReason;
   if (pollable) {
+    head.append(spinnerSlot(server.isRefreshing));
     head.append(iconButton("refresh", t("Refresh this server now", "이 서버를 지금 새로고침"),
       () => send({ type: "refreshServer", id: server.id }), "refresh:" + server.id));
   }
-  if (server.isRefreshing) head.append(spinner());
 
   const section = h("section", "card server" + (server.isEnabled ? "" : " disabled"), head);
   if (!expanded) return section;

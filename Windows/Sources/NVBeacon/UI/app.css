@@ -207,3 +207,6 @@ svg { display: block; fill: currentColor; }
 @keyframes appear { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
 
 .empty { padding: 12px 0; }
+
+/* Reserved space for the refresh spinner (see spinnerSlot in app.js). */
+.spinner-slot { width: 14px; height: 14px; flex: none; display: inline-flex; }
