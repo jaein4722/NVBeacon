@@ -135,7 +135,7 @@ Passwords are less secure than SSH keys. NVBeacon stores each password in the Ke
 <details>
 <summary>Where is GPU history stored, and how do I turn it off?</summary>
 
-GPU history is off by default. When it is on, the Mac app samples per-user GPU usage at most once a minute per server and appends one short JSON line per GPU to `~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/`. Data older than 24 hours is dropped. Turn it off in Settings; existing files stay until you delete that folder.
+GPU history is off by default. When it is on, the Mac app samples per-user GPU usage at most once a minute per server and appends one short JSON line per GPU to `~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/`. Data older than 24 hours is dropped. Turn it off in **Settings → Monitoring**; **Delete History…** there removes the saved files.
 </details>
 
 <details>
@@ -188,7 +188,7 @@ Network rates come from `/sys/class/net` or `/proc/net/dev`. Loopback, container
 
 ## Development
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for building, testing and packaging the Mac app, and [docs/IOS.md](docs/IOS.md) for the iPhone and iPad app. The platform-independent models, parsers, query commands and backup format live in [NVBeaconCore](Shared/NVBeaconCore/README.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for building and testing the Mac and iPhone apps. Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
