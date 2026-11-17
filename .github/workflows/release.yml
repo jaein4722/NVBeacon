@@ -171,6 +171,19 @@ jobs:
             exit 1
           fi
 
+          # A copy with a fixed name keeps
+          # https://github.com/<repo>/releases/latest/download/NVBeacon.dmg
+          # pointing at the newest build. Sparkle and Homebrew keep using the
+          # versioned DMG.
+          versioned_dmg="dist/NVBeacon-${VERSION}.dmg"
+          if [ ! -f "$versioned_dmg" ]; then
+            echo "Expected $versioned_dmg for the fixed-name download copy." >&2
+            exit 1
+          fi
+          stable_dmg="${RUNNER_TEMP}/NVBeacon.dmg"
+          cp "$versioned_dmg" "$stable_dmg"
+          assets+=("$stable_dmg")
+
           if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" "${assets[@]}" --clobber
             gh release edit "$GITHUB_REF_NAME" \

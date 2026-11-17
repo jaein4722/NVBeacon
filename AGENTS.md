@@ -83,7 +83,7 @@ Keep commits focused and reviewable. Commit often on your working branch; local 
 ## Packaging Rules
 
 - `scripts/package_app.sh` is the canonical packaging entrypoint.
-- Release artifacts should be DMG-based: `NVBeacon-<version>.dmg`.
+- Release artifacts should be DMG-based: `NVBeacon-<version>.dmg`. The release workflow also uploads a copy named `NVBeacon.dmg`, so `releases/latest/download/NVBeacon.dmg` always serves the newest build.
 - Local builds are ad-hoc signed by default.
 
 ## Repository Safety
