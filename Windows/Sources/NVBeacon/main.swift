@@ -70,7 +70,19 @@ do {
     showError("\(error)\n\nUsage: NVBeacon.exe [--interval SECONDS] [--demo] [TARGET ...]")
     exit(2)
 }
-var savedSettings = SettingsStore.load()
+let loadedSettings = SettingsStore.loadResult()
+if loadedSettings.unreadable {
+    let korean = Theme.language == "ko"
+    guard loadedSettings.preservedCopy != nil else {
+        // Starting with the defaults would overwrite the file on the next save.
+        showError(TrayApp.unreadableSettingsText(loadedSettings, korean: korean)
+            + (korean ? "\n\nNVBeacon을 종료합니다. 파일을 확인한 뒤 다시 실행하세요." : "\n\nNVBeacon will quit. Check the file and start it again."))
+        exit(1)
+    }
+    showError(TrayApp.unreadableSettingsText(loadedSettings, korean: korean)
+        + (korean ? "\n\n기본 설정으로 시작합니다." : "\n\nNVBeacon starts with the default settings."))
+}
+var savedSettings = loadedSettings.settings
 // --interval without targets still applies for this session.
 if arguments.contains("--interval") { savedSettings.pollIntervalSeconds = Int(options.interval.components.seconds) }
 let launchSettings = savedSettings

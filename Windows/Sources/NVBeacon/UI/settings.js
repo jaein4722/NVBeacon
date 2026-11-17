@@ -567,7 +567,12 @@ function advancedPane() {
       t("Preview a report of the current app and collection state. No additional SSH commands are run.", "앱과 수집 상태를 미리 확인하고 복사합니다. 추가 SSH 명령은 실행하지 않습니다.")),
     section(t("Saved State", "저장 상태"), [row(t("Settings", "설정"), [
       button(t("Open settings.json", "settings.json 열기"), () => send({ type: "openSettingsFile" })),
-      button(t("Reload Settings", "설정 다시 불러오기"), () => send({ type: "reload" })),
+      button(t("Reload Settings", "설정 다시 불러오기"), () => {
+        // Reading the file replaces edits that were not applied yet.
+        clearTimeout(ui.applyTimer);
+        ui.applyPending = false;
+        send({ type: "reload" });
+      }),
       button(t("Clear Saved Settings…", "저장된 설정 지우기…"), confirmClear, { className: "destructive" })])],
       t("Clearing removes every server, saved password, watch and notification history.", "지우면 모든 서버, 저장된 비밀번호, 감시와 알림 기록이 삭제됩니다.")),
   ];

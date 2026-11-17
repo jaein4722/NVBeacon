@@ -56,6 +56,23 @@ import Testing
     #expect(SettingsStore.load(from: file, legacyServerFile: legacy) == migrated)
 }
 
+@Test func unreadableSettingsAreKeptBeforeTheDefaultsAreUsed() throws {
+    let folder = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-settings-\(UUID())")
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let file = folder.appendingPathComponent("settings.json")
+    let legacy = folder.appendingPathComponent("servers.txt")
+    try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+    try #"{"servers": [{"id": "A", "sshTarget": "gpu-a""#.write(to: file, atomically: false, encoding: .utf8)
+    try "gpu-legacy\n".write(to: legacy, atomically: false, encoding: .utf8)
+
+    let loaded = SettingsStore.loadResult(from: file, legacyServerFile: legacy)
+    #expect(loaded.unreadable)
+    #expect(loaded.settings == WindowsSettings(), "a damaged file is not mistaken for a first run")
+    let copy = try #require(loaded.preservedCopy)
+    #expect(try Data(contentsOf: copy) == Data(contentsOf: file))
+    #expect(!SettingsStore.loadResult(from: folder.appendingPathComponent("missing.json"), legacyServerFile: legacy).unreadable)
+}
+
 @Test func pollableRequiresEnabledServerWithTarget() {
     #expect(ServerSettings(sshTarget: "gpu").isPollable)
     #expect(!ServerSettings(sshTarget: "gpu", isEnabled: false).isPollable)

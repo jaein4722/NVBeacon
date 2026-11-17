@@ -784,8 +784,23 @@ final class TrayApp {
         case "copyText":
             Shell.copyToClipboard(message["text"] as? String ?? "", owner: owner)
         case "reload":
-            settings = SettingsStore.load()
+            // Applies the file as if it had been edited here (servers, polling, appearance).
+            let korean = Theme.language == "ko"
+            pendingSettingsDraft = nil
+            guard FileManager.default.fileExists(atPath: SettingsStore.fileURL.path) else {
+                failure(korean ? "설정 파일이 없습니다: \(SettingsStore.fileURL.path)\n지금 설정은 그대로 둡니다."
+                               : "There is no settings file: \(SettingsStore.fileURL.path)\nThe current settings are unchanged.")
+                return
+            }
+            let loaded = SettingsStore.loadResult()
+            if loaded.unreadable {
+                failure(Self.unreadableSettingsText(loaded, korean: korean)
+                    + (korean ? "\n지금 설정은 그대로 둡니다." : "\nThe current settings are unchanged."))
+                return
+            }
+            apply(loaded.settings)
             pushSettings()
+            settingsToast(korean ? "설정을 다시 불러왔습니다." : "Reloaded the settings.")
         case "clearSettings":
             // Like macOS: servers, saved passwords, alerts and notification history all go.
             for serverID in passwordStore.savedServerIDs() { passwordStore.delete(for: serverID) }
@@ -821,6 +836,16 @@ final class TrayApp {
 
     func postToSettings(_ message: [String: Any]) {
         settingsWindow?.host.post(message)
+    }
+
+    /// The file and, when there is one, the copy kept of it; callers add what happens next.
+    static func unreadableSettingsText(_ loaded: SettingsStore.LoadResult, korean: Bool) -> String {
+        let file = SettingsStore.fileURL.path
+        var text = korean ? "설정 파일을 읽을 수 없습니다: \(file)" : "The settings file could not be read: \(file)"
+        if let copy = loaded.preservedCopy?.path {
+            text += korean ? "\n원본은 \(copy)에 보관했습니다." : "\nThe original was kept as \(copy)."
+        }
+        return text
     }
 
     private func settingsToast(_ text: String) {

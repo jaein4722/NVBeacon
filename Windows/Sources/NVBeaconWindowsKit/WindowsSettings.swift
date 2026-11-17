@@ -235,14 +235,37 @@ public enum SettingsStore {
     public static var fileURL: URL { folder.appendingPathComponent("settings.json") }
 
     public static func load(from url: URL = fileURL, legacyServerFile: URL = LaunchOptions.serverFile) -> WindowsSettings {
-        if let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(WindowsSettings.self, from: data) {
-            return settings.sanitized()
+        loadResult(from: url, legacyServerFile: legacyServerFile).settings
+    }
+
+    public struct LoadResult: Sendable {
+        public var settings: WindowsSettings
+        /// The settings file existed but could not be read. The defaults are used, and
+        /// the file was copied here first so the next save does not destroy it
+        /// (nil when even the copy failed).
+        public var unreadable: Bool = false
+        public var preservedCopy: URL?
+    }
+
+    public static func loadResult(from url: URL = fileURL, legacyServerFile: URL = LaunchOptions.serverFile,
+                                  now: Date = Date()) -> LoadResult {
+        if FileManager.default.fileExists(atPath: url.path) {
+            if let data = try? Data(contentsOf: url), let settings = try? JSONDecoder().decode(WindowsSettings.self, from: data) {
+                return LoadResult(settings: settings.sanitized())
+            }
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.dateFormat = "yyyyMMdd-HHmmss"
+            let copy = url.deletingLastPathComponent()
+                .appendingPathComponent("settings-unreadable-\(formatter.string(from: now)).json")
+            let preserved = (try? FileManager.default.copyItem(at: url, to: copy)) != nil
+            return LoadResult(settings: WindowsSettings(), unreadable: true, preservedCopy: preserved ? copy : nil)
         }
         var settings = WindowsSettings()
         if let text = try? String(contentsOf: legacyServerFile, encoding: .utf8) {
             settings.servers = LaunchOptions.targets(fromServerFile: text).map { ServerSettings(sshTarget: $0) }
         }
-        return settings
+        return LoadResult(settings: settings)
     }
 
     public static func save(_ settings: WindowsSettings, to url: URL = fileURL) throws {
