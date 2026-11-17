@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>NVBeacon popover mock-up</title>
+  <link rel="icon" href="./assets/favicon-64.png">
+  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./mockup.css">
+  <style>
+    .mockup-page { width: var(--shell); margin: 0 auto; padding: 48px 0 80px; }
+    .mockup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr)); gap: 48px; margin-top: 32px; }
+    .mockup-grid > section { width: min(100%, 500px); justify-self: center; }
+  </style>
+</head>
+<body>
+  <!-- Preserved HTML mock-up of the Mac popover, used in the hero before the real
+       recordings replaced it. Expand and collapse use native <details>, no script.
+       Not linked from the site and kept out of the sitemap. -->
+  <main class="mockup-page">
+    <h1>Popover mock-up</h1>
+    <p>Example data. Click a server or GPU to expand it.</p>
+    <div class="mockup-grid">
+      <section aria-label="English">
+    <div class="mock" role="region" aria-label="NVBeacon popover on Mac, with example data">
+      <div class="mk-caption"><span class="mk-caption-dot" aria-hidden="true"></span><span>Example data · click a server or GPU to expand</span></div>
+      <div class="mk-menubar" aria-hidden="true">
+        <span class="mk-menus"><i></i><i></i><i></i><i></i></span>
+        <span class="mk-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5M2.5 9H5M2.5 15H5M19 9h2.5M19 15h2.5"/></svg>GPU 44% · 9/12</span>
+        <span class="mk-sys"><svg viewBox="0 0 24 24"><path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/></svg><svg viewBox="0 0 28 24"><rect x="2" y="7" width="21" height="10" rx="3"/><rect x="4.5" y="9.5" width="13" height="5" rx="1.2" class="fill"/><path d="M25.5 10.5v3"/></svg><span>Tue 9:41</span></span>
+      </div>
+      <div class="mk-popover">
+        <div class="mk-header" aria-hidden="true">
+          <span class="mk-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>2/2 servers</span>
+          <span class="mk-tools"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></svg></span>
+        </div>
+        <div class="mk-pills">
+          <div><span>Avg</span><b>44%</b></div>
+          <div><span>Busy</span><b>9/12</b></div>
+          <div><span>Proc</span><b>9</b></div>
+          <div><span>Updated</span><b>3s</b></div>
+        </div>
+        <div class="mk-scroll">
+        <details class="mk-server" open>
+          <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-01</b><span>GPU 6/8 · 39%</span></summary>
+          <div class="mk-host"><span>CPU <b class="o">46%</b></span><span>RAM <b class="b">63%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 12.6 MB/s ↑ 3.1 MB/s</span></div>
+            <details class="mk-gpu mine">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">74°C · 1p · 14%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>14%</em><i style="--v:14%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python train.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28410</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Watching</span><code class="mk-proc-cmd">python train.py --epochs 40 --batch-size 32</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">75°C · 1p · 37%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>37%</em><i style="--v:37%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python finetune.py</span><span class="mk-proc-pid">PID 30122</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python finetune.py --lr 2e-5</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">37°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span><span class="mk-armed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>Idle notification armed</span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">90°C · 1p · 85%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>85%</em><i style="--v:85%"></i></span><span class="mk-bar mem"><span>Memory</span><em>74%</em><i style="--v:74%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31877</span></span><span class="mk-proc-mem">33.2 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu mine">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 4</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">66°C · 1p · 93%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>93%</em><i style="--v:93%"></i></span><span class="mk-bar mem"><span>Memory</span><em>60%</em><i style="--v:60%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python eval.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28533</span></span><span class="mk-proc-mem">27.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python eval.py --split val</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 5</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">41°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 6</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">58°C · 1p · 22%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>22%</em><i style="--v:22%"></i></span><span class="mk-bar mem"><span>Memory</span><em>20%</em><i style="--v:20%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">jupyter-kernel</span><span class="mk-proc-pid">PID 29960</span></span><span class="mk-proc-mem">8.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python -m ipykernel_launcher</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 7</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">79°C · 1p · 64%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>64%</em><i style="--v:64%"></i></span><span class="mk-bar mem"><span>Memory</span><em>73%</em><i style="--v:73%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31878</span></span><span class="mk-proc-mem">33.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                </div>
+            </details>
+        </details>
+        <details class="mk-server">
+          <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-02</b><span>GPU 3/4 · 53%</span></summary>
+          <div class="mk-host"><span>CPU <b class="o">28%</b></span><span>RAM <b class="b">25%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 4.2 MB/s ↑ 0.8 MB/s</span></div>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">68°C · 1p · 71%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>71%</em><i style="--v:71%"></i></span><span class="mk-bar mem"><span>Memory</span><em>77%</em><i style="--v:77%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python sweep.py</span><span class="mk-proc-pid">PID 11204</span></span><span class="mk-proc-mem">18.4 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python sweep.py --trial 7</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">35°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">74°C · 1p · 88%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>88%</em><i style="--v:88%"></i></span><span class="mk-bar mem"><span>Memory</span><em>90%</em><i style="--v:90%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">python train_vit.py</span><span class="mk-proc-pid">PID 11391</span></span><span class="mk-proc-mem">21.7 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python train_vit.py</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">63°C · 1p · 52%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>52%</em><i style="--v:52%"></i></span><span class="mk-bar mem"><span>Memory</span><em>40%</em><i style="--v:40%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">python infer.py</span><span class="mk-proc-pid">PID 11455</span></span><span class="mk-proc-mem">9.6 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python infer.py --port 8000</code></div>
+                </div>
+            </details>
+        </details>
+        </div>
+      </div>
+    </div>
+      </section>
+      <section aria-label="Korean" lang="ko">
+    <div class="mock" role="region" aria-label="예시 데이터로 보여주는 Mac용 NVBeacon 팝오버">
+      <div class="mk-caption"><span class="mk-caption-dot" aria-hidden="true"></span><span>예시 데이터 · 서버나 GPU를 눌러 펼쳐 보세요</span></div>
+      <div class="mk-menubar" aria-hidden="true">
+        <span class="mk-menus"><i></i><i></i><i></i><i></i></span>
+        <span class="mk-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5M2.5 9H5M2.5 15H5M19 9h2.5M19 15h2.5"/></svg>GPU 44% · 9/12</span>
+        <span class="mk-sys"><svg viewBox="0 0 24 24"><path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/></svg><svg viewBox="0 0 28 24"><rect x="2" y="7" width="21" height="10" rx="3"/><rect x="4.5" y="9.5" width="13" height="5" rx="1.2" class="fill"/><path d="M25.5 10.5v3"/></svg><span>화 오전 9:41</span></span>
+      </div>
+      <div class="mk-popover">
+        <div class="mk-header" aria-hidden="true">
+          <span class="mk-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>2/2 서버</span>
+          <span class="mk-tools"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></svg></span>
+        </div>
+        <div class="mk-pills">
+          <div><span>평균</span><b>44%</b></div>
+          <div><span>사용중</span><b>9/12</b></div>
+          <div><span>프로세스</span><b>9</b></div>
+          <div><span>업데이트</span><b>3s</b></div>
+        </div>
+        <div class="mk-scroll">
+        <details class="mk-server" open>
+          <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-01</b><span>GPU 6/8 · 39%</span></summary>
+          <div class="mk-host"><span>CPU <b class="o">46%</b></span><span>RAM <b class="b">63%</b></span><span>Swap <b class="b">3%</b></span><span class="net">네트워크 ↓ 12.6 MB/s ↑ 3.1 MB/s</span></div>
+            <details class="mk-gpu mine">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">내 프로세스</span><span class="mk-stats">74°C · 1p · 14%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>14%</em><i style="--v:14%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python train.py <span class="mk-badge">내 프로세스</span></span><span class="mk-proc-pid">PID 28410</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>감시 중</span><code class="mk-proc-cmd">python train.py --epochs 40 --batch-size 32</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">75°C · 1p · 37%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>37%</em><i style="--v:37%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python finetune.py</span><span class="mk-proc-pid">PID 30122</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python finetune.py --lr 2e-5</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">37°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span><span class="mk-armed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>유휴 알림 설정됨</span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">90°C · 1p · 85%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>85%</em><i style="--v:85%"></i></span><span class="mk-bar mem"><span>Memory</span><em>74%</em><i style="--v:74%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31877</span></span><span class="mk-proc-mem">33.2 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu mine">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 4</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">내 프로세스</span><span class="mk-stats">66°C · 1p · 93%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>93%</em><i style="--v:93%"></i></span><span class="mk-bar mem"><span>Memory</span><em>60%</em><i style="--v:60%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python eval.py <span class="mk-badge">내 프로세스</span></span><span class="mk-proc-pid">PID 28533</span></span><span class="mk-proc-mem">27.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python eval.py --split val</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 5</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">41°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 6</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">58°C · 1p · 22%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>22%</em><i style="--v:22%"></i></span><span class="mk-bar mem"><span>Memory</span><em>20%</em><i style="--v:20%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">jupyter-kernel</span><span class="mk-proc-pid">PID 29960</span></span><span class="mk-proc-mem">8.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python -m ipykernel_launcher</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 7</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">79°C · 1p · 64%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>64%</em><i style="--v:64%"></i></span><span class="mk-bar mem"><span>Memory</span><em>73%</em><i style="--v:73%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31878</span></span><span class="mk-proc-mem">33.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
+                </div>
+            </details>
+        </details>
+        <details class="mk-server">
+          <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-02</b><span>GPU 3/4 · 53%</span></summary>
+          <div class="mk-host"><span>CPU <b class="o">28%</b></span><span>RAM <b class="b">25%</b></span><span>Swap <b class="b">3%</b></span><span class="net">네트워크 ↓ 4.2 MB/s ↑ 0.8 MB/s</span></div>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">68°C · 1p · 71%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>71%</em><i style="--v:71%"></i></span><span class="mk-bar mem"><span>Memory</span><em>77%</em><i style="--v:77%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python sweep.py</span><span class="mk-proc-pid">PID 11204</span></span><span class="mk-proc-mem">18.4 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python sweep.py --trial 7</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">35°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
+                <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">74°C · 1p · 88%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>88%</em><i style="--v:88%"></i></span><span class="mk-bar mem"><span>Memory</span><em>90%</em><i style="--v:90%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">python train_vit.py</span><span class="mk-proc-pid">PID 11391</span></span><span class="mk-proc-mem">21.7 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python train_vit.py</code></div>
+                </div>
+            </details>
+            <details class="mk-gpu">
+              <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">63°C · 1p · 52%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>52%</em><i style="--v:52%"></i></span><span class="mk-bar mem"><span>Memory</span><em>40%</em><i style="--v:40%"></i></span></span></span></summary>
+                <div class="mk-procs">
+                  <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">python infer.py</span><span class="mk-proc-pid">PID 11455</span></span><span class="mk-proc-mem">9.6 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python infer.py --port 8000</code></div>
+                </div>
+            </details>
+        </details>
+        </div>
+      </div>
+    </div>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

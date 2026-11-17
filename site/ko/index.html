@@ -57,7 +57,7 @@
         <a class="nav-optional" href="#features">기능</a>
         <a href="#download">다운로드</a>
         <a class="nav-optional" href="#faq">FAQ</a>
-        <a href="https://github.com/jaein4722/NVBeacon">GitHub</a>
+        <a class="nav-github" href="https://github.com/jaein4722/NVBeacon">GitHub</a>
         <a class="lang-switch" href="../" hreflang="en" lang="en">English</a>
       </div>
     </nav>
@@ -66,7 +66,7 @@
   <main id="content">
     <section class="hero">
       <div class="beacon" aria-hidden="true"><span></span><span></span><span></span></div>
-      <div class="page-shell hero-grid">
+      <div class="page-shell hero-inner">
         <div class="hero-copy">
           <p class="eyebrow">무료 · 오픈 소스 · 서버 설치 없음</p>
           <h1>GPU 서버를<br><em>한눈에.</em></h1>
@@ -91,102 +91,9 @@
         </div>
 
         <div class="hero-visual">
-          <div class="mock" role="region" aria-label="예시 데이터로 보여주는 Mac용 NVBeacon 팝오버">
-            <div class="mk-caption"><span class="mk-caption-dot" aria-hidden="true"></span><span>예시 데이터 · 서버나 GPU를 눌러 펼쳐 보세요</span></div>
-            <div class="mk-menubar" aria-hidden="true">
-              <span class="mk-menus"><i></i><i></i><i></i><i></i></span>
-              <span class="mk-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5M2.5 9H5M2.5 15H5M19 9h2.5M19 15h2.5"/></svg>GPU 44% · 9/12</span>
-              <span class="mk-sys"><svg viewBox="0 0 24 24"><path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/></svg><svg viewBox="0 0 28 24"><rect x="2" y="7" width="21" height="10" rx="3"/><rect x="4.5" y="9.5" width="13" height="5" rx="1.2" class="fill"/><path d="M25.5 10.5v3"/></svg><span>화 오전 9:41</span></span>
-            </div>
-            <div class="mk-popover">
-              <div class="mk-header" aria-hidden="true">
-                <span class="mk-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>2/2 서버</span>
-                <span class="mk-tools"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></svg></span>
-              </div>
-              <div class="mk-pills">
-                <div><span>평균</span><b>44%</b></div>
-                <div><span>사용중</span><b>9/12</b></div>
-                <div><span>프로세스</span><b>9</b></div>
-                <div><span>업데이트</span><b>3s</b></div>
-              </div>
-              <div class="mk-scroll">
-              <details class="mk-server" open>
-                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-01</b><span>GPU 6/8 · 39%</span></summary>
-                <div class="mk-host"><span>CPU <b class="o">46%</b></span><span>RAM <b class="b">63%</b></span><span>Swap <b class="b">3%</b></span><span class="net">네트워크 ↓ 12.6 MB/s ↑ 3.1 MB/s</span></div>
-                  <details class="mk-gpu mine">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">내 프로세스</span><span class="mk-stats">74°C · 1p · 14%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>14%</em><i style="--v:14%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python train.py <span class="mk-badge">내 프로세스</span></span><span class="mk-proc-pid">PID 28410</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>감시 중</span><code class="mk-proc-cmd">python train.py --epochs 40 --batch-size 32</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">75°C · 1p · 37%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>37%</em><i style="--v:37%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python finetune.py</span><span class="mk-proc-pid">PID 30122</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python finetune.py --lr 2e-5</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">37°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span><span class="mk-armed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>유휴 알림 설정됨</span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">90°C · 1p · 85%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>85%</em><i style="--v:85%"></i></span><span class="mk-bar mem"><span>Memory</span><em>74%</em><i style="--v:74%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31877</span></span><span class="mk-proc-mem">33.2 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu mine">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 4</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">내 프로세스</span><span class="mk-stats">66°C · 1p · 93%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>93%</em><i style="--v:93%"></i></span><span class="mk-bar mem"><span>Memory</span><em>60%</em><i style="--v:60%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python eval.py <span class="mk-badge">내 프로세스</span></span><span class="mk-proc-pid">PID 28533</span></span><span class="mk-proc-mem">27.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python eval.py --split val</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 5</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">41°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 6</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">58°C · 1p · 22%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>22%</em><i style="--v:22%"></i></span><span class="mk-bar mem"><span>Memory</span><em>20%</em><i style="--v:20%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">jupyter-kernel</span><span class="mk-proc-pid">PID 29960</span></span><span class="mk-proc-mem">8.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python -m ipykernel_launcher</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 7</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">79°C · 1p · 64%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>64%</em><i style="--v:64%"></i></span><span class="mk-bar mem"><span>Memory</span><em>73%</em><i style="--v:73%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31878</span></span><span class="mk-proc-mem">33.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
-                      </div>
-                  </details>
-              </details>
-              <details class="mk-server">
-                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-02</b><span>GPU 3/4 · 53%</span></summary>
-                <div class="mk-host"><span>CPU <b class="o">28%</b></span><span>RAM <b class="b">25%</b></span><span>Swap <b class="b">3%</b></span><span class="net">네트워크 ↓ 4.2 MB/s ↑ 0.8 MB/s</span></div>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">68°C · 1p · 71%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>71%</em><i style="--v:71%"></i></span><span class="mk-bar mem"><span>Memory</span><em>77%</em><i style="--v:77%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python sweep.py</span><span class="mk-proc-pid">PID 11204</span></span><span class="mk-proc-mem">18.4 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python sweep.py --trial 7</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">35°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">이 GPU에서 실행 중인 연산 프로세스가 없습니다.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">74°C · 1p · 88%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>88%</em><i style="--v:88%"></i></span><span class="mk-bar mem"><span>Memory</span><em>90%</em><i style="--v:90%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">python train_vit.py</span><span class="mk-proc-pid">PID 11391</span></span><span class="mk-proc-mem">21.7 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python train_vit.py</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">63°C · 1p · 52%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>52%</em><i style="--v:52%"></i></span><span class="mk-bar mem"><span>Memory</span><em>40%</em><i style="--v:40%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">python infer.py</span><span class="mk-proc-pid">PID 11455</span></span><span class="mk-proc-mem">9.6 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>알림</span><code class="mk-proc-cmd">python infer.py --port 8000</code></div>
-                      </div>
-                  </details>
-              </details>
-              </div>
-            </div>
-          </div>
+          <figure class="hero-demo">
+            <div class="video-frame"><video controls autoplay muted loop playsinline preload="metadata" width="1920" height="1200" poster="../assets/mac/demo-poster.jpg" aria-label="NVBeacon 데모: 메뉴 막대 항목을 누르면 모든 서버와 GPU가 담긴 팝오버가 열리고, GPU를 펼치면 누가 무엇을 돌리는지 보입니다"><source src="../assets/mac/demo.webm" type="video/webm"><source src="../assets/mac/demo.mp4" type="video/mp4"></video></div>
+          </figure>
           <div class="phone-shot">
             <picture>
               <source srcset="../assets/iphone/ko/03-gpu-details-dark.jpg" media="(prefers-color-scheme: dark)">
@@ -220,12 +127,11 @@
 
     <section class="section" id="how-it-works">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">작동 방식</p>
           <h2>SSH만 있으면 됩니다.</h2>
-          <p>서버에 로그인해 <code>nvidia-smi</code>를 실행할 수 있다면 NVBeacon을 바로 쓸 수 있습니다.</p>
         </div>
-        <ol class="steps" data-reveal>
+        <ol class="steps" data-reveal="stagger">
           <li>
             <h3>서버 추가</h3>
             <p>호스트, 사용자, 포트를 입력하거나 Mac에서는 <code>~/.ssh/config</code>에서 가져옵니다. SSH 키와 비밀번호를 모두 쓸 수 있습니다.</p>
@@ -247,13 +153,40 @@
       </div>
     </section>
 
+    <section class="section flush-top" id="in-action">
+      <div class="page-shell">
+        <div class="section-heading center" data-reveal>
+          <p class="kicker">실제 화면</p>
+          <h2>GPU를 확인하는 순간에 맞춰 만들었습니다.</h2>
+        </div>
+        <div class="showcase">
+          <article class="show-row media-tall" data-reveal="stagger">
+            <div class="show-text"><h3>메뉴 막대에서 클릭 한 번</h3><p>메뉴 막대에 평균 사용률과 사용 중인 GPU 수가 늘 보입니다. 누르면 모든 서버, GPU, 프로세스가 펼쳐집니다.</p></div>
+            <figure class="show-media tall"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="720" height="884" poster="../assets/mac/clip-popover-poster.jpg" aria-label="메뉴 막대 항목을 눌러 NVBeacon 팝오버를 열고 닫는 모습"><source src="../assets/mac/clip-popover.webm" type="video/webm"><source src="../assets/mac/clip-popover.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row reverse media-banner" data-reveal="stagger">
+            <div class="show-text"><h3>작업이 정말 끝나면 알림</h3><p>프로세스의 <strong>알림</strong> 버튼을 누르면 종료될 때 알려줍니다.</p></div>
+            <figure class="show-media"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="1000" height="290" poster="../assets/mac/clip-alert-poster.jpg" aria-label="gpu-01의 GPU 0에서 python이 끝났다는 macOS 알림"><source src="../assets/mac/clip-alert.webm" type="video/webm"><source src="../assets/mac/clip-alert.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row" data-reveal="stagger">
+            <div class="show-text"><h3>작업 옆에 띄워 두기</h3><p><strong>창으로 보기</strong>를 고르면 터미널이나 노트북 옆에 계속 띄워 둘 수 있습니다. <strong>항상 위에 표시</strong>를 켜면 다른 창에 가려지지 않습니다.</p></div>
+            <figure class="show-media"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="1280" height="800" poster="../assets/mac/clip-window-poster.jpg" aria-label="팝오버가 창으로 바뀌어 학습 중인 터미널 옆으로 옮겨지는 모습"><source src="../assets/mac/clip-window.webm" type="video/webm"><source src="../assets/mac/clip-window.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row reverse" data-reveal="stagger">
+            <div class="show-text"><h3>오늘 누가 GPU를 썼는지</h3><p>GPU 기록을 켜면 최근 24시간 동안 사용자별로 GPU를 얼마나 썼는지 그래프로 보여줍니다. 기록은 Mac에만 보관합니다.</p></div>
+            <figure class="show-media shot"><picture><img src="../assets/mac/ko/history-light.jpg" width="1200" height="792" loading="lazy" alt="GPU 기록 창: 사용자 네 명이 24시간 동안 GPU 하나를 나눠 쓴 그래프"></picture></figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="section tinted" id="features">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">기능</p>
           <h2>터미널을 열어 확인하던 것들, 이제 바로 보입니다.</h2>
         </div>
-        <div class="feature-grid" data-reveal>
+        <div class="feature-grid" data-reveal="stagger">
           <article class="feature">
             <h3>서버가 바쁜가요?</h3>
             <p>모든 GPU의 사용률, 메모리, 온도, 프로세스 수를 보여주고 메뉴 막대에 요약을 띄웁니다.</p>
@@ -275,18 +208,8 @@
             <div class="labels"><span class="label">/proc</span><span class="label">/sys/class/net</span></div>
           </article>
           <article class="feature">
-            <h3>학습이 끝났나요?</h3>
-            <p>프로세스를 지켜보다가 실제로 종료되면 알림을 보냅니다.</p>
-            <div class="labels"><span class="label platform">Mac</span></div>
-          </article>
-          <article class="feature">
             <h3>이 GPU, 지금 써도 될까요?</h3>
             <p>GPU에 별표를 해 두면 다음 작업을 돌릴 만큼 오래 비어 있을 때 알려줍니다.</p>
-            <div class="labels"><span class="label platform">Mac</span></div>
-          </article>
-          <article class="feature">
-            <h3>오늘 누가 GPU를 썼나요?</h3>
-            <p>원할 때만 켜는 사용자별 GPU 기록을 최근 24시간 동안 Mac에만 보관합니다.</p>
             <div class="labels"><span class="label platform">Mac</span></div>
           </article>
           <article class="feature">
@@ -300,10 +223,9 @@
 
     <section class="section" id="platforms">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">Mac과 iPhone</p>
           <h2>책상에서는 메뉴 막대에, 밖에서는 주머니 속에.</h2>
-          <p>같은 서버를 두 기기에서, 기기에 맞는 기능으로 확인합니다.</p>
         </div>
         <div class="compare-wrap" data-reveal>
           <div>
@@ -313,12 +235,12 @@
                   <tr><th scope="col"><span class="visually-hidden">항목</span></th><th scope="col">Mac</th><th scope="col">iPhone·iPad</th></tr>
                 </thead>
                 <tbody>
-                  <tr><th scope="row">보는 곳</th><td>메뉴 막대 요약과 팝오버</td><td>전체 서버 현황, 넓은 화면에서는 분할 보기</td></tr>
-                  <tr><th scope="row">새로 고침</th><td>1~300초마다, 백그라운드에서</td><td>앱이 열려 있을 때 5~300초마다</td></tr>
-                  <tr><th scope="row">작업 알림</th><td>프로세스 종료, 유휴 GPU 알림</td><td>—</td></tr>
-                  <tr><th scope="row">GPU 기록</th><td>선택 사항, 사용자별, 최대 24시간</td><td>—</td></tr>
-                  <tr><th scope="row">서버 추가</th><td>직접 입력 또는 <code>~/.ssh/config</code></td><td>직접 입력, 백업 파일 또는 Mac에서 전송</td></tr>
-                  <tr><th scope="row">호스트 키</th><td>OpenSSH <code>known_hosts</code></td><td>첫 로그인 전 지문 확인</td></tr>
+                  <tr><th scope="row">보는 곳</th><td data-label="Mac">메뉴 막대 요약과 팝오버, 또는 항상 위에 띄울 수 있는 창</td><td data-label="iPhone·iPad">전체 서버 현황, 넓은 화면에서는 분할 보기</td></tr>
+                  <tr><th scope="row">새로 고침</th><td data-label="Mac">1~300초마다, 백그라운드에서</td><td data-label="iPhone·iPad">앱이 열려 있을 때 5~300초마다</td></tr>
+                  <tr><th scope="row">작업 알림</th><td data-label="Mac">프로세스 종료, 유휴 GPU 알림</td><td data-label="iPhone·iPad">—</td></tr>
+                  <tr><th scope="row">GPU 기록</th><td data-label="Mac">선택 사항, 사용자별, 최대 24시간</td><td data-label="iPhone·iPad">—</td></tr>
+                  <tr><th scope="row">서버 추가</th><td data-label="Mac">직접 입력 또는 <code>~/.ssh/config</code></td><td data-label="iPhone·iPad">직접 입력, 백업 파일 또는 Mac에서 전송</td></tr>
+                  <tr><th scope="row">호스트 키</th><td data-label="Mac">OpenSSH <code>known_hosts</code></td><td data-label="iPhone·iPad">첫 로그인 전 지문 확인</td></tr>
                 </tbody>
               </table>
             </div>
@@ -341,7 +263,7 @@
     <section class="section flush-top" id="privacy">
       <div class="page-shell">
         <div class="privacy-band" data-reveal>
-          <div class="section-heading">
+          <div class="section-heading center" data-reveal>
             <p class="kicker">개인정보는 기기 안에</p>
             <h2>기기와 서버가 직접 연결됩니다. 중간에는 아무도 없습니다.</h2>
             <p>NVBeacon 계정도, 클라우드 서비스도, 광고나 분석 도구도 없습니다.</p>
@@ -359,11 +281,11 @@
 
     <section class="section tinted" id="download">
       <div class="page-shell">
-        <div class="section-heading center">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">다운로드</p>
           <h2>NVBeacon은 무료입니다.</h2>
         </div>
-        <div class="download-grid" data-reveal>
+        <div class="download-grid" data-reveal="stagger">
           <article class="download-card">
             <h3>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
@@ -402,17 +324,16 @@
             <p class="meta"><a href="https://github.com/jaein4722/NVBeacon">GitHub에서 소식 받기</a></p>
           </article>
         </div>
-        <p class="download-note">서버에는 SSH 접속과 <code>nvidia-smi</code>만 있으면 됩니다.</p>
       </div>
     </section>
 
     <section class="section" id="faq">
       <div class="page-shell">
-        <div class="section-heading center">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">FAQ</p>
           <h2>자주 묻는 질문</h2>
         </div>
-        <div class="faq" data-reveal>
+        <div class="faq" data-reveal="stagger">
           <details>
             <summary>서버에 무언가 설치해야 하나요?</summary>
             <p>아니요. NVBeacon은 SSH로 접속해 <code>nvidia-smi</code>를 실행하고 <code>/proc/meminfo</code> 같은 Linux 정보를 읽습니다. 로그인해서 <code>nvidia-smi</code>를 실행할 수 있는 계정만 있으면 됩니다.</p>
@@ -427,7 +348,7 @@
           </details>
           <details>
             <summary><span><code>nvidia-smi</code>를 찾을 수 없다고 나옵니다.</span></summary>
-            <p>비대화형 SSH 셸은 <code>PATH</code>가 짧은 경우가 많습니다. Mac 앱의 설정 → 고급에서 해당 서버의 GPU 조회 명령을 <code>/usr/bin/nvidia-smi</code> 같은 절대 경로로 지정하세요.</p>
+            <p>비대화형 SSH 셸은 <code>PATH</code>가 짧은 경우가 많습니다. Mac 앱의 설정 → 서버에서 해당 서버를 선택하고 GPU 조회 명령을 <code>/usr/bin/nvidia-smi</code> 같은 절대 경로로 지정하세요.</p>
           </details>
           <details>
             <summary>점프 호스트 뒤의 서버도 볼 수 있나요?</summary>
@@ -468,7 +389,7 @@
         <div class="footer-col">
           <h2>프로젝트</h2>
           <ul>
-            <li><a href="https://github.com/jaein4722/NVBeacon">GitHub</a></li>
+            <li><a class="nav-github" href="https://github.com/jaein4722/NVBeacon">GitHub</a></li>
             <li><a href="https://github.com/jaein4722/NVBeacon#readme">문서</a></li>
             <li><a href="https://github.com/jaein4722/NVBeacon/issues">버그 신고</a></li>
           </ul>

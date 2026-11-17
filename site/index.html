@@ -57,7 +57,7 @@
         <a class="nav-optional" href="#features">Features</a>
         <a href="#download">Download</a>
         <a class="nav-optional" href="#faq">FAQ</a>
-        <a href="https://github.com/jaein4722/NVBeacon">GitHub</a>
+        <a class="nav-github" href="https://github.com/jaein4722/NVBeacon">GitHub</a>
         <a class="lang-switch" href="./ko/" hreflang="ko" lang="ko">한국어</a>
       </div>
     </nav>
@@ -66,7 +66,7 @@
   <main id="content">
     <section class="hero">
       <div class="beacon" aria-hidden="true"><span></span><span></span><span></span></div>
-      <div class="page-shell hero-grid">
+      <div class="page-shell hero-inner">
         <div class="hero-copy">
           <p class="eyebrow">Free · Open source · Nothing to install on the server</p>
           <h1>Your GPU servers, <em>at a glance.</em></h1>
@@ -91,102 +91,9 @@
         </div>
 
         <div class="hero-visual">
-          <div class="mock" role="region" aria-label="NVBeacon popover on Mac, with example data">
-            <div class="mk-caption"><span class="mk-caption-dot" aria-hidden="true"></span><span>Example data · click a server or GPU to expand</span></div>
-            <div class="mk-menubar" aria-hidden="true">
-              <span class="mk-menus"><i></i><i></i><i></i><i></i></span>
-              <span class="mk-item"><svg viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2.5"/><path d="M9 2.5v2.5M15 2.5v2.5M9 19v2.5M15 19v2.5M2.5 9H5M2.5 15H5M19 9h2.5M19 15h2.5"/></svg>GPU 44% · 9/12</span>
-              <span class="mk-sys"><svg viewBox="0 0 24 24"><path d="M4 9.5a12 12 0 0 1 16 0M7 13a7.5 7.5 0 0 1 10 0M10 16.5a3 3 0 0 1 4 0"/></svg><svg viewBox="0 0 28 24"><rect x="2" y="7" width="21" height="10" rx="3"/><rect x="4.5" y="9.5" width="13" height="5" rx="1.2" class="fill"/><path d="M25.5 10.5v3"/></svg><span>Tue 9:41</span></span>
-            </div>
-            <div class="mk-popover">
-              <div class="mk-header" aria-hidden="true">
-                <span class="mk-title"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="6" rx="1.5"/><rect x="4" y="14" width="16" height="6" rx="1.5"/></svg>2/2 servers</span>
-                <span class="mk-tools"><svg viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.4-5.7M20 4v5h-5"/></svg></span>
-              </div>
-              <div class="mk-pills">
-                <div><span>Avg</span><b>44%</b></div>
-                <div><span>Busy</span><b>9/12</b></div>
-                <div><span>Proc</span><b>9</b></div>
-                <div><span>Updated</span><b>3s</b></div>
-              </div>
-              <div class="mk-scroll">
-              <details class="mk-server" open>
-                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-01</b><span>GPU 6/8 · 39%</span></summary>
-                <div class="mk-host"><span>CPU <b class="o">46%</b></span><span>RAM <b class="b">63%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 12.6 MB/s ↑ 3.1 MB/s</span></div>
-                  <details class="mk-gpu mine">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">74°C · 1p · 14%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>14%</em><i style="--v:14%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python train.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28410</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Watching</span><code class="mk-proc-cmd">python train.py --epochs 40 --batch-size 32</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">75°C · 1p · 37%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>37%</em><i style="--v:37%"></i></span><span class="mk-bar mem"><span>Memory</span><em>93%</em><i style="--v:93%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python finetune.py</span><span class="mk-proc-pid">PID 30122</span></span><span class="mk-proc-mem">41.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python finetune.py --lr 2e-5</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">37°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span><span class="mk-armed"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg>Idle notification armed</span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">90°C · 1p · 85%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>85%</em><i style="--v:85%"></i></span><span class="mk-bar mem"><span>Memory</span><em>74%</em><i style="--v:74%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31877</span></span><span class="mk-proc-mem">33.2 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu mine">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 4</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-badge">Mine</span><span class="mk-stats">66°C · 1p · 93%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>93%</em><i style="--v:93%"></i></span><span class="mk-bar mem"><span>Memory</span><em>60%</em><i style="--v:60%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user me">alex</span><span class="mk-proc-main"><span class="mk-proc-name">python eval.py <span class="mk-badge">Mine</span></span><span class="mk-proc-pid">PID 28533</span></span><span class="mk-proc-mem">27.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python eval.py --split val</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 5</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">41°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 6</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">58°C · 1p · 22%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>22%</em><i style="--v:22%"></i></span><span class="mk-bar mem"><span>Memory</span><em>20%</em><i style="--v:20%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">jupyter-kernel</span><span class="mk-proc-pid">PID 29960</span></span><span class="mk-proc-mem">8.8 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python -m ipykernel_launcher</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 7</b><span class="mk-model">NVIDIA RTX A6000</span><span class="mk-stats">79°C · 1p · 64%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>64%</em><i style="--v:64%"></i></span><span class="mk-bar mem"><span>Memory</span><em>73%</em><i style="--v:73%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">torchrun</span><span class="mk-proc-pid">PID 31878</span></span><span class="mk-proc-mem">33.0 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">torchrun --nproc_per_node 2 pretrain.py</code></div>
-                      </div>
-                  </details>
-              </details>
-              <details class="mk-server">
-                <summary class="mk-server-head"><svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg><b>gpu-02</b><span>GPU 3/4 · 53%</span></summary>
-                <div class="mk-host"><span>CPU <b class="o">28%</b></span><span>RAM <b class="b">25%</b></span><span>Swap <b class="b">3%</b></span><span class="net">Network ↓ 4.2 MB/s ↑ 0.8 MB/s</span></div>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 0</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">68°C · 1p · 71%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>71%</em><i style="--v:71%"></i></span><span class="mk-bar mem"><span>Memory</span><em>77%</em><i style="--v:77%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">minji</span><span class="mk-proc-main"><span class="mk-proc-name">python sweep.py</span><span class="mk-proc-pid">PID 11204</span></span><span class="mk-proc-mem">18.4 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python sweep.py --trial 7</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 1</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">35°C · 0p · 0%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>0%</em><i style="--v:0%"></i></span><span class="mk-bar mem"><span>Memory</span><em>0%</em><i style="--v:0%"></i></span></span></span></summary>
-                      <div class="mk-procs"><p class="mk-empty">There are no active compute processes reported on this GPU.</p></div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 2</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">74°C · 1p · 88%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>88%</em><i style="--v:88%"></i></span><span class="mk-bar mem"><span>Memory</span><em>90%</em><i style="--v:90%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">sam</span><span class="mk-proc-main"><span class="mk-proc-name">python train_vit.py</span><span class="mk-proc-pid">PID 11391</span></span><span class="mk-proc-mem">21.7 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python train_vit.py</code></div>
-                      </div>
-                  </details>
-                  <details class="mk-gpu">
-                    <summary><span class="mk-star"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z"/></svg></span><span class="mk-gpu-body"><span class="mk-gpu-head"><b>GPU 3</b><span class="mk-model">NVIDIA GeForce RTX 4090</span><span class="mk-stats">63°C · 1p · 52%</span><span class="mk-expand" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" class="fill"/><path d="M8.5 10.5L12 14l3.5-3.5" class="cut"/></svg></span></span><span class="mk-bars"><span class="mk-bar"><span>Util</span><em>52%</em><i style="--v:52%"></i></span><span class="mk-bar mem"><span>Memory</span><em>40%</em><i style="--v:40%"></i></span></span></span></summary>
-                      <div class="mk-procs">
-                        <div class="mk-proc"><span class="mk-proc-user">jun</span><span class="mk-proc-main"><span class="mk-proc-name">python infer.py</span><span class="mk-proc-pid">PID 11455</span></span><span class="mk-proc-mem">9.6 GiB</span><span class="mk-notify"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0"/></svg>Notify</span><code class="mk-proc-cmd">python infer.py --port 8000</code></div>
-                      </div>
-                  </details>
-              </details>
-              </div>
-            </div>
-          </div>
+          <figure class="hero-demo">
+            <div class="video-frame"><video controls autoplay muted loop playsinline preload="metadata" width="1920" height="1200" poster="./assets/mac/demo-poster.jpg" aria-label="NVBeacon demo: clicking the menu bar item opens a popover with every server and GPU, and a GPU expands to show who is running what"><source src="./assets/mac/demo.webm" type="video/webm"><source src="./assets/mac/demo.mp4" type="video/mp4"></video></div>
+          </figure>
           <div class="phone-shot">
             <picture>
               <source srcset="./assets/iphone/en/03-gpu-details-dark.jpg" media="(prefers-color-scheme: dark)">
@@ -220,12 +127,11 @@
 
     <section class="section" id="how-it-works">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">How it works</p>
           <h2>Just SSH. Nothing else to set up.</h2>
-          <p>If you can log in to the server and run <code>nvidia-smi</code>, NVBeacon works.</p>
         </div>
-        <ol class="steps" data-reveal>
+        <ol class="steps" data-reveal="stagger">
           <li>
             <h3>Add a server</h3>
             <p>Enter a host, user and port, or import it from <code>~/.ssh/config</code> on Mac. Use an SSH key or a password.</p>
@@ -247,13 +153,40 @@
       </div>
     </section>
 
+    <section class="section flush-top" id="in-action">
+      <div class="page-shell">
+        <div class="section-heading center" data-reveal>
+          <p class="kicker">In action</p>
+          <h2>Built around the moments you actually check.</h2>
+        </div>
+        <div class="showcase">
+          <article class="show-row media-tall" data-reveal="stagger">
+            <div class="show-text"><h3>One click from the menu bar</h3><p>The menu bar shows average use and busy GPUs at a glance. Click it to see every server, GPU and process.</p></div>
+            <figure class="show-media tall"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="720" height="884" poster="./assets/mac/clip-popover-poster.jpg" aria-label="Clicking the menu bar item opens and closes the NVBeacon popover"><source src="./assets/mac/clip-popover.webm" type="video/webm"><source src="./assets/mac/clip-popover.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row reverse media-banner" data-reveal="stagger">
+            <div class="show-text"><h3>Know when your job really ends</h3><p>Press <strong>Notify</strong> on a process and NVBeacon tells you when it exits.</p></div>
+            <figure class="show-media"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="1000" height="290" poster="./assets/mac/clip-alert-poster.jpg" aria-label="A macOS notification saying python finished on gpu-01, GPU 0"><source src="./assets/mac/clip-alert.webm" type="video/webm"><source src="./assets/mac/clip-alert.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row" data-reveal="stagger">
+            <div class="show-text"><h3>Keep it next to your work</h3><p>Choose <strong>Show as Window</strong> and NVBeacon stays open beside your terminal or notebook. <strong>Keep Window on Top</strong> keeps it in view.</p></div>
+            <figure class="show-media"><div class="video-frame"><video controls muted loop playsinline preload="none" data-autoplay width="1280" height="800" poster="./assets/mac/clip-window-poster.jpg" aria-label="The popover turns into a window that is moved next to a terminal running a training job"><source src="./assets/mac/clip-window.webm" type="video/webm"><source src="./assets/mac/clip-window.mp4" type="video/mp4"></video></div></figure>
+          </article>
+          <article class="show-row reverse" data-reveal="stagger">
+            <div class="show-text"><h3>See who used the GPUs today</h3><p>Turn on GPU history to chart each user&rsquo;s share of every GPU over the last 24 hours. It is kept only on your Mac.</p></div>
+            <figure class="show-media shot"><picture><source srcset="./assets/mac/en/history-dark.jpg" media="(prefers-color-scheme: dark)"><img src="./assets/mac/en/history-light.jpg" width="1200" height="792" loading="lazy" alt="GPU History window: four users sharing one GPU over 24 hours"></picture></figure>
+          </article>
+        </div>
+      </div>
+    </section>
+
     <section class="section tinted" id="features">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">Features</p>
           <h2>Answers the questions you keep opening Terminal for.</h2>
         </div>
-        <div class="feature-grid" data-reveal>
+        <div class="feature-grid" data-reveal="stagger">
           <article class="feature">
             <h3>Is the server busy?</h3>
             <p>Utilization, memory, temperature and process count for every GPU, with a live summary in the menu bar.</p>
@@ -275,18 +208,8 @@
             <div class="labels"><span class="label">/proc</span><span class="label">/sys/class/net</span></div>
           </article>
           <article class="feature">
-            <h3>Did my job finish?</h3>
-            <p>Watch a process and get a notification when it really exits.</p>
-            <div class="labels"><span class="label platform">Mac</span></div>
-          </article>
-          <article class="feature">
             <h3>Can I use this GPU now?</h3>
             <p>Star a GPU and get notified once it has stayed idle long enough for your next run.</p>
-            <div class="labels"><span class="label platform">Mac</span></div>
-          </article>
-          <article class="feature">
-            <h3>Who used the GPUs today?</h3>
-            <p>Optional per-user GPU history for the last 24 hours, kept only on your Mac.</p>
             <div class="labels"><span class="label platform">Mac</span></div>
           </article>
           <article class="feature">
@@ -300,10 +223,9 @@
 
     <section class="section" id="platforms">
       <div class="page-shell">
-        <div class="section-heading">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">Mac and iPhone</p>
           <h2>In the menu bar at your desk. In your pocket everywhere else.</h2>
-          <p>The same servers on both, with features that suit each device.</p>
         </div>
         <div class="compare-wrap" data-reveal>
           <div>
@@ -313,12 +235,12 @@
                   <tr><th scope="col"><span class="visually-hidden">Feature</span></th><th scope="col">Mac</th><th scope="col">iPhone &amp; iPad</th></tr>
                 </thead>
                 <tbody>
-                  <tr><th scope="row">Where it lives</th><td>Menu bar summary and a popover</td><td>Overview of all servers; split view on wider screens</td></tr>
-                  <tr><th scope="row">Refresh</th><td>Every 1–300 seconds, in the background</td><td>Every 5–300 seconds while the app is open</td></tr>
-                  <tr><th scope="row">Job alerts</th><td>Process exit and idle GPU notifications</td><td>—</td></tr>
-                  <tr><th scope="row">GPU history</th><td>Optional, per user, up to 24 hours</td><td>—</td></tr>
-                  <tr><th scope="row">Adding servers</th><td>Manually or from <code>~/.ssh/config</code></td><td>Manually, from a backup, or from your Mac</td></tr>
-                  <tr><th scope="row">Host keys</th><td>Your OpenSSH <code>known_hosts</code></td><td>Fingerprint review before the first login</td></tr>
+                  <tr><th scope="row">Where it lives</th><td data-label="Mac">Menu bar summary and a popover, or a window you can keep on top</td><td data-label="iPhone &amp; iPad">Overview of all servers; split view on wider screens</td></tr>
+                  <tr><th scope="row">Refresh</th><td data-label="Mac">Every 1–300 seconds, in the background</td><td data-label="iPhone &amp; iPad">Every 5–300 seconds while the app is open</td></tr>
+                  <tr><th scope="row">Job alerts</th><td data-label="Mac">Process exit and idle GPU notifications</td><td data-label="iPhone &amp; iPad">—</td></tr>
+                  <tr><th scope="row">GPU history</th><td data-label="Mac">Optional, per user, up to 24 hours</td><td data-label="iPhone &amp; iPad">—</td></tr>
+                  <tr><th scope="row">Adding servers</th><td data-label="Mac">Manually or from <code>~/.ssh/config</code></td><td data-label="iPhone &amp; iPad">Manually, from a backup, or from your Mac</td></tr>
+                  <tr><th scope="row">Host keys</th><td data-label="Mac">Your OpenSSH <code>known_hosts</code></td><td data-label="iPhone &amp; iPad">Fingerprint review before the first login</td></tr>
                 </tbody>
               </table>
             </div>
@@ -341,7 +263,7 @@
     <section class="section flush-top" id="privacy">
       <div class="page-shell">
         <div class="privacy-band" data-reveal>
-          <div class="section-heading">
+          <div class="section-heading center" data-reveal>
             <p class="kicker">Private by design</p>
             <h2>Your device talks to your servers. Nobody else is in between.</h2>
             <p>There is no NVBeacon account, cloud service, advertising or analytics.</p>
@@ -359,11 +281,11 @@
 
     <section class="section tinted" id="download">
       <div class="page-shell">
-        <div class="section-heading center">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">Download</p>
           <h2>Get NVBeacon. It's free.</h2>
         </div>
-        <div class="download-grid" data-reveal>
+        <div class="download-grid" data-reveal="stagger">
           <article class="download-card">
             <h3>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
@@ -402,17 +324,16 @@
             <p class="meta"><a href="https://github.com/jaein4722/NVBeacon">Watch the project on GitHub</a></p>
           </article>
         </div>
-        <p class="download-note">On each server you only need SSH access and <code>nvidia-smi</code>.</p>
       </div>
     </section>
 
     <section class="section" id="faq">
       <div class="page-shell">
-        <div class="section-heading center">
+        <div class="section-heading center" data-reveal>
           <p class="kicker">FAQ</p>
           <h2>Questions, answered.</h2>
         </div>
-        <div class="faq" data-reveal>
+        <div class="faq" data-reveal="stagger">
           <details>
             <summary>Do I need to install anything on the server?</summary>
             <p>No. NVBeacon connects over SSH, runs <code>nvidia-smi</code> and reads Linux counters such as <code>/proc/meminfo</code>. You only need an account that can log in and run <code>nvidia-smi</code>.</p>
@@ -427,7 +348,7 @@
           </details>
           <details>
             <summary><span>The app says <code>nvidia-smi</code> was not found.</span></summary>
-            <p>Non-interactive SSH shells often have a shorter <code>PATH</code>. In the Mac app, open Settings → Advanced and set the GPU query command for that server to an absolute path such as <code>/usr/bin/nvidia-smi</code>.</p>
+            <p>Non-interactive SSH shells often have a shorter <code>PATH</code>. In the Mac app, open Settings → Servers, select the server and set its GPU query command to an absolute path such as <code>/usr/bin/nvidia-smi</code>.</p>
           </details>
           <details>
             <summary>Can I monitor a server behind a jump host?</summary>
@@ -468,7 +389,7 @@
         <div class="footer-col">
           <h2>Project</h2>
           <ul>
-            <li><a href="https://github.com/jaein4722/NVBeacon">GitHub</a></li>
+            <li><a class="nav-github" href="https://github.com/jaein4722/NVBeacon">GitHub</a></li>
             <li><a href="https://github.com/jaein4722/NVBeacon#readme">Documentation</a></li>
             <li><a href="https://github.com/jaein4722/NVBeacon/issues">Report a bug</a></li>
           </ul>
