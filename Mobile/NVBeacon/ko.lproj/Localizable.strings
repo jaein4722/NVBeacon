@@ -82,6 +82,7 @@
 "GPU processes" = "GPU 프로세스";
 "Updated" = "갱신";
 "Last successful update" = "마지막 정상 갱신";
+"Last update %@ ago" = "마지막 갱신 %@ 전";
 "ago" = "전";
 "Host CPU" = "호스트 CPU";
 "Measuring…" = "측정 중…";

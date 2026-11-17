@@ -287,7 +287,7 @@ final class NVBeaconStore: ObservableObject {
 
     /// Data older than two refresh intervals plus the SSH timeout has missed refreshes.
     nonisolated static func isSnapshotStale(takenAt: Date, now: Date = Date(), pollIntervalSeconds: Int) -> Bool {
-        now.timeIntervalSince(takenAt) > TimeInterval(pollIntervalSeconds * 2 + 15)
+        now.timeIntervalSince(takenAt) > GPUSnapshot.staleAge(refreshIntervalSeconds: pollIntervalSeconds)
     }
 
     private var hasServerError: Bool {
