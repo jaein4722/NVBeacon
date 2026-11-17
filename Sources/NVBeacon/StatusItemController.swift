@@ -34,6 +34,8 @@ private struct StatusMenuContainerView: View {
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
     var showHistoryAction: (() -> Void)?
+    var checkForUpdatesAction: (() -> Void)?
+    var canCheckForUpdates: () -> Bool = { false }
 
     private let store: NVBeaconStore
     private let settingsOpenBridge: SettingsOpenBridge
@@ -45,6 +47,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private var globalOutsideClickMonitor: Any?
     private lazy var settingsMenuItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
     private lazy var quitMenuItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
+    private lazy var refreshMenuItem = NSMenuItem(title: "", action: #selector(refreshNow), keyEquivalent: "r")
+    private lazy var historyMenuItem = NSMenuItem(title: "", action: #selector(openHistory), keyEquivalent: "")
+    private lazy var checkForUpdatesMenuItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
     private lazy var displayModeMenuItem = NSMenuItem(title: "", action: #selector(toggleDisplayMode), keyEquivalent: "")
     private lazy var keepOnTopMenuItem = NSMenuItem(title: "", action: #selector(toggleKeepOnTop), keyEquivalent: "")
     private lazy var monitorWindowController = MonitorWindowController(store: store) { [unowned self] in
@@ -113,6 +118,20 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         NSApplication.shared.terminate(nil)
     }
 
+    @objc private func refreshNow() {
+        store.refreshNow()
+    }
+
+    @objc private func openHistory() {
+        popover.performClose(nil)
+        showHistoryAction?()
+    }
+
+    @objc private func checkForUpdates() {
+        popover.performClose(nil)
+        checkForUpdatesAction?()
+    }
+
     @objc private func toggleDisplayMode() {
         store.setDisplayMode(store.settings.displayMode == .window ? .popover : .window)
     }
@@ -174,10 +193,19 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         quitMenuItem.target = self
         displayModeMenuItem.target = self
         keepOnTopMenuItem.target = self
+        refreshMenuItem.target = self
+        historyMenuItem.target = self
+        checkForUpdatesMenuItem.target = self
+        // Refresh and update checks set isEnabled themselves.
+        menu.autoenablesItems = false
         menu.items = [
+            refreshMenuItem,
+            historyMenuItem,
+            .separator(),
             displayModeMenuItem,
             keepOnTopMenuItem,
             .separator(),
+            checkForUpdatesMenuItem,
             settingsMenuItem,
             .separator(),
             quitMenuItem,
@@ -253,6 +281,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func showContextMenu() {
         popover.performClose(nil)
+        updateMenuTitles()
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
@@ -284,6 +313,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         keepOnTopMenuItem.title = language.text("Keep Window on Top", "항상 위에 표시")
         keepOnTopMenuItem.state = store.settings.keepsWindowOnTop ? .on : .off
         keepOnTopMenuItem.isHidden = !windowMode
+        refreshMenuItem.title = language.text("Refresh Now", "지금 새로고침")
+        refreshMenuItem.isEnabled = store.settings.isConfigured
+        historyMenuItem.title = language.text("GPU History…", "GPU 기록…")
+        historyMenuItem.isHidden = !store.settings.recordsGPUHistory
+        checkForUpdatesMenuItem.title = language.text("Check for Updates…", "업데이트 확인…")
+        checkForUpdatesMenuItem.isEnabled = canCheckForUpdates()
     }
 
     private func updatePopoverSize() {

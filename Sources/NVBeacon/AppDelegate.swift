@@ -32,6 +32,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController.showHistoryAction = { [weak self] in
             self?.showHistoryWindow()
         }
+        statusItemController.checkForUpdatesAction = { [weak self] in
+            NSApplication.shared.activate(ignoringOtherApps: true)
+            self?.appUpdater.checkForUpdates()
+        }
+        statusItemController.canCheckForUpdates = { [weak self] in
+            self?.appUpdater.canCheckForUpdates ?? false
+        }
         self.statusItemController = statusItemController
 
         if !store.settings.isConfigured {
