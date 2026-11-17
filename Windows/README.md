@@ -65,6 +65,10 @@ Packaging: `scripts\package.ps1 -Version 1.2.3` builds a release folder and zip 
 `dist\` that runs without the Swift toolchain (Swift and C++ runtime DLLs, the
 WebView2 loader, the UI files and license notices). The icon and version
 information are compiled into the executables from `packaging\NVBeacon.rc.in`.
+`packaging\THIRD-PARTY-NOTICES.txt` holds the full license texts of the bundled
+libraries, read from their upstream sources at the toolchain's tag by
+`scripts\generate-notices.ps1`; packaging stops if it is stale (for example after a
+toolchain update), and Settings › About opens it.
 
 Installer: add `-Installer` to also build `dist\NVBeacon-1.2.3-windows-x64-setup.exe`
 from `packaging\NVBeacon.iss` with Inno Setup 6 (`winget install JRSoftware.InnoSetup`).

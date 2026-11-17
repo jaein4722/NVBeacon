@@ -127,8 +127,9 @@ foreach ($dll in "_FoundationICU.dll", "FoundationInternationalization.dll") {
 }
 
 Copy-Item (Join-Path $repo "LICENSE") (Join-Path $dist "LICENSE.txt")
+# Full license texts of every bundled library (WebView2's included); fails if stale.
+& (Join-Path $PSScriptRoot "generate-notices.ps1") -Check
 Copy-Item (Join-Path $windows "packaging\THIRD-PARTY-NOTICES.txt") $dist
-Copy-Item (Join-Path $windows "ThirdParty\webview2\pkg\LICENSE.txt") (Join-Path $dist "WebView2-LICENSE.txt")
 
 # 6. Zip.
 $size = (Get-ChildItem $dist -Recurse -File | Measure-Object Length -Sum).Sum
