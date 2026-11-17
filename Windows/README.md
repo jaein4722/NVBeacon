@@ -66,4 +66,13 @@ Packaging: `scripts\package.ps1 -Version 1.2.3` builds a release folder and zip 
 WebView2 loader, the UI files and license notices). The icon and version
 information are compiled into the executables from `packaging\NVBeacon.rc.in`.
 
-Current limits: no installer or automatic updates yet.
+Installer: add `-Installer` to also build `dist\NVBeacon-1.2.3-windows-x64-setup.exe`
+from `packaging\NVBeacon.iss` with Inno Setup 6 (`winget install JRSoftware.InnoSetup`).
+It installs for the current user under `%LOCALAPPDATA%\Programs\NVBeacon` without an
+administrator prompt, adds a Start menu entry and an entry in Installed apps, and
+upgrades an existing install in place. Before copying files it asks a running
+NVBeacon to quit, so GPU History is saved. Uninstalling removes Launch at Login when it
+points to that copy and keeps settings, GPU History and saved passwords. The
+installer is not code-signed, so SmartScreen warns on first run.
+
+Current limits: no automatic updates yet.

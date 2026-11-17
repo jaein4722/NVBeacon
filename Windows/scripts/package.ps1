@@ -2,14 +2,19 @@
 Builds a portable NVBeacon for Windows x64 that runs without the Swift toolchain:
   dist\NVBeacon-<version>-windows-x64\  and  dist\NVBeacon-<version>-windows-x64.zip
 
-  powershell -ExecutionPolicy Bypass -File Windows\scripts\package.ps1 -Version 1.0.0
+With -Installer it also builds the per-user installer
+  dist\NVBeacon-<version>-windows-x64-setup.exe  (from packaging\NVBeacon.iss)
+
+  powershell -ExecutionPolicy Bypass -File Windows\scripts\package.ps1 -Version 1.0.0 -Installer
 
 Needs the Swift toolchain, the Windows SDK (rc.exe) and Visual Studio Build Tools
-(dumpbin.exe). Fetches the WebView2 SDK with fetch-webview2.ps1 when it is missing.
+(dumpbin.exe), plus Inno Setup 6 for -Installer (winget install JRSoftware.InnoSetup).
+Fetches the WebView2 SDK with fetch-webview2.ps1 when it is missing.
 #>
 param(
     [Parameter(Mandatory)][string]$Version,
-    [switch]$NoZip
+    [switch]$NoZip,
+    [switch]$Installer
 )
 $ErrorActionPreference = "Stop"
 if ($Version -notmatch '^\d+\.\d+\.\d+$') { throw "Version must look like 1.2.3" }
@@ -129,4 +134,15 @@ if (-not $NoZip) {
     if (Test-Path $zip) { Remove-Item $zip -Force }
     Compress-Archive -Path $dist -DestinationPath $zip
     "Zip: $zip  SHA-256 $((Get-FileHash $zip -Algorithm SHA256).Hash)"
+}
+
+# 7. Installer (Inno Setup 6): dist\NVBeacon-<version>-windows-x64-setup.exe
+if ($Installer) {
+    $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
+        Where-Object { Test-Path $_ } | Select-Object -First 1
+    if (-not $iscc) { throw "Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup" }
+    & $iscc /Q "/DAppVersion=$Version" "/DSourceDir=$dist" "/DOutputDir=$(Split-Path $dist)" "/DIconFile=$icon" (Join-Path $windows "packaging\NVBeacon.iss")
+    if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
+    $setup = Join-Path (Split-Path $dist) "$name-setup.exe"
+    "Installer: $setup  $([math]::Round((Get-Item $setup).Length / 1MB, 1)) MB  SHA-256 $((Get-FileHash $setup -Algorithm SHA256).Hash)"
 }
