@@ -188,7 +188,7 @@ Network rates come from `/sys/class/net` or `/proc/net/dev`. Loopback, container
 
 ## Development
 
-See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for building and testing the Mac and iPhone apps. Release notes are in [CHANGELOG.md](CHANGELOG.md).
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for building and testing the Mac, iPhone and Windows apps. Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
