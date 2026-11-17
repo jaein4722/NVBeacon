@@ -92,7 +92,7 @@ private actor HostFixtureTransport: RemoteCommandExecuting {
     #expect(!commands[0].contains("sleep"))
 }
 
-@Test func hostCommandsRespectAllSelectionsWhenExecuted() throws {
+@Test(.requiresPOSIXShell) func hostCommandsRespectAllSelectionsWhenExecuted() throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-host-tests-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
