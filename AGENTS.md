@@ -80,6 +80,10 @@ Keep commits focused and reviewable. Commit often on your working branch; local 
 - Use direct messages such as `Fix settings opening`.
 - Squash noisy intermediate commits before merging when practical.
 
+## Settings Rules
+
+When adding, renaming or moving a setting on any client (macOS, iOS or Windows), follow `docs/SETTINGS.md` and update it in the same change.
+
 ## Packaging Rules
 
 - `scripts/package_app.sh` is the canonical packaging entrypoint.

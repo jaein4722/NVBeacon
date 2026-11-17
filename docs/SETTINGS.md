@@ -1,6 +1,6 @@
 # Settings Layout and Wording
 
-The desktop clients (macOS, and Windows when it ships) use the same settings layout and wording. Each client implements its own settings screen; only the rules below are shared. The iPhone and iPad app follows the wording rules and the glossary.
+NVBeacon has three clients: macOS, iPhone and iPad, and Windows (in the works). Each implements its own settings screen; the rules, names and glossary below are shared so that a setting looks and reads the same everywhere.
 
 ## Tabs
 
@@ -14,6 +14,22 @@ The desktop clients (macOS, and Windows when it ships) use the same settings lay
 | Advanced | Server backup, import and transfer, diagnostic information, reloading and clearing saved settings |
 | About | App identity, version and build, links, runtime snapshot |
 
+## iPhone and iPad
+
+iOS has one Settings screen instead of tabs. Its sections follow the desktop tab order and names, and leave out what does not exist on iOS:
+
+| Section | Contents |
+| --- | --- |
+| General | Language |
+| Monitoring | Refresh interval, busy GPU detection, highlighting your own processes, host information |
+| Display | Theme |
+| Advanced | Server backup and import, diagnostic information |
+| About | Version and build, open source licenses, links |
+
+- The server list is the main screen. Per-server settings (connection, authentication, reuse, commands) live only in the server editor, as in the desktop Servers tab.
+- Platform notes, such as monitoring pausing in the background, go in a section footer rather than in a text row.
+- Desktop-only settings (launch at login, Dock icon, display mode, popover size, alert thresholds) are omitted, not shown disabled.
+
 ## Rules
 
 1. **Group by task.** A tab holds one kind of task. Do not add a setting to a tab because it has room.
@@ -22,6 +38,14 @@ The desktop clients (macOS, and Windows when it ships) use the same settings lay
 4. **Dependent controls.** Controls that depend on a switch stay visible and are disabled while the switch is off. Fields that belong to one choice of a picker (a fixed height, password fields, a threshold for one detection mode) appear only for that choice.
 5. **Order.** Common settings first. Reloading, clearing and deleting come last, use a red button and ask for confirmation.
 6. **Ranges and defaults.** Numeric fields state their range and default in the caption, for example `1–300 s · Default 10 s`.
+7. **One name everywhere.** A setting that exists on several clients uses the same English and Korean label on each, even when the control differs (a stepper on macOS, a picker on iOS).
+
+## Adding or Moving a Setting
+
+1. Choose the tab (and the iOS section) with rules 1 and 2.
+2. Decide for each client whether it applies. Leave it out where the feature does not exist; do not show it disabled.
+3. Use the same label on every client and follow the wording rules. Add a glossary row for a new concept.
+4. Update the tables in this document in the same change.
 
 ## Wording
 
