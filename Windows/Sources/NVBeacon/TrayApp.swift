@@ -81,6 +81,13 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
             // PBT_APMRESUMESUSPEND / PBT_APMRESUMEAUTOMATIC: woke from sleep.
             if wParam == 0x7 || wParam == 0x12 { app.systemResumed() }
             return 1
+        case UINT(WM_CLOSE):
+            // The installer and uninstaller close a running copy this way.
+            app.quit()
+            return 0
+        case UINT(WM_ENDSESSION) where wParam != 0:
+            app.quit()   // sign-out, shutdown or Restart Manager: save history, drop the icon
+            return 0
         case diagnosticsMenuMessage where Diagnostics.enabled:
             app.showMenu(fromFlyout: true)
             return 0
@@ -519,6 +526,7 @@ final class TrayApp {
     }
 
     func quit() {
+        Diagnostics.log("Quit")
         monitor.stop()
         // Save the partial GPU History minute so a normal quit loses nothing (as on macOS).
         let saved = DispatchSemaphore(value: 0)
