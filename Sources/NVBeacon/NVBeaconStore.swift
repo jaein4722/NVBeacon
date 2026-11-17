@@ -1115,7 +1115,7 @@ final class NVBeaconStore: ObservableObject {
                 processes: currentGPU.processes,
                 password: password.isEmpty ? nil : password
             )
-            applyProcessDetails(enrichedProcesses, toGPUWithID: gpuID, on: serverID)
+            applyProcessDetails(enrichedProcesses, on: serverID)
             updateServerState(serverID) { state in
                 state.lastErrorMessage = nil
             }
@@ -1130,26 +1130,13 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
-    private func applyProcessDetails(_ processes: [GPUProcessReading], toGPUWithID gpuID: Int, on serverID: String) {
+    /// A poll may replace the snapshot while details are loading. Keep the current
+    /// process list and only fill in owners and commands for processes still running,
+    /// as the iOS app does.
+    private func applyProcessDetails(_ processes: [GPUProcessReading], on serverID: String) {
         guard let currentSnapshot = serverState(for: serverID)?.snapshot else { return }
-
-        let updatedGPUs = currentSnapshot.gpus.map { gpu in
-            guard gpu.id == gpuID else { return gpu }
-
-            return GPUReading(
-                index: gpu.index,
-                name: gpu.name,
-                uuid: gpu.uuid,
-                utilization: gpu.utilization,
-                memoryUsedMB: gpu.memoryUsedMB,
-                memoryTotalMB: gpu.memoryTotalMB,
-                temperatureCelsius: gpu.temperatureCelsius,
-                processes: processes
-            )
-        }
-
         updateServerState(serverID) { state in
-            state.snapshot = GPUSnapshot(takenAt: currentSnapshot.takenAt, gpus: updatedGPUs, hostMemory: currentSnapshot.hostMemory, hostCPU: currentSnapshot.hostCPU, networkSample: currentSnapshot.networkSample, hostCPUSample: currentSnapshot.hostCPUSample)
+            state.snapshot = currentSnapshot.applyingResolvedProcessMetadata(processes)
         }
     }
 
