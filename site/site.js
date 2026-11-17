@@ -14,6 +14,15 @@
     });
   });
 
+  // Looping clips do not autoplay for visitors who prefer reduced motion.
+  if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    document.querySelectorAll("video[autoplay]").forEach(function (video) {
+      video.removeAttribute("autoplay");
+      video.pause();
+      video.controls = true;
+    });
+  }
+
   // Point Mac download links at the latest DMG from the Sparkle appcast.
   // Links keep their GitHub Releases fallback if this fails.
   var links = document.querySelectorAll("[data-dmg-link]");

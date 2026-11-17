@@ -65,6 +65,7 @@
 
   <main id="content">
     <section class="hero">
+      <div class="beacon" aria-hidden="true"><span></span><span></span><span></span></div>
       <div class="page-shell hero-grid">
         <div class="hero-copy">
           <p class="eyebrow">Free · Open source · Nothing to install on the server</p>
@@ -224,7 +225,7 @@
           <h2>Just SSH. Nothing else to set up.</h2>
           <p>If you can log in to the server and run <code>nvidia-smi</code>, NVBeacon works.</p>
         </div>
-        <ol class="steps">
+        <ol class="steps" data-reveal>
           <li>
             <h3>Add a server</h3>
             <p>Enter a host, user and port, or import it from <code>~/.ssh/config</code> on Mac. Use an SSH key or a password.</p>
@@ -252,7 +253,7 @@
           <p class="kicker">Features</p>
           <h2>Answers the questions you keep opening Terminal for.</h2>
         </div>
-        <div class="feature-grid">
+        <div class="feature-grid" data-reveal>
           <article class="feature">
             <h3>Is the server busy?</h3>
             <p>Utilization, memory, temperature and process count for every GPU, with a live summary in the menu bar.</p>
@@ -304,7 +305,7 @@
           <h2>In the menu bar at your desk. In your pocket everywhere else.</h2>
           <p>The same servers on both, with features that suit each device.</p>
         </div>
-        <div class="compare-wrap">
+        <div class="compare-wrap" data-reveal>
           <div>
             <div class="table-scroll">
               <table class="compare">
@@ -339,7 +340,7 @@
 
     <section class="section flush-top" id="privacy">
       <div class="page-shell">
-        <div class="privacy-band">
+        <div class="privacy-band" data-reveal>
           <div class="section-heading">
             <p class="kicker">Private by design</p>
             <h2>Your device talks to your servers. Nobody else is in between.</h2>
@@ -362,7 +363,7 @@
           <p class="kicker">Download</p>
           <h2>Get NVBeacon. It's free.</h2>
         </div>
-        <div class="download-grid">
+        <div class="download-grid" data-reveal>
           <article class="download-card">
             <h3>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
@@ -371,7 +372,7 @@
             <p>Menu bar app with job alerts and optional GPU history.</p>
             <a class="button primary" href="https://github.com/jaein4722/NVBeacon/releases/latest" data-dmg-link>Download DMG</a>
             <div class="command">
-              <pre><code>brew install --cask jaein4722/tap/nvbeacon</code></pre>
+              <pre><code>brew install --cask <wbr>jaein4722/tap/<wbr>nvbeacon</code></pre>
               <button class="copy-button" type="button" data-copy="brew install --cask jaein4722/tap/nvbeacon" data-done="Copied">Copy</button>
             </div>
             <p class="meta"><span data-latest-version="Version {v} · " hidden></span>Apple silicon · macOS 14 or later · <a href="https://github.com/jaein4722/NVBeacon/releases">Release notes</a></p>
@@ -411,7 +412,7 @@
           <p class="kicker">FAQ</p>
           <h2>Questions, answered.</h2>
         </div>
-        <div class="faq">
+        <div class="faq" data-reveal>
           <details>
             <summary>Do I need to install anything on the server?</summary>
             <p>No. NVBeacon connects over SSH, runs <code>nvidia-smi</code> and reads Linux counters such as <code>/proc/meminfo</code>. You only need an account that can log in and run <code>nvidia-smi</code>.</p>

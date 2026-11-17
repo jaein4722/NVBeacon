@@ -65,6 +65,7 @@
 
   <main id="content">
     <section class="hero">
+      <div class="beacon" aria-hidden="true"><span></span><span></span><span></span></div>
       <div class="page-shell hero-grid">
         <div class="hero-copy">
           <p class="eyebrow">무료 · 오픈 소스 · 서버 설치 없음</p>
@@ -224,7 +225,7 @@
           <h2>SSH만 있으면 됩니다.</h2>
           <p>서버에 로그인해 <code>nvidia-smi</code>를 실행할 수 있다면 NVBeacon을 바로 쓸 수 있습니다.</p>
         </div>
-        <ol class="steps">
+        <ol class="steps" data-reveal>
           <li>
             <h3>서버 추가</h3>
             <p>호스트, 사용자, 포트를 입력하거나 Mac에서는 <code>~/.ssh/config</code>에서 가져옵니다. SSH 키와 비밀번호를 모두 쓸 수 있습니다.</p>
@@ -252,7 +253,7 @@
           <p class="kicker">기능</p>
           <h2>터미널을 열어 확인하던 것들, 이제 바로 보입니다.</h2>
         </div>
-        <div class="feature-grid">
+        <div class="feature-grid" data-reveal>
           <article class="feature">
             <h3>서버가 바쁜가요?</h3>
             <p>모든 GPU의 사용률, 메모리, 온도, 프로세스 수를 보여주고 메뉴 막대에 요약을 띄웁니다.</p>
@@ -304,7 +305,7 @@
           <h2>책상에서는 메뉴 막대에, 밖에서는 주머니 속에.</h2>
           <p>같은 서버를 두 기기에서, 기기에 맞는 기능으로 확인합니다.</p>
         </div>
-        <div class="compare-wrap">
+        <div class="compare-wrap" data-reveal>
           <div>
             <div class="table-scroll">
               <table class="compare">
@@ -339,7 +340,7 @@
 
     <section class="section flush-top" id="privacy">
       <div class="page-shell">
-        <div class="privacy-band">
+        <div class="privacy-band" data-reveal>
           <div class="section-heading">
             <p class="kicker">개인정보는 기기 안에</p>
             <h2>기기와 서버가 직접 연결됩니다. 중간에는 아무도 없습니다.</h2>
@@ -362,7 +363,7 @@
           <p class="kicker">다운로드</p>
           <h2>NVBeacon은 무료입니다.</h2>
         </div>
-        <div class="download-grid">
+        <div class="download-grid" data-reveal>
           <article class="download-card">
             <h3>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="11" rx="2"/><path d="M2 19h20"/></svg>
@@ -371,7 +372,7 @@
             <p>작업 알림과 GPU 기록을 갖춘 메뉴 막대 앱입니다.</p>
             <a class="button primary" href="https://github.com/jaein4722/NVBeacon/releases/latest" data-dmg-link>DMG 다운로드</a>
             <div class="command">
-              <pre><code>brew install --cask jaein4722/tap/nvbeacon</code></pre>
+              <pre><code>brew install --cask <wbr>jaein4722/tap/<wbr>nvbeacon</code></pre>
               <button class="copy-button" type="button" data-copy="brew install --cask jaein4722/tap/nvbeacon" data-done="복사됨">복사</button>
             </div>
             <p class="meta"><span data-latest-version="버전 {v} · " hidden></span>Apple 실리콘 · macOS 14 이상 · <a href="https://github.com/jaein4722/NVBeacon/releases">릴리스 노트</a></p>
@@ -411,7 +412,7 @@
           <p class="kicker">FAQ</p>
           <h2>자주 묻는 질문</h2>
         </div>
-        <div class="faq">
+        <div class="faq" data-reveal>
           <details>
             <summary>서버에 무언가 설치해야 하나요?</summary>
             <p>아니요. NVBeacon은 SSH로 접속해 <code>nvidia-smi</code>를 실행하고 <code>/proc/meminfo</code> 같은 Linux 정보를 읽습니다. 로그인해서 <code>nvidia-smi</code>를 실행할 수 있는 계정만 있으면 됩니다.</p>
