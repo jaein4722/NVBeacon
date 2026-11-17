@@ -160,8 +160,11 @@ enum Shell {
     }
 
     /// Opens only the project's own pages; anything else from a page is ignored.
+    /// The same page the installer offers when the runtime is missing.
+    static let webView2DownloadPage = "https://developer.microsoft.com/microsoft-edge/webview2/"
+
     static func openWebPage(_ url: String) {
-        let allowed = ["https://github.com/jaein4722/NVBeacon", "https://github.com/jaein4722"]
+        let allowed = ["https://github.com/jaein4722/NVBeacon", "https://github.com/jaein4722", webView2DownloadPage]
         guard allowed.contains(url) else { return }
         _ = url.withCString(encodedAs: UTF16.self) { ShellExecuteW(nil, nil, $0, nil, nil, SW_SHOWNORMAL) }
     }

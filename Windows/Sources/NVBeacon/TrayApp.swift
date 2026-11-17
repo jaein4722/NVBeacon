@@ -791,8 +791,8 @@ final class TrayApp {
             let korean = Theme.language == "ko"
             pendingSettingsDraft = nil
             guard FileManager.default.fileExists(atPath: SettingsStore.fileURL.path) else {
-                failure(korean ? "설정 파일이 없습니다: \(SettingsStore.fileURL.path)\n지금 설정은 그대로 둡니다."
-                               : "There is no settings file: \(SettingsStore.fileURL.path)\nThe current settings are unchanged.")
+                failure(korean ? "설정 파일이 없습니다: \(SettingsStore.fileURL.windowsPath)\n지금 설정은 그대로 둡니다."
+                               : "There is no settings file: \(SettingsStore.fileURL.windowsPath)\nThe current settings are unchanged.")
                 return
             }
             let loaded = SettingsStore.loadResult()
@@ -850,9 +850,9 @@ final class TrayApp {
 
     /// The file and, when there is one, the copy kept of it; callers add what happens next.
     static func unreadableSettingsText(_ loaded: SettingsStore.LoadResult, korean: Bool) -> String {
-        let file = SettingsStore.fileURL.path
+        let file = SettingsStore.fileURL.windowsPath
         var text = korean ? "설정 파일을 읽을 수 없습니다: \(file)" : "The settings file could not be read: \(file)"
-        if let copy = loaded.preservedCopy?.path {
+        if let copy = loaded.preservedCopy?.windowsPath {
             text += korean ? "\n원본은 \(copy)에 보관했습니다." : "\nThe original was kept as \(copy)."
         }
         return text

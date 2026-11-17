@@ -205,6 +205,11 @@ struct FlyoutState: Encodable {
     }
 }
 
+extension URL {
+    /// `C:\Users\…` for messages; Foundation's `path` uses forward slashes on Windows.
+    var windowsPath: String { path.replacingOccurrences(of: "/", with: "\\") }
+}
+
 /// Optional timing log for the prototype checks: `NVBeacon.exe --diag` writes
 /// %LOCALAPPDATA%\NVBeacon\diag.log.
 enum Diagnostics {
@@ -219,9 +224,16 @@ enum Diagnostics {
 
     static func log(_ text: @autoclosure () -> String) {
         guard enabled else { return }
+        write(text())
+    }
+
+    /// Written even without --diag: failures a user may need to report.
+    static func logError(_ text: String) { write("error: " + text) }
+
+    private static func write(_ text: String) {
         let elapsed = ContinuousClock.now - start
         let milliseconds = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
-        let line = "\(milliseconds) ms  \(text())\n"
+        let line = "\(milliseconds) ms  \(text)\n"
         lock.withLock {
             let url = logURL
             try? FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)

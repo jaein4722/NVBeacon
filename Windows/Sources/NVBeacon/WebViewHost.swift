@@ -23,17 +23,55 @@ final class WebViewHost {
         self.page = page
     }
 
+    /// The message is shown once per run; later attempts (every click on the tray
+    /// icon tries again) are only logged.
+    nonisolated(unsafe) private static var failureShown = false
+
+    /// HRESULT_FROM_WIN32(ERROR_FILE_NOT_FOUND): no WebView2 Runtime is installed.
+    private static func meansRuntimeMissing(_ result: HRESULT) -> Bool { UInt32(bitPattern: result) == 0x8007_0002 }
+
+    private enum Failure { case missingFiles, runtimeMissing, startFailed }
+
+    /// Logs to diag.log (also without --diag) and tells the user why the window stays empty.
+    private static func failed(_ detail: String, kind: Failure) {
+        Diagnostics.logError(detail)
+        guard !failureShown else { return }
+        failureShown = true
+        let korean = Theme.language == "ko"
+        var text = korean ? "NVBeacon 창을 열 수 없습니다. " : "NVBeacon cannot open its windows. "
+        switch kind {
+        case .missingFiles:
+            text += korean ? "설치된 파일 일부가 없습니다. NVBeacon을 다시 설치하세요." : "Some installed files are missing. Install NVBeacon again."
+        case .runtimeMissing:
+            text += korean ? "이 PC에 Microsoft Edge WebView2 런타임이 설치되어 있지 않습니다." : "The Microsoft Edge WebView2 Runtime is not installed on this PC."
+        case .startFailed:
+            text += korean ? "Microsoft Edge WebView2를 시작하지 못했습니다." : "Microsoft Edge WebView2 could not be started."
+        }
+        text += korean ? "\n\n오류: \(detail)\n기록: \(Diagnostics.logURL.windowsPath)" : "\n\nError: \(detail)\nLog: \(Diagnostics.logURL.windowsPath)"
+        let offersDownload = kind != .missingFiles
+        if offersDownload {
+            text += korean ? "\n\nWebView2 런타임 다운로드 페이지를 열까요? 설치하거나 복구한 뒤 NVBeacon을 다시 실행하세요. 트레이 아이콘과 알림은 계속 동작합니다."
+                           : "\n\nOpen the WebView2 Runtime download page? Install or repair it, then start NVBeacon again. The tray icon and alerts keep working."
+        }
+        let answer = text.withCString(encodedAs: UTF16.self) { body in
+            "NVBeacon".withCString(encodedAs: UTF16.self) { title in
+                MessageBoxW(nil, body, title, UINT(offersDownload ? MB_YESNO | MB_ICONWARNING : MB_OK | MB_ICONWARNING))
+            }
+        }
+        if offersDownload, answer == IDYES { Shell.openWebPage(Shell.webView2DownloadPage) }
+    }
+
     var exists: Bool { view != nil || creating }
 
     func create(background: COLORREF) {
         guard view == nil, !creating else { return }
         guard let folder = Resources.uiFolder, let loader = Resources.loaderPath else {
-            Diagnostics.log("UI folder or WebView2Loader.dll not found")
+            Self.failed("UI folder or WebView2Loader.dll not found next to NVBeacon.exe", kind: .missingFiles)
             return
         }
         let loaded = loader.withCString(encodedAs: UTF16.self) { NVBWebViewLoad($0) }
         guard loaded >= 0 else {
-            Diagnostics.log("WebView2Loader.dll failed to load hr=\(hex(loaded))")
+            Self.failed("WebView2Loader.dll failed to load hr=\(hex(loaded))", kind: .missingFiles)
             return
         }
         creating = true
@@ -51,14 +89,14 @@ final class WebViewHost {
         }
         if result < 0 {
             creating = false
-            Diagnostics.log("NVBWebViewCreate(\(page)) failed hr=\(hex(result))")
+            Self.failed("NVBWebViewCreate(\(page)) failed hr=\(hex(result))", kind: Self.meansRuntimeMissing(result) ? .runtimeMissing : .startFailed)
         }
     }
 
     fileprivate func didCreate(_ created: OpaquePointer?, _ result: HRESULT) {
         creating = false
         guard let created, result >= 0 else {
-            Diagnostics.log("WebView2 creation for \(page) failed hr=\(hex(result))")
+            Self.failed("WebView2 creation for \(page) failed hr=\(hex(result))", kind: Self.meansRuntimeMissing(result) ? .runtimeMissing : .startFailed)
             return
         }
         view = created
