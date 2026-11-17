@@ -97,6 +97,13 @@ struct StatusMenuView: View {
 
                 Spacer()
 
+                // Left of the buttons, so showing it takes space from the spacer
+                // instead of pushing the buttons sideways.
+                if store.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
                 if store.settings.recordsGPUHistory {
                     Button(action: onOpenHistory) {
                         Image(systemName: "chart.xyaxis.line")
@@ -117,11 +124,6 @@ struct StatusMenuView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
                     .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침"))
-                }
-
-                if store.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
                 }
 
                 displayModeButtons
@@ -271,6 +273,11 @@ struct StatusMenuView: View {
 
                 Spacer(minLength: 8)
 
+                if state.isRefreshing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+
                 if !store.isServerExpanded(for: state.id) {
                     if let snapshot = state.snapshot {
                         Text("GPU \(snapshot.busyCount(using: store.settings))/\(snapshot.gpus.count) · \(snapshot.averageUtilization)%")
@@ -295,11 +302,6 @@ struct StatusMenuView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
                     .help(t("Refresh this server now", "이 서버를 지금 새로고침"))
-                }
-
-                if state.isRefreshing {
-                    ProgressView()
-                        .controlSize(.small)
                 }
             }
 
