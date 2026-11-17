@@ -18,6 +18,14 @@ if let account = ProcessInfo.processInfo.environment[AskPass.accountVariable] {
     exit(AskPass.run(arguments: CommandLine.arguments, account: account))
 }
 
+// The uninstaller runs `NVBeacon.exe --forget-passwords` when the user chooses to
+// delete saved SSH passwords: remove every one from Credential Manager and exit.
+if CommandLine.arguments.contains("--forget-passwords") {
+    let store = SSHPasswordStore()
+    let failed = store.savedServerIDs().filter { !store.delete(for: $0) }
+    exit(failed.isEmpty ? 0 : 1)
+}
+
 // Development aid: write tray icon previews and exit (see TrayIconRenderer.dumpPreviews).
 if let index = CommandLine.arguments.firstIndex(of: "--dump-tray-icons"), index + 1 < CommandLine.arguments.count {
     TrayIconRenderer.dumpPreviews(to: CommandLine.arguments[index + 1])
