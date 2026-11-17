@@ -13,6 +13,7 @@ struct StatusMenuView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     var onOpenHistory: () -> Void = {}
+    var onOpenSettings: () -> Void = {}
     /// The same view fills the popover and the monitor window.
     var presentation: MonitorDisplayMode = .popover
     @State private var expandedGPUIds: Set<String> = []
@@ -124,6 +125,8 @@ struct StatusMenuView: View {
                 }
 
                 displayModeButtons
+
+                headerIconButton("gearshape", help: t("Settings", "설정"), action: onOpenSettings)
             }
 
             if store.totalGPUCount > 0 {
@@ -140,10 +143,6 @@ struct StatusMenuView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-
-            Text(t("Right-click the menu bar item for settings and quit.", "설정과 종료는 메뉴바 아이콘 우클릭으로 열 수 있습니다."))
-                .font(.caption2)
-                .foregroundStyle(.secondary)
 
             if store.shouldHighlightMyProcesses, store.configuredServerCount == 1, let detectedSSHUsername = store.detectedSSHUsername {
                 Label(
@@ -218,7 +217,7 @@ struct StatusMenuView: View {
 
     private var headerEmptyStateText: String {
         if !store.settings.isConfigured {
-            return t("Right-click the menu bar item and open Settings to configure a server.", "우클릭 메뉴에서 Settings를 열어 서버를 설정하세요.")
+            return t("Open Settings with the gear button to configure a server.", "톱니바퀴 버튼으로 설정을 열어 서버를 추가하세요.")
         }
 
         if store.pollableServerCount == 0 {

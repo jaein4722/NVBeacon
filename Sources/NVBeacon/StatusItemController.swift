@@ -6,6 +6,7 @@ private struct StatusMenuContainerView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
     let onOpenHistory: () -> Void
+    var onOpenSettings: () -> Void = {}
     var presentation: MonitorDisplayMode = .popover
 
     var body: some View {
@@ -13,6 +14,7 @@ private struct StatusMenuContainerView: View {
             store: store,
             onContentHeightChange: onContentHeightChange,
             onOpenHistory: onOpenHistory,
+            onOpenSettings: onOpenSettings,
             presentation: presentation
         )
         .preferredColorScheme(colorScheme)
@@ -58,6 +60,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                 store: store,
                 onContentHeightChange: { _ in },
                 onOpenHistory: { [weak self] in self?.showHistoryAction?() },
+                onOpenSettings: { [weak self] in self?.showSettingsAction?() },
                 presentation: .window
             )
         )
@@ -182,6 +185,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                 onOpenHistory: { [weak self] in
                     self?.popover.performClose(nil)
                     self?.showHistoryAction?()
+                },
+                onOpenSettings: { [weak self] in
+                    self?.openSettings()
                 }
             )
         )
