@@ -223,13 +223,6 @@ final class NVBeaconStore: ObservableObject {
         return "NVBeacon"
     }
 
-    var lastUpdatedRelativeText: String? {
-        guard let latestSnapshotDate else { return nil }
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .short
-        return formatter.localizedString(for: latestSnapshotDate, relativeTo: Date())
-    }
-
     var shouldHighlightMyProcesses: Bool {
         settings.highlightsMyProcesses
     }
@@ -286,8 +279,15 @@ final class NVBeaconStore: ObservableObject {
         }
     }
 
-    var latestSnapshotDate: Date? {
-        serverStates.compactMap { $0.snapshot?.takenAt }.max()
+    /// The oldest data that feeds the totals. Servers refresh independently, so the
+    /// newest time would always look fresh and hide a server that stopped answering.
+    var oldestSnapshotDate: Date? {
+        serverStates.compactMap { $0.snapshot?.takenAt }.min()
+    }
+
+    /// Data older than two refresh intervals plus the SSH timeout has missed refreshes.
+    nonisolated static func isSnapshotStale(takenAt: Date, now: Date = Date(), pollIntervalSeconds: Int) -> Bool {
+        now.timeIntervalSince(takenAt) > TimeInterval(pollIntervalSeconds * 2 + 15)
     }
 
     private var hasServerError: Bool {

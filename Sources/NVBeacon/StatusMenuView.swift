@@ -121,8 +121,8 @@ struct StatusMenuView: View {
                     SummaryPill(title: t("Avg", "평균"), value: "\(store.fleetAverageUtilization)%")
                     SummaryPill(title: t("Busy", "사용중"), value: "\(store.fleetBusyCount)/\(store.totalGPUCount)")
                     SummaryPill(title: t("Proc", "프로세스"), value: "\(store.totalProcessCount)")
-                    if let latestSnapshotDate = store.latestSnapshotDate {
-                        UpdatedPill(date: latestSnapshotDate, language: language)
+                    if let oldestSnapshotDate = store.oldestSnapshotDate {
+                        UpdatedPill(date: oldestSnapshotDate, language: language)
                     }
                 }
             } else {
@@ -193,6 +193,40 @@ struct StatusMenuView: View {
         }
     }
 
+    private func serverToggleHelp(_ state: ServerRuntimeState) -> String {
+        let action = store.isServerExpanded(for: state.id)
+            ? t("Collapse this server", "이 서버 접기")
+            : t("Expand this server", "이 서버 펼치기")
+        guard let takenAt = state.snapshot?.takenAt else { return action }
+        let time = takenAt.formatted(date: .omitted, time: .standard)
+        return action + "\n" + t("Last update: \(time)", "마지막 업데이트: \(time)")
+    }
+
+    /// Shown only when a server has missed refreshes, so a growing "Updated" value
+    /// in the summary points to the server behind it.
+    @ViewBuilder
+    private func staleDataLabel(_ state: ServerRuntimeState) -> some View {
+        // Re-evaluated whenever the popover redraws, which happens on every refresh
+        // attempt of any server; the age inside keeps ticking on its own.
+        if state.server.isEnabled, let takenAt = state.snapshot?.takenAt,
+           NVBeaconStore.isSnapshotStale(takenAt: takenAt, pollIntervalSeconds: store.settings.pollIntervalSeconds) {
+            TimelineView(.periodic(from: .now, by: 5)) { context in
+                let age = Self.ageText(context.date.timeIntervalSince(takenAt), language: language)
+                Label(t("Last update \(age) ago", "마지막 업데이트 \(age) 전"), systemImage: "clock.badge.exclamationmark")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.orange)
+                    .help(state.lastErrorMessage ?? "")
+            }
+        }
+    }
+
+    nonisolated static func ageText(_ seconds: TimeInterval, language: AppInterfaceLanguage) -> String {
+        let seconds = max(Int(seconds), 0)
+        if seconds < 60 { return language.text("\(seconds)s", "\(seconds)초") }
+        if seconds < 3_600 { return language.text("\(seconds / 60)m", "\(seconds / 60)분") }
+        return language.text("\(seconds / 3_600)h \(seconds % 3_600 / 60)m", "\(seconds / 3_600)시간 \(seconds % 3_600 / 60)분")
+    }
+
     private func serverSection(_ state: ServerRuntimeState) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -210,9 +244,7 @@ struct StatusMenuView: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(store.isServerExpanded(for: state.id)
-                      ? t("Collapse this server", "이 서버 접기")
-                      : t("Expand this server", "이 서버 펼치기"))
+                .help(serverToggleHelp(state))
                 .accessibilityValue(store.isServerExpanded(for: state.id) ? t("Expanded", "펼침") : t("Collapsed", "접힘"))
 
                 if !state.server.isEnabled {
@@ -260,6 +292,8 @@ struct StatusMenuView: View {
                         .controlSize(.small)
                 }
             }
+
+            staleDataLabel(state)
 
             if store.isServerExpanded(for: state.id) {
                 serverDetails(state)
@@ -701,7 +735,10 @@ private struct UpdatedPill: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
             SummaryPill(title: language.text("Updated", "업데이트"), value: relativeText(referenceDate: context.date))
-                .help(date.formatted(date: .omitted, time: .standard))
+                .help(language.text(
+                    "Oldest data shown: \(date.formatted(date: .omitted, time: .standard))",
+                    "가장 오래된 데이터: \(date.formatted(date: .omitted, time: .standard))"
+                ))
         }
     }
 

@@ -100,3 +100,18 @@ private actor RefreshLog {
     #expect(merged.gpus[0].processes[0].user == "alice")
     #expect(merged.gpus[0].processes[1].user == nil)
 }
+
+@Test func staleDataIsOlderThanTwoIntervalsPlusTheTimeout() {
+    let now = Date(timeIntervalSince1970: 3_000_000)
+    // 10 s interval: 2 × 10 + 15 = 35 s.
+    #expect(!NVBeaconStore.isSnapshotStale(takenAt: now.addingTimeInterval(-35), now: now, pollIntervalSeconds: 10))
+    #expect(NVBeaconStore.isSnapshotStale(takenAt: now.addingTimeInterval(-36), now: now, pollIntervalSeconds: 10))
+    #expect(!NVBeaconStore.isSnapshotStale(takenAt: now.addingTimeInterval(-600), now: now, pollIntervalSeconds: 300))
+}
+
+@Test func staleAgeTextIsShort() {
+    #expect(StatusMenuView.ageText(42, language: .english) == "42s")
+    #expect(StatusMenuView.ageText(185, language: .english) == "3m")
+    #expect(StatusMenuView.ageText(185, language: .korean) == "3분")
+    #expect(StatusMenuView.ageText(3_900, language: .korean) == "1시간 5분")
+}
