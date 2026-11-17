@@ -12,6 +12,7 @@ private struct StatusMenuContentHeightKey: PreferenceKey {
 struct StatusMenuView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
+    var onOpenHistory: () -> Void = {}
     @State private var expandedGPUIds: Set<String> = []
 
     private var snapshotGPUIds: [String] {
@@ -86,6 +87,16 @@ struct StatusMenuView: View {
                 .font(.headline)
 
                 Spacer()
+
+                if store.settings.recordsGPUHistory {
+                    Button(action: onOpenHistory) {
+                        Image(systemName: "chart.xyaxis.line")
+                            .font(.system(size: 12, weight: .semibold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.primary)
+                    .help(t("Open GPU history", "GPU 기록 열기"))
+                }
 
                 if store.settings.isConfigured {
                     Button {

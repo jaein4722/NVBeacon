@@ -28,6 +28,8 @@ struct PairingInvitation {
     // Check the selected suite again when obtaining the TLS channel binding.
     static let cipherSuite = tls_ciphersuite_t(rawValue: 0xCCAC)!
     static let serviceType = "_nvbeacon-xfer._tcp"
+    /// Seconds a paired session may stay open for code comparison, approval and review.
+    static let transferLifetime = 600
     let id: UUID
     let secret: Data
     let expiry: Int64
@@ -301,6 +303,13 @@ private enum Frame: UInt8 {
             attempt = nil
             paired = link
             releaseListener()
+            // The invitation lifetime bounds pairing only. Comparing codes, approving and
+            // reviewing servers on the iPhone get their own, longer limit.
+            deadline?.cancel()
+            deadline = Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(PairingInvitation.transferLifetime)) } catch { return }
+                self?.stop(.expired, notify: true)
+            }
             link.onClose = { [weak self] error in self?.stop(error, notify: true) }
             onCode(code)
         } catch {
@@ -393,6 +402,12 @@ private enum Frame: UInt8 {
                 let proof = try await link.read(.welcome, length: 32...32)
                 guard try link.verifies(proof, role: "sender", invitation: invitation) else { throw PairingError.authentication }
                 handshake.cancel()
+                // Paired: the invitation expiry no longer applies; see PairingSender.
+                deadline?.cancel()
+                deadline = Task { [weak self] in
+                    do { try await Task.sleep(for: .seconds(PairingInvitation.transferLifetime)) } catch { return }
+                    self?.stop(.expired)
+                }
                 onCode(try link.comparisonCode(invitation))
                 let payload = try await link.read(.payload, length: 1...TransferBatch.maximumBytes)
                 try Task.checkCancellation()

@@ -1,5 +1,6 @@
 import AppKit
 import Combine
+import SwiftUI
 import UserNotifications
 
 @MainActor
@@ -9,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let launchAtLoginManager = LaunchAtLoginManager()
     private let settingsOpenBridge = SettingsOpenBridge()
     private var statusItemController: StatusItemController?
+    private var historyWindow: NSWindow?
     private var cancellables = Set<AnyCancellable>()
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -27,6 +29,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItemController.showSettingsAction = { [weak self] in
             self?.showSettingsWindow()
         }
+        statusItemController.showHistoryAction = { [weak self] in
+            self?.showHistoryWindow()
+        }
         self.statusItemController = statusItemController
 
         if !store.settings.isConfigured {
@@ -34,6 +39,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self?.showSettingsWindow()
             }
         }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        Task {
+            await store.flushGPUHistory()
+            sender.reply(toApplicationShouldTerminate: true)
+        }
+        return .terminateLater
+    }
+
+    /// The window and its charts are released on close, so history costs nothing
+    /// while the window is not open.
+    private func showHistoryWindow() {
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        if historyWindow == nil {
+            let window = NSWindow(contentViewController: NSHostingController(rootView: GPUHistoryWindowView(store: store)))
+            window.title = store.settings.resolvedLanguage.text("GPU History", "GPU 기록")
+            window.setContentSize(NSSize(width: 640, height: 520))
+            window.isReleasedWhenClosed = false
+            window.delegate = self
+            window.setFrameAutosaveName("NVBeaconGPUHistory")
+            historyWindow = window
+        }
+        historyWindow?.makeKeyAndOrderFront(nil)
     }
 
     private func bindAppearance() {
@@ -108,6 +137,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if !NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil) {
             _ = NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+        }
+    }
+}
+
+extension AppDelegate: NSWindowDelegate {
+    func windowWillClose(_ notification: Notification) {
+        if (notification.object as? NSWindow) === historyWindow {
+            historyWindow = nil
         }
     }
 }

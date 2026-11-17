@@ -5,9 +5,10 @@ import SwiftUI
 private struct StatusMenuContainerView: View {
     @ObservedObject var store: NVBeaconStore
     let onContentHeightChange: (CGFloat) -> Void
+    let onOpenHistory: () -> Void
 
     var body: some View {
-        StatusMenuView(store: store, onContentHeightChange: onContentHeightChange)
+        StatusMenuView(store: store, onContentHeightChange: onContentHeightChange, onOpenHistory: onOpenHistory)
             .preferredColorScheme(colorScheme)
     }
 
@@ -26,6 +27,7 @@ private struct StatusMenuContainerView: View {
 @MainActor
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
+    var showHistoryAction: (() -> Void)?
 
     private let store: NVBeaconStore
     private let settingsOpenBridge: SettingsOpenBridge
@@ -88,6 +90,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                 store: store,
                 onContentHeightChange: { [weak self] height in
                     self?.updateMeasuredContentHeight(height)
+                },
+                onOpenHistory: { [weak self] in
+                    self?.popover.performClose(nil)
+                    self?.showHistoryAction?()
                 }
             )
         )
