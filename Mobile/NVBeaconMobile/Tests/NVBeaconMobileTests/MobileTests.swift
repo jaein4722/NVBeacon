@@ -84,3 +84,17 @@ import NVBeaconCore
     do { _ = try await task.value; Issue.record("Cancelled transport executed") }
     catch { #expect(error is CancellationError) }
 }
+
+@Test func importReviewShowsCustomLegacyMemoryCommands() {
+    func entry(gpu: String = RemoteMetricCommands.defaultGPUCommand, memory: String, host: String? = nil) -> ServerSettingsBackup.Entry {
+        .init(name: "Lab", sshTarget: "researcher@gpu.example.com", sshPort: "22", sshIdentityFilePath: "",
+              sshAuthenticationMode: .keyBased, sshConnectionReuseMode: .reuseWhenPossible,
+              remoteCommand: gpu, memoryCommand: memory, hostCommand: host)
+    }
+    #expect(entry(memory: RemoteMetricCommands.defaultMemoryCommand).customRemoteCommands.isEmpty)
+    #expect(entry(gpu: RemoteMetricCommands.legacyGPUCommand, memory: "").customRemoteCommands.isEmpty)
+    // A Mac backup from before host scripts existed keeps only its memory command.
+    #expect(entry(memory: "free -k").customRemoteCommands == ["free -k"])
+    #expect(entry(gpu: "my-gpu", memory: "free -k").customRemoteCommands == ["my-gpu", "free -k"])
+    #expect(entry(memory: "free -k", host: "my-host-script").customRemoteCommands == ["my-host-script"])
+}
