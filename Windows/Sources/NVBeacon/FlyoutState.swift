@@ -100,6 +100,8 @@ struct FlyoutState: Encodable {
     /// Shows the history (chart) button in the header, as on macOS.
     let recordsGPUHistory: Bool
     let pollableServerCount: Int
+    /// Data older than 2 × refresh interval + 15 s reads "Last update … ago".
+    let staleAfterMs: Double
     let fleet: Fleet
     let servers: [Server]
     /// The latest status line (alert set, alert sent), shown for a short while.
@@ -115,13 +117,15 @@ struct FlyoutState: Encodable {
         recordsGPUHistory = settings.recordsGPUHistory
         let active = states.filter { $0.server.isPollable }
         pollableServerCount = active.count
+        staleAfterMs = Double(settings.pollIntervalSeconds * 2 + 15) * 1000
         let allGPUs = active.flatMap { $0.snapshot?.gpus ?? [] }
         fleet = Fleet(
             averageUtilization: allGPUs.isEmpty ? 0 : Int((Double(allGPUs.reduce(0) { $0 + $1.utilization }) / Double(allGPUs.count)).rounded()),
             busyCount: allGPUs.filter(settings.isBusy).count,
             gpuCount: allGPUs.count,
             processCount: allGPUs.reduce(0) { $0 + $1.processes.count },
-            latestUpdate: active.compactMap { $0.snapshot?.takenAt }.max().map { $0.timeIntervalSince1970 * 1000 },
+            // The oldest data feeding the totals, as on every platform (macOS 0.9).
+            latestUpdate: active.compactMap { $0.snapshot?.takenAt }.min().map { $0.timeIntervalSince1970 * 1000 },
             isRefreshing: states.contains { $0.isRefreshing },
             watchedProcessCount: watches.processWatches.count,
             watchedIdleCount: watches.idleWatches.count

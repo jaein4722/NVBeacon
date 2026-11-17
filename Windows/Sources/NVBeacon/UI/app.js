@@ -75,21 +75,31 @@ function memoryTint(ratio) {
 
 // ---------- Components ----------
 
-function summaryPill(title, value, updatedAt) {
-  const valueNode = h("span", "pill-value", value);
-  if (updatedAt) {
-    valueNode.dataset.updated = String(updatedAt);
-    valueNode.title = new Date(updatedAt).toLocaleTimeString();
-  }
-  return h("div", "pill", h("span", "caption2 secondary", title), valueNode);
+function summaryPill(title, value) {
+  return h("div", "pill", h("span", "caption2 secondary", title), h("span", "pill-value", value));
+}
+
+// "Updated 12s"; once the data is older than 2 × refresh interval + 15 s it reads
+// "Last update 3m ago" (macOS 0.9). The ticker below keeps both parts current.
+function updatedPillParts(updatedAt) {
+  const stale = Date.now() - updatedAt > (view.state?.staleAfterMs ?? Infinity);
+  if (!stale) return [t("Updated", "업데이트"), relative(updatedAt)];
+  return [t("Last update", "마지막 업데이트"), t(relative(updatedAt) + " ago", relative(updatedAt) + " 전")];
+}
+function updatedPill(updatedAt) {
+  const [title, value] = updatedPillParts(updatedAt);
+  const pill = summaryPill(title, value);
+  pill.dataset.updated = String(updatedAt);
+  pill.title = new Date(updatedAt).toLocaleTimeString();
+  return pill;
 }
 
 function pills(average, busy, total, processes, updatedAt) {
   const row = h("div", "pills",
     summaryPill(t("Avg", "평균"), average + "%"),
-    summaryPill(t("Busy", "사용중"), busy + "/" + total),
+    summaryPill(t("Busy", "사용 중"), busy + "/" + total),
     summaryPill(t("Proc", "프로세스"), String(processes)));
-  if (updatedAt) row.append(summaryPill(t("Updated", "업데이트"), relative(updatedAt), updatedAt));
+  if (updatedAt) row.append(updatedPill(updatedAt));
   return row;
 }
 
@@ -129,7 +139,7 @@ function headerStrip(state) {
     top.append(iconButton("openWindow", t("Open as a window", "창으로 열기"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
   }
   if (servers.length) {
-    top.append(iconButton("refresh", t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침"),
+    top.append(iconButton("refresh", t("Refresh now and restart polling if needed", "필요하면 수집을 다시 시작하면서 새로고침"),
       () => send({ type: "refresh" }), "refresh-all"));
   }
   if (fleet.isRefreshing) top.append(spinner());
@@ -141,8 +151,8 @@ function headerStrip(state) {
     const text = !servers.length
       ? t("Right-click the tray icon and open Settings to configure a server.", "트레이 아이콘 우클릭 메뉴에서 설정을 열어 서버를 설정하세요.")
       : pollable === 0
-        ? t("No enabled server is ready for polling.", "Polling할 활성 서버가 없습니다.")
-        : t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.");
+        ? t("No enabled server is ready for polling.", "수집할 활성 서버가 없습니다.")
+        : t("Waiting for the first polling result.", "첫 수집 결과를 기다리는 중입니다.");
     strip.append(h("span", "caption secondary", text));
   }
   if (state.displayMode !== "window") {
@@ -153,7 +163,7 @@ function headerStrip(state) {
   if (processes + idle > 0) {
     const parts = [];
     if (processes) parts.push(t(processes + " process exit", processes + "개 프로세스 종료"));
-    if (idle) parts.push(t(idle + " GPU idle", idle + "개 GPU idle"));
+    if (idle) parts.push(t(idle + " GPU idle", idle + "개 GPU 유휴"));
     strip.append(h("span", "watching", icon("bellFill"), t("Watching ", "감시 중: ") + parts.join(" · ")));
   }
   return strip;
@@ -295,7 +305,7 @@ function gpuRow(server, gpu) {
 
   // macOS layout: the idle-alert star sits left of the row, outside the expand button.
   const star = h("button", "star-button" + (gpu.isWatchingIdle ? " on" : ""), icon(gpu.isWatchingIdle ? "starFill" : "star"));
-  star.title = gpu.isWatchingIdle ? t("Disable GPU idle alert", "GPU idle 알림 해제") : t("Enable GPU idle alert", "GPU idle 알림 받기");
+  star.title = gpu.isWatchingIdle ? t("Disable GPU idle alert", "GPU 유휴 알림 해제") : t("Enable GPU idle alert", "GPU 유휴 알림 받기");
   star.setAttribute("aria-label", star.title);
   star.setAttribute("aria-pressed", String(!!gpu.isWatchingIdle));
   star.dataset.key = "star:" + key;
@@ -303,7 +313,7 @@ function gpuRow(server, gpu) {
 
   const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), h("div", "gpu-line", star, toggle));
   if (gpu.isWatchingIdle) {
-    const armed = h("span", "armed", icon("starFill"), t("Idle notification armed", "Idle 알림 설정됨"));
+    const armed = h("span", "armed", icon("starFill"), t("Idle notification armed", "유휴 알림 설정됨"));
     card.append(h("div", "armed-row", armed));
   }
   if (expanded) {
@@ -384,7 +394,7 @@ function serverSection(server) {
     if (server.myUser && view.state.servers.length > 1) details.append(myProcessesLabel(server.myUser));
   } else {
     details.append(h("div", "message" + (server.error ? " orange" : " secondary"),
-      server.error || t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.")));
+      server.error || t("Waiting for the first polling result.", "첫 수집 결과를 기다리는 중입니다.")));
   }
   section.append(details);
   return section;
@@ -475,7 +485,11 @@ function reportHeight() {
 
 // The "Updated" pills tick every second without a full re-render.
 setInterval(() => {
-  for (const node of document.querySelectorAll("[data-updated]")) node.textContent = relative(Number(node.dataset.updated));
+  for (const pill of document.querySelectorAll("[data-updated]")) {
+    const [title, value] = updatedPillParts(Number(pill.dataset.updated));
+    pill.firstChild.textContent = title;
+    pill.lastChild.textContent = value;
+  }
 }, 1000);
 
 document.addEventListener("keydown", (event) => { if (event.key === "Escape") send({ type: "close" }); });
