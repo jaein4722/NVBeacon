@@ -93,9 +93,11 @@ public struct SSHPasswordStore: Sendable {
 public enum AskPass {
     public static let accountVariable = "NVBEACON_ASKPASS_ACCOUNT"
 
-    /// Accepts only the two prompts a password login shows: ssh's own
-    /// `user@host's password:` and PAM's `Password:` through keyboard-interactive,
-    /// which recent OpenSSH prefixes with `(user@host) `.
+    /// Accepts the prompts that ask for the login password: ssh's own
+    /// `user@host's password:`, and PAM's through keyboard-interactive (which recent
+    /// OpenSSH prefixes with `(user@host) `), such as `Password:`, Kerberos's
+    /// `Password for alice@REALM:` and `LDAP Password:`. Prompts for a new or old
+    /// password, a one-time code or a key passphrase are declined.
     public static func isPasswordPrompt(_ prompt: String) -> Bool {
         var text = prompt.trimmingCharacters(in: .whitespacesAndNewlines)
         if text.hasSuffix("'s password:") {
@@ -105,7 +107,17 @@ public enum AskPass {
         if text.hasPrefix("("), let close = text.firstIndex(of: ")") {
             text = text[text.index(after: close)...].trimmingCharacters(in: .whitespaces)
         }
-        return text.lowercased() == "password:"
+        guard text.hasSuffix(":") else { return false }
+        var words = text.dropLast().lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
+        // Words some PAM modules put before "password".
+        while let first = words.first, ["enter", "your", "ldap", "kerberos", "unix", "login"].contains(first) {
+            words.removeFirst()
+        }
+        switch words.count {
+        case 1: return words[0] == "password"
+        case 3: return words[0] == "password" && words[1] == "for"   // password for <login>
+        default: return false
+        }
     }
 
     /// The process exit code for ssh: 0 with the password written, 1 to decline.
