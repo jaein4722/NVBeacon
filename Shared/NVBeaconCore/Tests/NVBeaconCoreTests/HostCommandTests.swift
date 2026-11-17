@@ -36,7 +36,7 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     }
 }
 
-@Test func customHostCommandControlsAllMetricsAndHonorsEveryCollectionChoice() async throws {
+@Test(.requiresPOSIXShell) func customHostCommandControlsAllMetricsAndHonorsEveryCollectionChoice() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-host-command-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -64,7 +64,7 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     }
 }
 
-@Test func singleLineCommandKeepsCommentsHereDocumentsAndShellEscapesIntact() async throws {
+@Test(.requiresPOSIXShell) func singleLineCommandKeepsCommentsHereDocumentsAndShellEscapesIntact() async throws {
     let script = #"""
     # This comment must end before the next command.
     value='literal $HOME and "quotes"'
@@ -88,7 +88,7 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     #expect(RemoteMetricCommands.singleLineCommand("/opt/bin/host-report") == "/opt/bin/host-report")
 }
 
-@Test func failedOrMalformedHostCommandCannotContaminateGPUProcessParsing() async throws {
+@Test(.requiresPOSIXShell) func failedOrMalformedHostCommandCannotContaminateGPUProcessParsing() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-host-failure-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -107,7 +107,7 @@ private actor HostCommandTransport: RemoteCommandExecuting {
     }
 }
 
-@Test func disabledHostCollectionNeverRunsEvenACustomCommandWithoutGuards() async throws {
+@Test(.requiresPOSIXShell) func disabledHostCollectionNeverRunsEvenACustomCommandWithoutGuards() async throws {
     let root = FileManager.default.temporaryDirectory.appendingPathComponent("nvbeacon-host-off-\(UUID())")
     defer { try? FileManager.default.removeItem(at: root) }
     try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)

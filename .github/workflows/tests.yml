@@ -44,3 +44,24 @@ jobs:
         run: swift test --package-path Shared/NVBeaconCore --build-system native
       - name: Test server transfer
         run: swift test --package-path Shared/NVBeaconTransfer --build-system native
+
+  windows:
+    name: Windows client
+    runs-on: windows-2025
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      # v0.5.1. The toolchain must match the tag pinned in Windows/scripts/generate-notices.ps1.
+      - name: Install Swift 6.2.4
+        uses: compnerd/gha-setup-swift@9ff1ee4c44888c5817fc14d1b257ac8cabb4935f
+        with:
+          swift-version: swift-6.2.4-release
+          swift-build: 6.2.4-RELEASE
+      - name: Fetch the WebView2 SDK
+        shell: pwsh
+        run: ./Windows/scripts/fetch-webview2.ps1
+      - name: Test Windows client
+        run: swift test --package-path Windows
+      - name: Check bundled license notices
+        shell: pwsh
+        run: ./Windows/scripts/generate-notices.ps1 -Check

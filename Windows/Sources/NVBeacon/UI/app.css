@@ -1,0 +1,212 @@
+/* Mirrors the macOS popover (StatusMenuView.swift): windowBackground behind
+   controlBackground cards, 14 px card corners, thin capsule bars. */
+:root {
+  color-scheme: light;
+  --window: #ececec;
+  --card: #ffffff;
+  --card-stroke: rgba(0, 0, 0, 0.05);
+  --primary: #1d1d1f;
+  --secondary: rgba(60, 60, 67, 0.62);
+  --fill-04: rgba(0, 0, 0, 0.04);
+  --fill-05: rgba(0, 0, 0, 0.05);
+  --fill-08: rgba(0, 0, 0, 0.08);
+  --divider: rgba(0, 0, 0, 0.1);
+  --orange: #ff9500;
+  --red: #ff3b30;
+  --green: #28a745;
+  --util: rgb(237, 115, 38);
+  --memory: rgb(31, 138, 240);
+  --chevron-glyph: #ffffff;
+  --radius-card: 14px;
+  font-family: "Segoe UI Variable Text", "Segoe UI", "Malgun Gothic", system-ui, sans-serif;
+  font-size: 13px;
+}
+
+/* Swift resolves Settings › Theme (System/Light/Dark) and sets data-theme. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --window: #1e1e1e;
+  --card: #282828;
+  --card-stroke: rgba(255, 255, 255, 0.06);
+  --primary: #f5f5f7;
+  --secondary: rgba(235, 235, 245, 0.6);
+  --fill-04: rgba(255, 255, 255, 0.04);
+  --fill-05: rgba(255, 255, 255, 0.06);
+  --fill-08: rgba(255, 255, 255, 0.1);
+  --divider: rgba(255, 255, 255, 0.1);
+  --orange: #ff9f0a;
+  --red: #ff453a;
+  --green: #32d74b;
+  --chevron-glyph: #1e1e1e;
+}
+
+.badge { font-size: 11px; font-weight: 600; color: var(--secondary); padding: 2px 6px; border-radius: 999px; background: var(--fill-08); white-space: nowrap; }
+.server.disabled .label svg { opacity: 0.6; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--window);
+  color: var(--primary);
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root { height: 100%; overflow-y: auto; scrollbar-width: thin; }
+
+/* Window mode: custom title bar (Windows 11 caption metrics: 32 px tall, 46 px buttons). */
+body.window-mode { display: flex; flex-direction: column; }
+body.window-mode #root { flex: 1; height: auto; min-height: 0; }
+.titlebar { display: flex; align-items: center; height: 32px; flex: none; padding-left: 12px; app-region: drag; user-select: none; }
+.titlebar-title { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--secondary); }
+.titlebar-title svg { width: 14px; height: 14px; }
+.caption-button { app-region: no-drag; width: 46px; height: 32px; display: grid; place-items: center; color: var(--primary); }
+.caption-button svg { width: 16px; height: 16px; }
+.caption-button:hover { background: var(--fill-08); }
+.caption-button:active { background: var(--fill-05); }
+.caption-button.active { color: var(--orange); }
+.caption-button.close:hover { background: #c42b1c; color: #fff; }
+.caption-button.close:active { background: #c84031; color: #fff; }
+.content { display: flex; flex-direction: column; gap: 10px; padding: 12px; }
+
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: default; }
+:focus-visible { outline: 2px solid var(--memory); outline-offset: 2px; border-radius: 6px; }
+svg { display: block; fill: currentColor; }
+
+/* Type ramp roughly matching SwiftUI's headline / subheadline / caption / caption2 */
+.headline { font-size: 14px; font-weight: 600; }
+.subheadline { font-size: 13px; }
+.caption { font-size: 12px; }
+.caption2 { font-size: 11.5px; }
+.semibold { font-weight: 600; }
+.secondary { color: var(--secondary); }
+.mono { font-variant-numeric: tabular-nums; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.spacer { flex: 1; min-width: 8px; }
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius-card);
+  padding: 10px;
+}
+
+.row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.baseline { align-items: baseline; }
+
+.icon-button { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 6px; flex: none; }
+.icon-button svg { width: 14px; height: 14px; }
+.icon-button:hover { background: var(--fill-08); }
+.icon-button:active { opacity: 0.6; }
+.icon-button.active { color: var(--orange); }
+
+.spinner {
+  width: 14px; height: 14px; flex: none;
+  border-radius: 50%;
+  border: 2px solid var(--fill-08);
+  border-top-color: var(--secondary);
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.label svg { width: 15px; height: 15px; flex: none; }
+
+/* Header strip */
+.header { display: flex; flex-direction: column; gap: 6px; }
+.pills { display: flex; gap: 6px; }
+.pill { flex: 1; min-width: 0; padding: 6px 8px; border-radius: 10px; background: var(--fill-05); display: flex; flex-direction: column; gap: 2px; }
+.pill-value { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* Server sections */
+.server { display: flex; flex-direction: column; gap: 8px; }
+.server-toggle { display: inline-flex; align-items: center; gap: 6px; min-width: 0; flex: 0 1 auto; }
+.server-toggle .chevron { width: 10px; height: 10px; flex: none; transition: transform 0.26s cubic-bezier(.3,1.25,.5,1); }
+.server-toggle.expanded .chevron { transform: rotate(90deg); }
+.warning-icon { width: 14px; height: 14px; color: var(--orange); flex: none; }
+.details { display: flex; flex-direction: column; gap: 8px; }
+.message { font-size: 12px; line-height: 1.35; word-break: break-word; }
+.message.orange { color: var(--orange); }
+
+/* Host information disclosure */
+.host { padding: 10px; border-radius: 10px; background: var(--fill-04); }
+.host-toggle { display: flex; align-items: center; gap: 6px; width: 100%; font-size: 12px; font-weight: 600; }
+.host-toggle .label svg { width: 14px; height: 14px; }
+.host-toggle .chevron { width: 10px; height: 10px; margin-left: auto; color: var(--secondary); transition: transform 0.26s cubic-bezier(.3,1.25,.5,1); }
+.host-toggle[aria-expanded="true"] .chevron { transform: rotate(90deg); }
+.host-body { display: flex; flex-direction: column; gap: 10px; padding-top: 6px; }
+.divider { height: 1px; background: var(--divider); }
+.network-head { display: flex; align-items: center; gap: 12px; }
+.network-head .label svg { width: 12px; height: 12px; }
+.rate { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.rate svg { width: 10px; height: 10px; }
+
+/* Thin metric bars */
+.metrics { display: flex; gap: 10px; }
+.metric { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.metric-head { display: flex; gap: 6px; align-items: baseline; }
+.metric-title { font-size: 11.5px; font-weight: 600; color: var(--secondary); }
+.metric-value { margin-left: auto; font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.track { position: relative; height: 6px; border-radius: 3px; background: var(--fill-08); overflow: hidden; }
+.fill { position: absolute; inset: 0 auto 0 0; border-radius: 3px; min-width: 8px; }
+
+/* GPU rows */
+.gpu {
+  display: flex; flex-direction: column; gap: 7px;
+  padding: 8px 10px;
+  border-radius: var(--radius-card);
+  background: var(--card);
+  border: 1px solid var(--card-stroke);
+}
+.gpu.expanded { border-color: color-mix(in srgb, var(--orange) 42%, transparent); }
+.gpu-toggle { display: flex; flex-direction: column; gap: 7px; width: 100%; text-align: left; }
+.gpu-name { flex: 0 1 auto; }
+.gpu-stats { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chevron-circle { width: 16px; height: 16px; color: var(--secondary); flex: none; transition: transform 0.26s cubic-bezier(.3,1.25,.5,1); }
+.gpu.expanded .chevron-circle { color: var(--orange); transform: rotate(180deg); }
+.processes { display: flex; flex-direction: column; gap: 6px; }
+
+.process { padding: 7px 8px; border-radius: 11px; background: var(--window); display: flex; flex-direction: column; gap: 5px; }
+.process-main { display: flex; align-items: flex-start; gap: 10px; }
+.process-user { width: 52px; flex: none; font-size: 12px; font-weight: 600; color: var(--secondary); }
+.process-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.process-command { padding-left: 62px; }
+
+/* Alerts: idle star, exit watch capsule, watching summary, notice (macOS layout) */
+.gpu-line { display: flex; align-items: flex-start; gap: 8px; }
+.gpu-line .gpu-toggle { flex: 1; min-width: 0; }
+.star-button { width: 18px; height: 18px; flex: none; display: grid; place-items: center; color: var(--secondary); margin-top: 1px; }
+.star-button svg { width: 16px; height: 16px; }
+.star-button.on { color: #f5c400; }
+.star-button:hover { color: var(--primary); }
+.star-button.on:hover { color: #f5c400; opacity: 0.8; }
+.armed-row { padding-left: 26px; }
+.armed { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: #c99a00; background: color-mix(in srgb, #f5c400 14%, transparent); }
+:root[data-theme="dark"] .armed { color: #f5c400; }
+.armed svg { width: 11px; height: 11px; }
+.watch-button { display: inline-flex; align-items: center; gap: 4px; flex: none; padding: 4px 7px; border-radius: 999px; font-size: 11px; font-weight: 600; color: var(--secondary); background: var(--fill-08); box-shadow: inset 0 0 0 1px var(--fill-08); transition: background 0.16s, color 0.16s; }
+.watch-button svg { width: 11px; height: 11px; }
+.watch-button:hover { color: var(--primary); }
+.watch-button.on { color: var(--orange); background: color-mix(in srgb, var(--orange) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--orange) 35%, transparent); }
+.watching { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--orange); }
+.watching svg { width: 12px; height: 12px; }
+.notice { display: flex; align-items: flex-start; gap: 6px; padding: 2px 4px; font-size: 12px; color: var(--secondary); }
+.notice svg { width: 13px; height: 13px; flex: none; margin-top: 2px; }
+
+/* "Highlight my processes" (green tint and border, as on macOS) */
+.mine-badge { font-size: 11px; font-weight: 600; color: var(--green); padding: 2px 6px; border-radius: 999px; background: color-mix(in srgb, var(--green) 12%, transparent); white-space: nowrap; flex: none; }
+.gpu.mine { background: color-mix(in srgb, var(--green) 8%, var(--card)); border-color: color-mix(in srgb, var(--green) 26%, transparent); }
+.gpu.mine.expanded { border-color: color-mix(in srgb, var(--orange) 42%, transparent); }
+.process.mine { background: color-mix(in srgb, var(--green) 8%, var(--window)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--green) 22%, transparent); }
+.process.mine .process-user { color: var(--green); }
+.my-processes { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--green); }
+.my-processes svg { width: 13px; height: 13px; }
+
+.appear { animation: appear 0.26s cubic-bezier(.3,1.1,.5,1); }
+@keyframes appear { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: none; } }
+
+.empty { padding: 12px 0; }
+
+/* Reserved space for the refresh spinner (see spinnerSlot in app.js). */
+.spinner-slot { width: 14px; height: 14px; flex: none; display: inline-flex; }
