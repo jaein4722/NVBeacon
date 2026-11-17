@@ -1,263 +1,190 @@
 <a id="readme-top"></a>
 
 <div align="center">
-  <img src="icon.png" alt="NVBeacon Logo" width="128" height="128">
-  <h1>NVBeacon</h1>
-  <p>A native macOS menu bar app for remote NVIDIA GPU monitoring over SSH.</p>
+  <img src="assets/banner.jpg" alt="NVBeacon: remote GPU monitoring over SSH">
+  <p>Remote NVIDIA GPU monitoring over SSH, from your Mac menu bar and on iPhone and iPad.</p>
   <p>
     <img src="https://img.shields.io/github/v/release/jaein4722/NVBeacon?style=flat-square" alt="GitHub Release">
     <img src="https://img.shields.io/badge/macOS-14%2B-111111?style=flat-square&logo=apple" alt="macOS 14+">
-    <img src="https://img.shields.io/badge/Swift-6.2-F05138?style=flat-square&logo=swift&logoColor=white" alt="Swift 6.2">
+    <img src="https://img.shields.io/badge/iOS-17%2B-111111?style=flat-square&logo=apple" alt="iOS 17+">
     <img src="https://img.shields.io/badge/License-MIT-green.svg?style=flat-square" alt="MIT License">
   </p>
   <p>
-    <a href="https://github.com/jaein4722/NVBeacon/releases">Download Latest Release</a>
+    <a href="#download">Download</a>
     ·
     <a href="https://jaein4722.github.io/NVBeacon/">Website</a>
     ·
-    <a href="https://github.com/jaein4722/NVBeacon/issues">Report Bug</a>
+    <a href="https://github.com/jaein4722/NVBeacon/issues">Report a Bug</a>
     ·
-    <a href="https://github.com/jaein4722/NVBeacon/issues">Request Feature</a>
+    <a href="https://github.com/jaein4722/NVBeacon/issues">Request a Feature</a>
   </p>
 </div>
 
 > [!NOTE]
-> **NVBeacon for iPhone and iPad is in the works!** It is not on the App Store yet. The Mac app already includes [Transfer All Servers to iPhone](#transfer-all-servers-to-iphone), which will work once the iOS app is released.
-
-## About
-
-NVBeacon gives you a fast view of one or more remote NVIDIA GPU servers from the macOS menu bar without keeping Terminal open.
-
-It connects over `ssh`, runs `nvidia-smi` on each enabled target server, and turns the result into a compact menu bar summary plus a detailed popover UI with GPU utilization, memory, process details, and job alerts. It is built for people who regularly ask:
-
-- Is the server busy right now?
-- Which GPU is running my job?
-- Which process is running on that GPU?
-- Did my training job finish?
-- Has a watched GPU stayed idle long enough to reuse?
-- How fast is the server's network while the job runs?
-
-## Screenshots
+> **NVBeacon for iPhone and iPad is out now!** Check on your GPU servers from anywhere. [Get it on the App Store](https://apps.apple.com/app/nvbeacon/id6830951631).
+>
+> **NVBeacon 1.0 is on its way.** It will be released together with the launch of NVBeacon for Windows. Stay tuned!
 
 <div align="center">
   <img src="assets/menu-bar-summary.png" alt="NVBeacon menu bar summary" width="320">
 </div>
 
-<p align="center"><em>At-a-glance menu bar summary</em></p>
-
 <div align="center">
-  <img src="assets/popover-overview.png" alt="NVBeacon popover UI in light mode" width="46%">
-  <img src="assets/popover-overview-dark.png" alt="NVBeacon popover UI in dark mode" width="46%">
+  <img src="assets/popover-overview.png" alt="NVBeacon popover in light mode" width="46%">
+  <img src="assets/popover-overview-dark.png" alt="NVBeacon popover in dark mode" width="46%">
 </div>
 
-<p align="center"><em>Detailed light and dark mode popovers with per-GPU status, process details, and job notification controls</em></p>
+NVBeacon connects to your GPU servers over plain SSH, runs `nvidia-smi`, and shows what every GPU is doing. Nothing is installed on the server, and there is no account or cloud service. It answers the questions you keep opening Terminal for:
 
-## Host monitoring
+- Is the server busy right now?
+- Which GPU is running my job, and what else is on it?
+- Did my training job finish?
+- Has a GPU stayed idle long enough to use?
 
-Each server can show Linux CPU utilization, RAM usage, configured swap, and network throughput in one collapsible section. CPU and network rates use consecutive polls over the existing SSH connection, without an extra sampling delay. See [Host Information](#host-information) for collection controls.
+## Download
+
+| Platform | Get NVBeacon | Requires |
+| --- | --- | --- |
+| **macOS** | `brew install --cask jaein4722/tap/nvbeacon`<br>or the DMG from [GitHub Releases](https://github.com/jaein4722/NVBeacon/releases) | macOS 14 or later |
+| **iPhone & iPad** | <a href="https://apps.apple.com/app/nvbeacon/id6830951631"><img src="https://toolbox.marketingtools.apple.com/api/v2/badges/download-on-the-app-store/black/en-us" alt="Download on the App Store" height="40"></a> | iOS 17 or later |
+| **Windows** | In the works | |
+
+On each server you only need SSH access and `nvidia-smi`.
 
 ## Features
 
-- Native macOS menu bar UI with compact status text or icon-only mode
-- Remote NVIDIA GPU monitoring over `ssh` using `nvidia-smi`
-- Multiple server targets with per-server enable/disable, authentication, connection reuse, and remote command settings
-- Per-GPU utilization, memory, temperature, and process count
-- Opt-in 24-hour per-user GPU history in a separate window
-- Per-server Linux RAM usage, available memory, and Swap usage with high-usage color indicators
-- Per-server CPU usage, grouped host information, and saved expand/collapse state
-- Per-server network usage with download and upload rates plus total transferred bytes
-- On-demand process details with user, PID, memory, and command preview
-- Automatic detection and highlighting of your own remote SSH user processes and GPUs
-- Job completion alerts through macOS Notification Center when watched GPU processes exit
-- GPU idle notifications with configurable idle duration and memory threshold
-- Configurable busy GPU detection based on active processes, memory usage, or utilization
-- Built-in update checks using Sparkle, the standard macOS update framework
-- Optional launch at login using the standard macOS login item mechanism
-- Import from local `~/.ssh/config`
-- SSH key authentication and password-based authentication
-- English / Korean UI with a `System` language option
-- Light / dark / system appearance support
-- Optional Dock icon and configurable popover outside-click behavior
+**GPUs at a glance**
+- Utilization, memory, temperature and process count for every GPU, across as many servers as you add.
+- Busy detection by processes, memory or utilization. Your own jobs and GPUs are highlighted.
 
-## Installation
+**Processes**
+- Every GPU process with its user, PID, GPU memory and command line.
 
-### Homebrew
+**The rest of the server**
+- CPU, RAM, swap and network throughput in one collapsible section. Each metric can be turned off.
 
-```bash
-brew install --cask jaein4722/tap/nvbeacon
-```
+**Connections**
+- SSH keys or passwords, several servers at once, and JSON backup and restore of server settings.
+- Move every server from your Mac to iPhone with a QR code.
+- English and Korean, light and dark appearance.
 
-### GitHub Releases
+### Mac and iPhone
 
-Download the latest `.dmg` from the [Releases page](https://github.com/jaein4722/NVBeacon/releases).
-
-### Manual Installation
-
-1. Download the latest `NVBeacon-<version>.dmg` from [GitHub Releases](https://github.com/jaein4722/NVBeacon/releases).
-2. Open the DMG.
-3. Drag `NVBeacon.app` into `Applications`.
-4. Launch the app from `Applications`.
-5. If macOS blocks the app because it cannot verify the developer, open `System Settings > Privacy & Security` and choose `Open Anyway`.
-
-## Requirements
-
-- macOS 14 or later
-- SSH access from your Mac to the target server
-- `nvidia-smi` available on the remote host
+| | Mac | iPhone & iPad |
+| --- | --- | --- |
+| Where it lives | Menu bar summary (text or icon) and a popover | Overview of all servers; split view on wider screens |
+| Refresh | Every 1–300 seconds (default 10), in the background | Every 5–300 seconds while the app is open |
+| Job alerts | Notifications when a watched process exits or a starred GPU stays idle | — |
+| GPU history | Optional, per user, up to 24 hours | — |
+| Adding servers | Manually or from `~/.ssh/config` | Manually, from a backup, or from your Mac |
+| Host keys | Your OpenSSH `known_hosts` | Fingerprint review before the first login |
 
 ## Quick Start
 
-1. Launch NVBeacon.
-2. Right-click the menu bar item and open `Settings…`.
-3. Add a server target directly or import a saved host from `~/.ssh/config`.
-4. Add more server targets if you want one menu bar summary across multiple machines.
-5. Choose the authentication method for each server.
-6. Allow notifications if you want job completion or GPU idle alerts.
-7. Left-click the menu bar item to open the GPU popover.
-8. Open the `About` tab when you want to check for a newer release manually.
+### Mac
 
-All settings apply automatically. There is no separate apply button.
+1. Open NVBeacon. It appears in the menu bar.
+2. Right-click the menu bar item and choose **Settings…**.
+3. Add a server, or import one from `~/.ssh/config`, and choose key or password authentication.
+4. Left-click the menu bar item to open the popover.
+5. Allow notifications if you want job alerts.
 
-## Host Information
+Settings apply as you change them.
 
-Each server groups CPU, memory (RAM / Swap), and network metrics in one **Host Information** section. All items are enabled and expanded by default. Collapse an entire server using the chevron next to its name, or collapse only its host information section. Both states are saved separately per server across popover openings and app restarts. Reopening a server keeps the previous host section state.
+### iPhone and iPad
 
-In **General > Host Information**, turn collection off entirely or choose CPU, memory, and network individually. The individual switches appear only while host collection is enabled. These choices apply to all servers. Disabled probes are not executed by the default host script, and their output is not parsed. Turning the main switch back on restores your individual choices. Collapsing the popover section only changes its visibility and keeps collection running.
+Add a server with its hostname or IP address, username and port, then confirm its host fingerprint. Connect your VPN first for private servers; SSH aliases, ProxyJump and SSH agent connections are not supported on iPhone.
 
-Enabled host metrics share the existing GPU polling SSH call. CPU and network rates use the difference between ordinary polls, without an extra connection or a sampling delay. They become available after the second successful sample and show the average over the measured interval; long gaps and counter resets start a new baseline.
+To bring your Mac servers over, put both devices on the same network. On the Mac, choose **Settings → Advanced → Transfer All Servers to iPhone…**. On iPhone, choose **Transfer from Mac**, scan the QR code, and check that both screens show the same six digits.
 
-### Memory Monitoring
+## Privacy and Security
 
-Each server's popover shows RAM used / total and Swap used / total when swap is configured. Unconfigured swap is hidden. Hover over the RAM bar to see available RAM. Server RAM and Swap bars turn orange at 85% usage and red at 95%; these are usage indicators, not OOM detection or notifications. GPU cards retain the compact side-by-side `Util` and `Memory` bars, with orange utilization and blue memory usage.
+- Your device connects to your servers directly. There is no NVBeacon account, cloud service, advertising or analytics. See the [privacy policy](https://jaein4722.github.io/NVBeacon/privacy.html).
+- Nothing is installed on the server. NVBeacon runs `nvidia-smi` and reads Linux counters such as `/proc/meminfo` over SSH.
+- Passwords are stored in the Keychain. In key mode, the Mac app never reads the Keychain while polling.
+- Server backups never contain passwords or private keys. The Mac → iPhone transfer sends credentials only over its encrypted, code-verified connection.
+- Diagnostic reports leave out server names, addresses, users, key paths, commands and process details.
 
-RAM is read from Linux `/proc/meminfo` in the same SSH poll as GPU metrics. Used RAM is `MemTotal - MemAvailable`, so reclaimable cache is accounted for. Unsupported or unreadable memory data appears as unavailable without interrupting GPU monitoring.
+## FAQ
 
-In **Advanced** settings, **GPU Query Command** and **Host Information Query Command** apply to the server selected in **General**. Both commands use the same single-line input field. The host command collects CPU, RAM/Swap, and network counters together in the same SSH refresh. Saved multiline scripts are shown as an equivalent executable single-line command; their original contents are preserved until edited. An empty command restores the complete default host script. Existing custom memory commands are migrated into that script's memory section.
+<details>
+<summary>The popover says <code>nvidia-smi</code> was not found.</summary>
 
-Custom host commands must preserve these output sections:
+Non-interactive SSH shells often have a shorter `PATH`. In the Mac app, open **Settings → Advanced** and set the GPU query command for that server to an absolute path such as `/usr/bin/nvidia-smi`.
+</details>
+
+<details>
+<summary>How much load does NVBeacon put on a server?</summary>
+
+One SSH command per refresh. GPU, CPU, memory and network data share that call, and both apps reuse the SSH connection between refreshes by default. CPU and network rates are computed from consecutive refreshes, so they appear from the second refresh on. On Mac, a command times out after 15 seconds.
+</details>
+
+<details>
+<summary>Why does the Mac app warn me when I switch to password authentication?</summary>
+
+Passwords are less secure than SSH keys. NVBeacon stores each password in the Keychain and unlocks it once per app session so polling does not prompt you repeatedly.
+</details>
+
+<details>
+<summary>Where is GPU history stored, and how do I turn it off?</summary>
+
+GPU history is off by default. When it is on, the Mac app samples per-user GPU usage at most once a minute per server and appends one short JSON line per GPU to `~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/`. Data older than 24 hours is dropped. Turn it off in Settings; existing files stay until you delete that folder.
+</details>
+
+<details>
+<summary>Can I monitor a server behind a jump host?</summary>
+
+On Mac, yes: NVBeacon uses your OpenSSH setup, including `ProxyJump` in `~/.ssh/config`. Such servers cannot be exported to a backup. On iPhone, connect through a VPN instead.
+</details>
+
+## Advanced
+
+<details>
+<summary>Custom query commands</summary>
+
+In **Advanced**, the GPU query command and the host information command apply to the server selected in **General**. An empty host command restores the default script.
+
+A custom host command must print these sections:
 
 | Section marker | Output |
 | --- | --- |
 | `__NVBEACON_CPU_SECTION__` | One aggregate `cpu` line and a `btime` line from `/proc/stat` |
-| `__NVBEACON_MEMORY_SECTION__` | `/proc/meminfo` fields in `kB`: `MemTotal`, `MemAvailable`, optionally `SwapTotal` and `SwapFree` |
-| `__GPUUSAGE_NETWORK_SECTION__` | One `interface received_bytes transmitted_bytes` line per included interface |
+| `__NVBEACON_MEMORY_SECTION__` | `/proc/meminfo` fields in kB: `MemTotal`, `MemAvailable`, optionally `SwapTotal` and `SwapFree` |
+| `__GPUUSAGE_NETWORK_SECTION__` | One `interface received_bytes transmitted_bytes` line per interface |
 
-The app exports `NVBEACON_COLLECT_CPU`, `NVBEACON_COLLECT_MEMORY`, and `NVBEACON_COLLECT_NETWORK` as `1` or `0`. Keep the default script's conditional guards, or honor these switches in your own script, so disabled items are not collected. Turning host collection off entirely skips the whole script. Missing, failed, or malformed host output does not interrupt GPU monitoring.
+The app sets `NVBEACON_COLLECT_CPU`, `NVBEACON_COLLECT_MEMORY` and `NVBEACON_COLLECT_NETWORK` to `1` or `0`. Honor them so that disabled metrics are not collected. Missing or malformed host output never interrupts GPU monitoring.
+</details>
 
-Server backup exports now use format version 2 to preserve the host command. Version 1 backups remain importable; their memory command is migrated into the complete host script. Imported servers still start disabled.
+<details>
+<summary>Server backups</summary>
 
-The existing polling interval defaults to 10 seconds and can be set to 1 second in Settings. Actual updates also depend on SSH command duration; brief allocation peaks can be missed. Host RAM totals do not show container, cgroup, or scheduler job memory limits, and free VRAM alone does not guarantee a CUDA allocation will succeed.
+**Advanced → Export Servers…** saves server settings as `NVBeacon.servers` JSON (version 2). Each target is resolved with OpenSSH to its effective user, host and port. Export stops if a server needs ProxyJump or ProxyCommand. Backups include key-file paths, authentication and reuse modes, and custom commands; treat them as private.
 
-## Notifications
+**Import Servers…** shows a preview first. Imported servers get new IDs and start disabled, and existing servers are kept. Importing does not install keys or restore passwords. Version 1 backups can still be imported. The limit is 100 servers and 1 MB.
+</details>
 
-NVBeacon supports two kinds of work alerts for remote GPU jobs:
+<details>
+<summary>Transferring servers to iPhone</summary>
 
-- `Process Exit`: watch a running GPU process and get notified when it really exits
-- `GPU Idle`: star a GPU and get notified when it stays idle long enough for the next job
+The Mac can send OpenSSH keys and unencrypted PEM keys (RSA PKCS#1, ECDSA SEC1, and PKCS#8 for RSA, ECDSA and Ed25519). Keys held only by an SSH agent or a hardware token need separate setup on iPhone; a passphrase-protected key is unlocked on iPhone.
 
-You can manage notification permission, active watches, and recent notification history from the `Notifications` tab in Settings.
+The QR code expires after three minutes, and each pairing sends the full server list once. After import, review the host fingerprints together and choose **Trust and Connect**. New servers start disabled. Existing servers that already have credentials are kept.
+</details>
 
-## GPU History
+<details>
+<summary>Host information details</summary>
 
-Turn on **Record GPU history** in settings, then click the chart button in the
-popover header to open the **GPU History** window. Pick a server, a GPU, and a
-1h, 5h, 12h, or 24h range. Colored layers stack each remote user's summed
-process SM utilization; the gray line is the GPU's total utilization. These come
-from different sampling windows, so layers are not exact shares of the total.
+RAM used is `MemTotal − MemAvailable`, so reclaimable cache is not counted. RAM and swap bars turn orange at 85% and red at 95%. They do not reflect container, cgroup or scheduler limits.
 
-Recording is off by default and costs nothing when off. When on:
+Network rates come from `/sys/class/net` or `/proc/net/dev`. Loopback, container and overlay interfaces are skipped, and bonded or bridged interfaces are counted once through the aggregate device. This filtering is heuristic.
+</details>
 
-- Per-user sampling (`nvidia-smi pmon -s u -c 1` plus a PID owner lookup) runs at
-  most once a minute per server, alongside the regular refresh, so it does not
-  slow refreshes down. Nothing is installed on the server.
-- Each completed minute is appended to
-  `~/Library/Application Support/com.leejaein.NVBeacon/GPUHistory/` as one short
-  JSON line per GPU. The file is rewritten only every six hours to drop data
-  older than 24 hours.
-- Charts exist only while the window is open. Closing it releases them.
+## Development
 
-## Settings Overview
-
-NVBeacon uses a native macOS-style settings window with these sections:
-
-- `General`: server list, per-server connection/authentication, polling, startup, busy GPU detection, update preferences
-- `Notifications`: permission, test notification, active watches, history, idle thresholds
-- `Appearance`: theme, language, Dock icon, menu bar summary, popover width and behavior
-- `Advanced`: GPU/memory query commands, server backup/import, diagnostic information, saved settings
-- `About`: version, links, runtime summary, and current configuration
-
-`Appearance` → `Popover Width` adjusts the menu bar popover from 480 to 800 pt, with a default of 500 pt. The width is saved and applies automatically to both the popover and its content. Height continues to adapt to the content and available screen space.
-
-Appearance changes, server renaming/reordering, and alert thresholds do not restart SSH polling. Connection settings, query commands, polling interval, enabled targets, and process-ownership collection still restart it when needed.
-
-### Server Settings Backup
-
-Use `Advanced` → `Export Servers…` to save server connection settings as a versioned JSON file. Export evaluates each target with OpenSSH at save time and records its effective username, hostname and port. DNS hostnames remain hostnames. If a target requires ProxyJump or ProxyCommand, export stops before writing a partial backup. Normal monitoring continues to use the saved SSH target. The backup includes the saved local key-file paths, authentication/reuse modes and custom GPU/memory commands. It excludes Keychain passwords, private-key contents, notification watches and application appearance preferences. Treat connection details and custom commands as private.
-
-`Import Servers…` previews the file before adding servers. Imports preserve existing servers and preferences, assign fresh server IDs, and start the added servers disabled. Check their local key paths and commands, then enable the servers you want to monitor. Importing does not install keys or restore passwords. Backups are limited to 100 servers and 1 MB.
-
-### Transfer all servers to iPhone
-
-On the same local network, open **Advanced → Transfer All Servers to iPhone…**
-on Mac and review the credential source for each server. Choose a key file if
-the suggested identity is missing or ambiguous. Show the QR code. In the iPhone
-app choose **Transfer from Mac**, scan the code, and compare the six digits on
-both screens. Approve the matching code and authenticate on the Mac. Review and
-import the batch on iPhone. The Mac receives confirmation after storage completes.
-
-The Mac can send OpenSSH keys and unencrypted PEM files (RSA PKCS#1, ECDSA SEC1
-and PKCS#8 for RSA, ECDSA and Ed25519). After import, the iPhone looks up SSH host
-keys for the servers just added or completed. Review the fingerprints together,
-then choose **Trust and Connect** to start monitoring the selected servers.
-
-The QR expires after three minutes. Each pairing transfers the full server list
-once. Available passwords and supported key files travel over the encrypted
-connection; JSON backups continue to exclude them. Keys held only by an SSH
-agent or hardware token require separate setup. A protected key can be unlocked
-with its passphrase on iPhone. New profiles start disabled. Existing profiles
-with credentials are kept; matching disabled, untrusted profiles with an empty
-credential slot can receive the missing credential after review.
-
-### Diagnostic Information
-
-Use `Advanced` → `Copy Diagnostic Information…` to preview and copy the current app/OS version, collection settings, server/GPU summaries, sample age and categorized connection errors. Reports omit server names/addresses, users, key paths, custom command text, process details and raw error messages. Reports are generated from the current local snapshot without additional SSH queries; copying does not submit anything externally.
-
-## Language Support
-
-The interface can be set to:
-
-- `System`
-- `English`
-- `Korean`
-
-`System` follows your macOS preferred languages and uses the first one NVBeacon supports. If neither English nor Korean is listed, English is used.
-
-## Notes
-
-- NVBeacon uses your local SSH setup directly, including `~/.ssh/config`.
-- Network usage is read from the server's interface counters (`/sys/class/net` or `/proc/net/dev`) in the same SSH call as the GPU data, so polling stays a single round trip. Loopback, container, and overlay interfaces are skipped, and bond/bridge slaves are only counted through their aggregate device.
-- Network rates appear from the second refresh on, because a rate needs two counter readings. Turn **Network** off under **General > Host Information** to stop reading network counters entirely. Interface filtering is heuristic; unusual network topologies or unavailable topology data can affect aggregation.
-- In key-based mode, background polling does not read from Keychain.
-- SSH command attempts have a 15-second timeout and an 8 MiB combined output limit. Output is drained while commands run, and cancellation terminates and reaps the owned SSH process.
-- In password-based mode, each server password is stored in macOS Keychain and unlocked into memory once per app session to avoid repeated Keychain prompts during polling.
-- The first time you switch to password-based mode, NVBeacon shows a security warning because this mode is less secure than SSH keys.
-- If the remote non-interactive shell has a limited `PATH`, set `Remote Command` to an absolute path such as `/usr/bin/nvidia-smi`.
-- Public DMG downloads may still trigger a Gatekeeper warning unless the release is signed and notarized.
-- Launch at login is only available from a packaged app bundle, not `swift run`.
-- Short release notes are tracked in [CHANGELOG.md](CHANGELOG.md).
-
-## For Developers
-
-Development, packaging, and test app notes live in [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md).
-
-The platform-independent models, parser, query format and server archive schema live in [NVBeaconCore](Shared/NVBeaconCore/README.md). macOS SSH execution, credentials, UI and notifications remain in the app. PR checks run core tests on Linux and app/process-lifecycle tests on macOS.
+See [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) for building, testing and packaging the Mac app, and [docs/IOS.md](docs/IOS.md) for the iPhone and iPad app. The platform-independent models, parsers, query commands and backup format live in [NVBeaconCore](Shared/NVBeaconCore/README.md). Release notes are in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 
-Distributed under the MIT License. See [LICENSE](LICENSE) for details.
-
-## Acknowledgments
-
-- [Best README Template](https://github.com/othneildrew/Best-README-Template) for the structural inspiration
+Distributed under the MIT License. See [LICENSE](LICENSE).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>

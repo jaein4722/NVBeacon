@@ -133,6 +133,28 @@ pre {
   margin-top: 26px;
 }
 
+.store-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.store-badges img {
+  display: block;
+  width: auto;
+  height: 40px;
+}
+
+.store-label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
 .button {
   display: inline-flex;
   align-items: center;
