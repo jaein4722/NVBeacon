@@ -32,8 +32,8 @@ swift test
 
 - **Left-click** the tray icon for the popover-style flyout (an HTML page in
   WebView2, `Sources/NVBeacon/UI`). **Right-click** for Settings… and Quit.
-- **Settings** mirror the macOS app's tabs (General, Notifications, Appearance,
-  Advanced, About) and save to `%APPDATA%\NVBeacon\settings.json` as you edit.
+- **Settings** mirror the macOS app's tabs (General, Servers, Monitoring,
+  Notifications, Display, Advanced, About) and save to `%APPDATA%\NVBeacon\settings.json` as you edit.
   Saved hosts are read from `%USERPROFILE%\.ssh\config`. Server backups use the
   same file format as the macOS app.
 - Both executables take `[--interval SECONDS] [--demo] [TARGET ...]`; the CLI also
