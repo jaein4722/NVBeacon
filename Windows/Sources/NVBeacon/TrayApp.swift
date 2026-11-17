@@ -731,6 +731,9 @@ final class TrayApp {
                 case .passwordMissing:
                     ok = false
                     text = korean ? "비밀번호를 먼저 저장하세요." : "Save the password first."
+                case .sshTooOldForPassword(let version):
+                    ok = false
+                    text = TrayApp.sshTooOldText(version, korean: korean)
                 case .failure(let message):
                     ok = false
                     let category = DiagnosticsReport.errorCategory(message)
@@ -836,6 +839,13 @@ final class TrayApp {
 
     func postToSettings(_ message: [String: Any]) {
         settingsWindow?.host.post(message)
+    }
+
+    static func sshTooOldText(_ version: SSHClientVersion, korean: Bool) -> String {
+        let minimum = SSHClientVersion.passwordLoginMinimum
+        return korean
+            ? "이 PC의 OpenSSH \(version)로는 비밀번호 로그인을 쓸 수 없습니다(\(minimum) 이상 필요). 키 인증을 쓰세요. Windows 11에는 새 버전이 들어 있습니다."
+            : "Password login needs OpenSSH \(minimum) or later, and this PC has \(version). Use key authentication; Windows 11 includes a newer OpenSSH."
     }
 
     /// The file and, when there is one, the copy kept of it; callers add what happens next.

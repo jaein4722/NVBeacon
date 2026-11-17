@@ -21,6 +21,9 @@ public struct ServerState: Sendable {
     /// The server rejected the saved password. Polling stops until the password is
     /// saved again, so repeated failures cannot lock the account or get the address banned.
     public var passwordRejected = false
+    /// Password authentication is selected but ssh.exe is older than
+    /// `SSHClientVersion.passwordLoginMinimum`: the installed version, and nothing is tried.
+    public var sshTooOldForPassword: SSHClientVersion?
 
     public init(server: ServerSettings, detectedSSHUsername: String? = nil) {
         self.server = server
@@ -256,6 +259,7 @@ public final class ServerMonitor: @unchecked Sendable {
     public enum ConnectionTestResult: Sendable {
         case success(gpuCount: Int, seconds: Double)
         case passwordMissing
+        case sshTooOldForPassword(SSHClientVersion)
         case failure(String)
     }
 
@@ -271,6 +275,9 @@ public final class ServerMonitor: @unchecked Sendable {
         } else {
             var authentication = SSHAuthentication.key
             if server.sshAuthenticationMode == .passwordBased {
+                if let version = await SSHClientVersion.of(), version < SSHClientVersion.passwordLoginMinimum {
+                    return .sshTooOldForPassword(version)
+                }
                 guard let askPassExecutable, passwordStore.hasPassword(for: server.id) else { return .passwordMissing }
                 authentication = .password(account: server.id, askPassExecutable: askPassExecutable)
             }
@@ -310,6 +317,17 @@ public final class ServerMonitor: @unchecked Sendable {
         guard let (server, username, knownUserID) = claimed else { return }
         onChange()
 
+        if usesPassword(server), let version = await SSHClientVersion.of(executable: connectionPool.sshExecutable),
+           version < SSHClientVersion.passwordLoginMinimum {
+            lock.withLock {
+                states[index].isRefreshing = false
+                states[index].sshTooOldForPassword = version
+                states[index].lastAttempt = Date()
+            }
+            onChange()
+            return
+        }
+        lock.withLock { states[index].sshTooOldForPassword = nil }
         if usesPassword(server), askPassExecutable == nil || !passwordStore.hasPassword(for: server.id) {
             lock.withLock {
                 states[index].isRefreshing = false

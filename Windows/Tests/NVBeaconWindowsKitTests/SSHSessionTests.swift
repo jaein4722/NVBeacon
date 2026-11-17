@@ -139,6 +139,15 @@ func sessionTimesOutAndCanBeReplaced() throws {
     #expect(!AskPass.isPasswordPrompt("Enter your old password:"))
 }
 
+@Test func sshVersionGatesPasswordLogin() {
+    #expect(SSHClientVersion.parse("OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2") == SSHClientVersion(major: 9, minor: 5))
+    #expect(SSHClientVersion.parse("OpenSSH_for_Windows_8.1p1, LibreSSL 3.0.2") == SSHClientVersion(major: 8, minor: 1))
+    #expect(SSHClientVersion.parse("OpenSSH_10.0p2 Debian-5, OpenSSL 3.5.1") == SSHClientVersion(major: 10, minor: 0))
+    #expect(SSHClientVersion.parse("ssh: unknown option") == nil)
+    #expect(SSHClientVersion(major: 8, minor: 1) < SSHClientVersion.passwordLoginMinimum)
+    #expect(!(SSHClientVersion(major: 8, minor: 9) < SSHClientVersion.passwordLoginMinimum))
+}
+
 @Test func passwordStoreRoundTripsThroughCredentialManager() {
     let store = SSHPasswordStore(prefix: "NVBeacon-test/\(UUID().uuidString)/")
     defer { for id in store.savedServerIDs() { store.delete(for: id) } }

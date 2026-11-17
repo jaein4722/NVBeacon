@@ -387,6 +387,8 @@ function serverSection(server) {
     details.append(h("div", "message orange", t("The server rejected the saved password, so polling stopped to avoid locking the account. Save the password again in Settings to resume.",
       "서버가 저장된 비밀번호를 거부해 계정 잠금을 막으려고 수집을 멈췄습니다. 설정에서 비밀번호를 다시 저장하면 재개합니다.")));
     if (server.error) details.append(h("div", "message secondary", server.error));
+  } else if (server.inactiveReason === "sshTooOld") {
+    details.append(h("div", "message orange", server.error || ""));
   } else if (server.inactiveReason === "target") {
     details.append(h("div", "message secondary", t("Enter an SSH target for this server in Settings.", "설정에서 이 서버의 SSH 대상을 입력하세요.")));
   } else if (server.updatedAt) {

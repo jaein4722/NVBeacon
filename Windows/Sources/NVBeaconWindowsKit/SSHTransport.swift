@@ -53,6 +53,47 @@ public enum SSHAuthentication: Sendable, Equatable {
     }
 }
 
+/// The OpenSSH client version, read once per executable from `ssh -V`.
+public struct SSHClientVersion: Comparable, Sendable, CustomStringConvertible {
+    public let major: Int
+    public let minor: Int
+
+    public init(major: Int, minor: Int) {
+        self.major = major
+        self.minor = minor
+    }
+
+    /// Password login needs `SSH_ASKPASS_REQUIRE=force` (OpenSSH 8.4). Older clients,
+    /// such as the OpenSSH 8.1 built into Windows 10, ask on a console NVBeacon cannot answer.
+    public static let passwordLoginMinimum = SSHClientVersion(major: 8, minor: 4)
+
+    public var description: String { "\(major).\(minor)" }
+
+    public static func < (lhs: Self, rhs: Self) -> Bool { (lhs.major, lhs.minor) < (rhs.major, rhs.minor) }
+
+    /// `OpenSSH_for_Windows_9.5p2, LibreSSL 3.8.2` → 9.5.
+    public static func parse(_ text: String) -> SSHClientVersion? {
+        guard let range = text.range(of: "OpenSSH_") else { return nil }
+        var rest = text[range.upperBound...]
+        if rest.hasPrefix("for_Windows_") { rest = rest.dropFirst("for_Windows_".count) }
+        let numbers = rest.prefix { $0.isNumber || $0 == "." }.split(separator: ".").compactMap { Int($0) }
+        guard numbers.count >= 2 else { return nil }
+        return SSHClientVersion(major: numbers[0], minor: numbers[1])
+    }
+
+    private static let cache = NSLock()
+    nonisolated(unsafe) private static var known: [String: SSHClientVersion] = [:]
+
+    /// nil when ssh cannot be run or its version is not recognized.
+    public static func of(executable: String = SSHTransport.defaultSSHExecutable) async -> SSHClientVersion? {
+        if let version = cache.withLock({ known[executable] }) { return version }
+        guard let output = try? await WindowsProcessRunner.run(executable: executable, arguments: ["-V"], timeout: .seconds(5)),
+              let version = parse(String(decoding: output.standardError + output.standardOutput, as: UTF8.self)) else { return nil }
+        cache.withLock { known[executable] = version }
+        return version
+    }
+}
+
 /// Runs Core's remote commands through the Windows OpenSSH client (`ssh.exe`),
 /// opening a new connection for every command ("New connection every refresh").
 /// `SSHConnectionPool` keeps connections open instead.

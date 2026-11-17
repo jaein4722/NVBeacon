@@ -23,7 +23,8 @@ struct FlyoutState: Encodable {
         let name: String
         let isEnabled: Bool
         /// Why an enabled server shows no readings: "target" (no usable SSH target), "password"
-        /// (no saved password) or "passwordRejected" (the server refused it; polling paused).
+        /// (no saved password), "passwordRejected" (the server refused it; polling paused) or
+        /// "sshTooOld" (ssh.exe cannot log in with a password; `error` says why).
         let inactiveReason: String?
         let updatedAt: Double?
         let error: String?
@@ -138,6 +139,7 @@ struct FlyoutState: Encodable {
         // A disabled server keeps no readings in the popover, as on macOS.
         let inactiveReason: String? = !config.isEnabled ? nil
             : !config.isPollable ? "target"
+            : state.sshTooOldForPassword != nil ? "sshTooOld"
             : state.passwordRejected ? "passwordRejected"
             : state.passwordMissing ? "password" : nil
         let snapshot = config.isPollable && inactiveReason == nil ? state.snapshot : nil
@@ -148,7 +150,7 @@ struct FlyoutState: Encodable {
             isEnabled: config.isEnabled,
             inactiveReason: inactiveReason,
             updatedAt: snapshot.map { $0.takenAt.timeIntervalSince1970 * 1000 },
-            error: state.lastError,
+            error: state.sshTooOldForPassword.map { TrayApp.sshTooOldText($0, korean: Theme.language == "ko") } ?? state.lastError,
             isRefreshing: state.isRefreshing,
             averageUtilization: snapshot?.averageUtilization,
             busyCount: snapshot.map { _ in gpus.filter(settings.isBusy).count },
