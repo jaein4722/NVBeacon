@@ -41,9 +41,16 @@ DisableWelcomePage=no
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
-WizardStyle=modern
+; Follows the Windows light/dark setting, like the app.
+WizardStyle=modern dynamic
 #ifdef IconFile
 SetupIconFile={#IconFile}
+#endif
+#ifdef WizardImages
+WizardImageFile={#WizardImages}
+#endif
+#ifdef WizardSmallImages
+WizardSmallImageFile={#WizardSmallImages}
 #endif
 UninstallDisplayIcon={app}\NVBeacon.exe
 UninstallDisplayName=NVBeacon
@@ -63,6 +70,10 @@ Name: "korean"; MessagesFile: "compiler:Languages\Korean.isl"
 [CustomMessages]
 english.LaunchNVBeacon=Start NVBeacon
 korean.LaunchNVBeacon=NVBeacon 실행
+english.StartupGroup=Startup:
+korean.StartupGroup=시작:
+english.LaunchAtLogin=Launch NVBeacon at login
+korean.LaunchAtLogin=로그인 시 NVBeacon 실행
 english.StillRunning=NVBeacon is still running. Quit it from its notification area icon, then try again.
 korean.StillRunning=NVBeacon이 아직 실행 중입니다. 알림 영역 아이콘 메뉴에서 종료한 뒤 다시 시도하세요.
 english.WebView2Missing=NVBeacon needs the Microsoft Edge WebView2 Runtime, which is not installed on this PC.%n%nOpen its download page now? Setup will continue either way.
@@ -70,6 +81,13 @@ korean.WebView2Missing=NVBeacon을 실행하려면 Microsoft Edge WebView2 런�
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; Offered on the first install only. Afterwards Settings > General > Launch at Login
+; owns this, so an upgrade never turns it back on.
+Name: "launchatlogin"; Description: "{cm:LaunchAtLogin}"; GroupDescription: "{cm:StartupGroup}"; Flags: unchecked; Check: not IsUpgrade
+
+[Registry]
+; The same value the app writes for Launch at Login.
+Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NVBeacon"; ValueData: """{app}\NVBeacon.exe"""; Tasks: launchatlogin
 
 [InstallDelete]
 ; The UI files are replaced as a whole so pages removed in a newer version do not linger.
@@ -90,6 +108,13 @@ const
   WM_CLOSE = $0010;
   RunKey = 'Software\Microsoft\Windows\CurrentVersion\Run';
   WebView2Client = '\Microsoft\EdgeUpdate\Clients\{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
+  UninstallKey = 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{2EAF98CD-F5CA-4455-8F34-8B5931D1289A}_is1';
+
+{ True when NVBeacon is already installed for this user, i.e. this run is an upgrade. }
+function IsUpgrade(): Boolean;
+begin
+  Result := RegKeyExists(HKCU, UninstallKey);
+end;
 
 { Asks a running NVBeacon to quit (it saves GPU History and removes its tray icon),
   then waits up to 10 s for its single-instance mutex to go away. }

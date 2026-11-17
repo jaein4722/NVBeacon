@@ -141,7 +141,56 @@ if ($Installer) {
     $iscc = @("$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe", "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", "$env:ProgramFiles\Inno Setup 6\ISCC.exe") |
         Where-Object { Test-Path $_ } | Select-Object -First 1
     if (-not $iscc) { throw "Inno Setup 6 not found. Install it with: winget install JRSoftware.InnoSetup" }
-    & $iscc /Q "/DAppVersion=$Version" "/DSourceDir=$dist" "/DOutputDir=$(Split-Path $dist)" "/DIconFile=$icon" (Join-Path $windows "packaging\NVBeacon.iss")
+
+    # Wizard images in the style of assets\banner.jpg, one per DPI scale (Setup picks
+    # the closest): the side panel on the welcome and finish pages, and the small
+    # square in the top-right corner of the other pages.
+    $appIcon = [System.Drawing.Image]::FromFile((Join-Path $repo "icon.png"))
+    $wizardImages = @(); $smallImages = @()
+    try {
+        foreach ($size in @(@(202, 386), @(269, 515), @(336, 643), @(403, 772), @(430, 824), @(498, 953), @(534, 1022))) {
+            $w = $size[0]; $h = $size[1]
+            $bitmap = New-Object System.Drawing.Bitmap $w, $h, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            $g = [System.Drawing.Graphics]::FromImage($bitmap)
+            $g.SmoothingMode = [System.Drawing.Drawing2D.SmoothingMode]::AntiAlias
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.Clear([System.Drawing.Color]::FromArgb(0x0D, 0x11, 0x0E))
+            $cx = $w / 2; $cy = $h * 0.42
+            # Soft green glow behind the icon.
+            $glow = New-Object System.Drawing.Drawing2D.GraphicsPath
+            $glow.AddEllipse($cx - $w * 0.75, $cy - $w * 0.75, $w * 1.5, $w * 1.5)
+            $brush = New-Object System.Drawing.Drawing2D.PathGradientBrush $glow
+            $brush.CenterColor = [System.Drawing.Color]::FromArgb(110, 0x3A, 0x55, 0x18)
+            $brush.SurroundColors = @([System.Drawing.Color]::FromArgb(0, 0x0D, 0x11, 0x0E))
+            $g.FillPath($brush, $glow); $brush.Dispose(); $glow.Dispose()
+            # Concentric rings, as in the banner.
+            $pen = New-Object System.Drawing.Pen ([System.Drawing.Color]::FromArgb(0x2A, 0x36, 0x1C)), ([math]::Max(1.0, $w / 200))
+            foreach ($ring in 1..5) {
+                $r = $w * (0.34 + 0.27 * $ring)
+                $g.DrawEllipse($pen, [single]($cx - $r), [single]($cy - $r), [single](2 * $r), [single](2 * $r))
+            }
+            $pen.Dispose()
+            $iconSize = $w * 0.58
+            $g.DrawImage($appIcon, [single]($cx - $iconSize / 2), [single]($cy - $iconSize / 2), [single]$iconSize, [single]$iconSize)
+            $g.Dispose()
+            $path = Join-Path $work "wizard-$w.png"
+            $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png); $bitmap.Dispose()
+            $wizardImages += $path
+        }
+        foreach ($s in 58, 77, 97, 116, 124, 143, 159) {
+            $bitmap = New-Object System.Drawing.Bitmap $s, $s, ([System.Drawing.Imaging.PixelFormat]::Format32bppArgb)
+            $g = [System.Drawing.Graphics]::FromImage($bitmap)
+            $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+            $g.PixelOffsetMode = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+            $g.DrawImage($appIcon, 0, 0, $s, $s); $g.Dispose()
+            $path = Join-Path $work "wizard-small-$s.png"
+            $bitmap.Save($path, [System.Drawing.Imaging.ImageFormat]::Png); $bitmap.Dispose()
+            $smallImages += $path
+        }
+    } finally { $appIcon.Dispose() }
+
+    & $iscc /Q "/DAppVersion=$Version" "/DSourceDir=$dist" "/DOutputDir=$(Split-Path $dist)" "/DIconFile=$icon" `
+        "/DWizardImages=$($wizardImages -join ',')" "/DWizardSmallImages=$($smallImages -join ',')" (Join-Path $windows "packaging\NVBeacon.iss")
     if ($LASTEXITCODE -ne 0) { throw "ISCC failed" }
     $setup = Join-Path (Split-Path $dist) "$name-setup.exe"
     "Installer: $setup  $([math]::Round((Get-Item $setup).Length / 1MB, 1)) MB  SHA-256 $((Get-FileHash $setup -Algorithm SHA256).Hash)"
