@@ -1,9 +1,33 @@
 import Combine
 import Foundation
 
-private struct GPUIdleWatchTrackingState: Sendable {
+struct GPUIdleWatchTrackingState: Equatable, Sendable {
     var idleSince: Date?
     var hasHandledCurrentIdleStretch = false
+    var lastSampleAt: Date?
+
+    /// A gap this long between samples (sleep, a stalled server) means the GPU was
+    /// not observed, so its idle stretch starts again at the next sample.
+    static func maximumSampleGap(pollIntervalSeconds: Int) -> TimeInterval {
+        max(120, TimeInterval(pollIntervalSeconds) * 3)
+    }
+
+    /// Records one sample and returns how long the GPU has been idle, or nil when busy.
+    /// An alert already sent for this stretch is not repeated after a gap.
+    mutating func record(isIdle: Bool, at date: Date, maximumGap: TimeInterval) -> TimeInterval? {
+        defer { lastSampleAt = date }
+        guard isIdle else {
+            idleSince = nil
+            hasHandledCurrentIdleStretch = false
+            return nil
+        }
+        if let lastSampleAt, date.timeIntervalSince(lastSampleAt) > maximumGap {
+            idleSince = nil
+        }
+        let start = idleSince ?? date
+        idleSince = start
+        return date.timeIntervalSince(start)
+    }
 }
 
 private struct ServerRefreshContext: Sendable {
@@ -525,6 +549,10 @@ final class NVBeaconStore: ObservableObject {
     }
 
     func handleSystemWake() {
+        // Time asleep was not observed: idle stretches start again after waking.
+        for id in idleWatchTrackingStates.keys {
+            idleWatchTrackingStates[id]?.idleSince = nil
+        }
         restartPollingAndRefresh(resetErrorState: false)
     }
 
@@ -1297,25 +1325,15 @@ final class NVBeaconStore: ObservableObject {
             }
 
             var trackingState = idleWatchTrackingStates[watch.id] ?? GPUIdleWatchTrackingState()
-            let isIdle = gpu.isIdle(memoryThresholdMB: settings.idleMemoryThresholdMB)
-
-            if !isIdle {
-                trackingState.idleSince = nil
-                trackingState.hasHandledCurrentIdleStretch = false
+            guard let idleDuration = trackingState.record(
+                isIdle: gpu.isIdle(memoryThresholdMB: settings.idleMemoryThresholdMB),
+                at: snapshot.takenAt,
+                maximumGap: GPUIdleWatchTrackingState.maximumSampleGap(pollIntervalSeconds: settings.pollIntervalSeconds)
+            ) else {
                 idleWatchTrackingStates[watch.id] = trackingState
                 continue
             }
 
-            if trackingState.idleSince == nil {
-                trackingState.idleSince = snapshot.takenAt
-            }
-
-            guard let idleSince = trackingState.idleSince else {
-                idleWatchTrackingStates[watch.id] = trackingState
-                continue
-            }
-
-            let idleDuration = snapshot.takenAt.timeIntervalSince(idleSince)
             let threshold = TimeInterval(settings.idleNotificationSeconds)
 
             guard idleDuration >= threshold, !trackingState.hasHandledCurrentIdleStretch else {
