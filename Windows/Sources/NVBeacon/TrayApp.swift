@@ -109,7 +109,7 @@ func windowProcedure(_ window: HWND?, _ message: UINT, _ wParam: WPARAM, _ lPara
 /// Owns the settings, the poller, the tray icon, the flyout and the Settings window.
 final class TrayApp {
     private enum Command: UInt {
-        case refresh = 1, settings, quit, toggleDisplayMode, toggleOnTop
+        case refresh = 1, settings, quit, toggleDisplayMode, toggleOnTop, history
     }
 
     let window: HWND
@@ -481,6 +481,9 @@ final class TrayApp {
         } else {
             append(menu, korean ? "창으로 보기" : "Show as Window", command: .toggleDisplayMode)
         }
+        if settings.recordsGPUHistory {
+            append(menu, korean ? "GPU 기록…" : "GPU History…", command: .history)
+        }
         append(menu, korean ? "설정…" : "Settings…", command: .settings)
         AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
         append(menu, korean ? "NVBeacon 종료" : "Quit NVBeacon", command: .quit)
@@ -505,6 +508,7 @@ final class TrayApp {
         case .quit: quit()
         case .toggleDisplayMode: setDisplayMode(settings.displayMode == .window ? .popover : .window)
         case .toggleOnTop: setAlwaysOnTop(!settings.windowAlwaysOnTop)
+        case .history: openHistory()
         }
     }
 

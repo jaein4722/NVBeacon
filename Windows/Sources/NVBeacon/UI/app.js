@@ -134,14 +134,15 @@ function headerStrip(state) {
   }
   // Popover ⇄ window. In window mode "keep on top" lives in the title bar.
   if (state.displayMode === "window") {
-    top.append(iconButton("popover", t("Show as popover", "팝오버로 보기"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));
+    top.append(iconButton("popover", t("Show as Popover", "팝오버로 보기"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));
   } else {
-    top.append(iconButton("openWindow", t("Open as a window", "창으로 열기"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
+    top.append(iconButton("openWindow", t("Show as Window", "창으로 보기"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
   }
   if (servers.length) {
     top.append(iconButton("refresh", t("Refresh now and restart polling if needed", "필요하면 수집을 다시 시작하면서 새로고침"),
       () => send({ type: "refresh" }), "refresh-all"));
   }
+  top.append(iconButton("gear", t("Settings…", "설정…"), () => send({ type: "settings" }), "open-settings"));
   if (fleet.isRefreshing) top.append(spinner());
 
   const strip = h("div", "card header", top);
@@ -149,14 +150,14 @@ function headerStrip(state) {
     strip.append(pills(fleet.averageUtilization, fleet.busyCount, fleet.gpuCount, fleet.processCount, fleet.latestUpdate));
   } else {
     const text = !servers.length
-      ? t("Right-click the tray icon and open Settings to configure a server.", "트레이 아이콘 우클릭 메뉴에서 설정을 열어 서버를 설정하세요.")
+      ? t("Open Settings with the gear button to add a server.", "톱니바퀴 버튼으로 설정을 열어 서버를 추가하세요.")
       : pollable === 0
         ? t("No enabled server is ready for polling.", "수집할 활성 서버가 없습니다.")
         : t("Waiting for the first polling result.", "첫 수집 결과를 기다리는 중입니다.");
     strip.append(h("span", "caption secondary", text));
   }
   if (state.displayMode !== "window") {
-    strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for settings and quit.", "설정과 종료는 트레이 아이콘 우클릭으로 열 수 있습니다.")));
+    strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for more, including Quit.", "종료 등 다른 메뉴는 트레이 아이콘을 우클릭하세요.")));
   }
   if (servers.length === 1 && servers[0].myUser) strip.append(myProcessesLabel(servers[0].myUser));
   const processes = fleet.watchedProcessCount, idle = fleet.watchedIdleCount;
