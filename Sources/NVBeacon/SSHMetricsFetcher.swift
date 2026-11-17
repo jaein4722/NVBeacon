@@ -137,7 +137,9 @@ struct SSHMetricsFetcher: Sendable {
             password: password
         )
 
-        guard let uid = Int(output.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+        // A login profile may print before `id -u`; its UID is the last line.
+        let lastLine = output.split(whereSeparator: \.isNewline).last.map(String.init) ?? ""
+        guard let uid = Int(lastLine.trimmingCharacters(in: .whitespaces)) else {
             throw FetchError.invalidPSOutput(output)
         }
 
