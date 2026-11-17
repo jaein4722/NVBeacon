@@ -83,6 +83,25 @@ public struct MobileServer: Codable, Identifiable, Equatable, Sendable {
     }
 }
 
+extension ServerSettingsBackup.Entry {
+    /// Commands that differ from NVBeacon's defaults, shown before an import.
+    public var customRemoteCommands: [String] {
+        var commands: [String] = []
+        let gpu = remoteCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        if ![RemoteMetricCommands.defaultGPUCommand, RemoteMetricCommands.legacyGPUCommand].contains(gpu) { commands.append(gpu) }
+        // hostCommand is already resolved: a backup without one carries the script
+        // built from its legacy memoryCommand, which may itself be custom.
+        let host = hostCommand.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard host != RemoteMetricCommands.defaultHostCommand else { return commands }
+        if host == RemoteMetricCommands.hostInfo(memoryCommand: memoryCommand) {
+            commands.append(memoryCommand.trimmingCharacters(in: .whitespacesAndNewlines))
+        } else {
+            commands.append(host)
+        }
+        return commands
+    }
+}
+
 public struct MobileCredential: Codable, Equatable, Sendable {
     public var secret: String
     public var passphrase: String

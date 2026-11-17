@@ -22,6 +22,7 @@ struct ServerEditor: View {
     @State private var keyInfo: ImportedSSHKey?
     @State private var loaded = false
     @State private var saving = false
+    @State private var saveTask: Task<Void, Never>?
     @Environment(\.dismiss) private var dismiss
     private var isExisting: Bool { store.servers.contains { $0.id == server.id } }
 
@@ -42,7 +43,7 @@ struct ServerEditor: View {
     private func form(_ proxy: ScrollViewProxy) -> some View {
         Form {
             Group {
-                Section("Server") {
+                Section {
                     TextField("Name (optional)", text: $server.name)
                     fieldRow(.server(.host)) {
                         TextField("Hostname or IP address", text: $server.host).keyboardType(.URL)
@@ -58,6 +59,8 @@ struct ServerEditor: View {
                         }
                     }
                     Toggle("Enable monitoring", isOn: $server.isEnabled)
+                } header: { Text("Server") } footer: {
+                    Text("Use a reachable hostname or IP address and an explicit SSH username. Connect your VPN first for private servers. Verify the host fingerprint on your first connection.")
                 }
                 Section {
                     Picker("Authentication", selection: $server.authentication) {
@@ -118,13 +121,13 @@ struct ServerEditor: View {
         .navigationTitle(isExisting ? "Edit Server" : "Add Server")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button("Cancel", systemImage: "xmark") { saveTask?.cancel(); dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 if saving {
                     ProgressView()
                 } else {
                     Button("Save", systemImage: "checkmark") {
-                        Task { await save(using: proxy) }
+                        saveTask = Task { await save(using: proxy) }
                     }.disabled(!loaded)
                 }
             }
@@ -138,6 +141,8 @@ struct ServerEditor: View {
             }
             catch { self.error = error.localizedDescription }
         }
+        // Unlocking an encrypted key can take seconds. Leaving the editor abandons the save.
+        .onDisappear { saveTask?.cancel() }
         .onChange(of: server) { _, _ in issue = nil }
         .onChange(of: portText) { _, _ in issue = nil }
         .onChange(of: credential) { _, _ in issue = nil }
@@ -212,8 +217,11 @@ struct ServerEditor: View {
                 try await Task.detached(priority: .userInitiated) { try SSHTransport.validatePrivateKey(value) }.value
                 validated = true
             }
+            try Task.checkCancellation()
             try store.save(edited, credential: credential, keyAlreadyValidated: validated)
             dismiss()
+        } catch is CancellationError {
+            return
         } catch MobileError.missingCredential {
             if edited.authentication == .passwordBased {
                 show("Enter the SSH password.", at: .password, using: proxy)

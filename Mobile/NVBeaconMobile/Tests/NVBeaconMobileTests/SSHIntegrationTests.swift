@@ -4,6 +4,7 @@ import NIO
 @preconcurrency import NIOSSH
 import Crypto
 import Citadel
+import NVBeaconCore
 @testable import NVBeaconMobile
 
 private final class FixtureAuthentication: NIOSSHServerUserAuthenticationDelegate {
@@ -25,8 +26,15 @@ private final class FixtureCommand: ChannelInboundHandler {
         guard let request = event as? SSHChannelRequestEvent.ExecRequest else { return }
         let channel = context.channel
         if request.wantReply { channel.triggerUserOutboundEvent(ChannelSuccessEvent(), promise: nil) }
-        if request.command == "hang" { return }
-        channel.write(SSHChannelData(type: .channel, data: .byteBuffer(ByteBuffer(string: request.command == "session-id" ? session : "fixture-stdout"))), promise: nil)
+        // The transport always hands its script to /bin/sh, never to the login shell.
+        guard request.command.hasPrefix("/bin/sh -c '") else {
+            channel.write(SSHChannelData(type: .channel, data: .byteBuffer(ByteBuffer(string: "unwrapped"))), promise: nil)
+            channel.close(promise: nil)
+            return
+        }
+        if request.command == RemoteShell.shCommand("hang") { return }
+        let reply = request.command == RemoteShell.shCommand("session-id") ? session : "fixture-stdout"
+        channel.write(SSHChannelData(type: .channel, data: .byteBuffer(ByteBuffer(string: reply))), promise: nil)
         channel.writeAndFlush(SSHChannelData(type: .stdErr, data: .byteBuffer(ByteBuffer(string: "fixture-stderr"))), promise: nil)
         channel.close(mode: .output).flatMap {
             channel.triggerUserOutboundEvent(SSHChannelRequestEvent.ExitStatus(exitStatus: 7))

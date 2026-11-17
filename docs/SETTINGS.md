@@ -21,12 +21,16 @@ iOS has one Settings screen instead of tabs. Its sections follow the desktop tab
 | Section | Contents |
 | --- | --- |
 | General | Language |
-| Monitoring | Refresh interval, busy GPU detection, highlighting your own processes, host information |
+| Monitoring | Refresh interval; the footer explains that iOS pauses collection in the background |
+| GPUs and Processes | Busy GPU detection and its threshold, highlighting your own processes |
+| Host Information | CPU, memory (RAM / Swap), network |
 | Display | Theme |
-| Advanced | Server backup and import, diagnostic information |
+| Advanced | Transfer from Mac, server import and export, diagnostic information |
 | About | Version and build, open source licenses, links |
 
-- The server list is the main screen. Per-server settings (connection, authentication, reuse, commands) live only in the server editor, as in the desktop Servers tab.
+Monitoring, GPUs and Processes, and Host Information are the sections of the desktop Monitoring tab, with the same names.
+
+- The server list is the main screen. Per-server settings (connection, authentication, reuse, commands) and connection tips live only in the server editor, as in the desktop Servers tab. Its toolbar menu also offers the Advanced transfer, import and export actions.
 - Platform notes, such as monitoring pausing in the background, go in a section footer rather than in a text row.
 - Desktop-only settings (launch at login, Dock icon, display mode, popover size, alert thresholds) are omitted, not shown disabled.
 

@@ -22,7 +22,8 @@ struct FleetOverview: View {
             MonitorSummaryTile("Average GPU", Text(verbatim: average.map { "\($0)%" } ?? "—"))
             MonitorSummaryTile("Available GPUs", Text(verbatim: snapshots.isEmpty ? "—" : "\(gpus.count - busy)/\(gpus.count)"))
             MonitorSummaryTile("Processes", Text(verbatim: snapshots.isEmpty ? "—" : processes.formatted()))
-            MonitorUpdatedTile(date: snapshots.map(\.takenAt).max())
+            // The oldest data, like macOS: the newest would hide a server that stopped answering.
+            MonitorUpdatedTile(date: snapshots.map(\.takenAt).min())
         }
     }
 }
@@ -66,8 +67,30 @@ struct MonitorUpdatedTile: View {
         }
     }
     private func updated(at now: Date, snapshot: Date) -> some View {
-        let age = max(0, Int(now.timeIntervalSince(snapshot)))
-        return MonitorSummaryTile("Updated", Text(verbatim: age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"))
+        MonitorSummaryTile("Updated", Text(verbatim: Self.age(now.timeIntervalSince(snapshot))))
+    }
+
+    static func age(_ seconds: TimeInterval) -> String {
+        let age = max(0, Int(seconds))
+        return age < 60 ? "\(age)s" : "\(age / 60)m \(age % 60)s"
+    }
+}
+
+/// Points to the server behind a growing "Updated" value in the summary.
+/// Nothing redraws until the data is old enough to count as stale.
+struct StaleDataLabel: View {
+    let takenAt: Date
+    let refreshInterval: Int
+
+    var body: some View {
+        let staleAt = takenAt.addingTimeInterval(GPUSnapshot.staleAge(refreshIntervalSeconds: refreshInterval))
+        TimelineView(.periodic(from: staleAt, by: 5)) { context in
+            if context.date > staleAt {
+                Label("Last update \(MonitorUpdatedTile.age(context.date.timeIntervalSince(takenAt))) ago",
+                      systemImage: "clock.badge.exclamationmark")
+                    .font(.caption).foregroundStyle(.orange)
+            }
+        }
     }
 }
 
@@ -148,6 +171,7 @@ struct ServerMonitorRow: View {
                     Label("Connection needs attention", systemImage: "exclamationmark.triangle").font(.caption).foregroundStyle(.orange)
                 }
                 if let snapshot = reading?.snapshot {
+                    if reading?.error == nil { StaleDataLabel(takenAt: snapshot.takenAt, refreshInterval: store.refreshInterval) }
                     let current = reading?.history.last ?? GPULoadSample(snapshot)
                     if store.collectsCPU || store.collectsMemory || store.collectsNetwork {
                         compactHostInfo(snapshot)

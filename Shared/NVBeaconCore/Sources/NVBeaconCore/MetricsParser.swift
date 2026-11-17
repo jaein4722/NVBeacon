@@ -195,11 +195,7 @@ public enum MetricsParser {
             return []
         }
 
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parsePSLine(_:))
+        return try psLines(trimmed).map(parsePSLine(_:))
     }
 
     public static func parseDetailedPSSection(_ output: String) throws -> [RemoteProcessStatus] {
@@ -208,11 +204,7 @@ public enum MetricsParser {
             return []
         }
 
-        let lines = trimmed
-            .split(whereSeparator: \.isNewline)
-            .map { String($0) }
-
-        return try lines.map(parseDetailedPSLine(_:))
+        return try psLines(trimmed).map(parseDetailedPSLine(_:))
     }
 
     private static func parseLine(_ line: String) throws -> GPUReading {
@@ -274,7 +266,14 @@ public enum MetricsParser {
         )
     }
 
-    private static func section(named name: String?, from output: String) -> String {
+    /// Drops anything a login profile or shell rc file printed before the summary began.
+    private static func payload(_ output: String) -> Substring {
+        guard let start = output.range(of: RemoteMetricCommands.outputStartMarker) else { return output[...] }
+        return output[start.upperBound...]
+    }
+
+    private static func section(named name: String?, from fullOutput: String) -> String {
+        let output = String(payload(fullOutput))
         let separators = [processSectionSeparator, psSectionSeparator, memorySectionSeparator, cpuSectionSeparator, networkSectionSeparator, RemoteMetricCommands.hostSectionSeparator]
 
         if let name {
@@ -300,6 +299,13 @@ public enum MetricsParser {
 
         let endIndex = firstSeparatorRange?.lowerBound ?? output.endIndex
         return String(output[..<endIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// ps lines start with a PID. Anything else is text a login profile printed.
+    private static func psLines(_ output: String) -> [String] {
+        output.split(whereSeparator: \.isNewline).map(String.init).filter { line in
+            line.split(maxSplits: 1, whereSeparator: \.isWhitespace).first.flatMap { Int($0) } != nil
+        }
     }
 
     private static func parsePSLine(_ line: String) throws -> RemoteProcessStatus {

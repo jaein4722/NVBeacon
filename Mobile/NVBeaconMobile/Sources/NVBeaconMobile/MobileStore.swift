@@ -549,10 +549,11 @@ public typealias SnapshotLoader = @Sendable (MobileServer, MobileCredential) asy
             let pidList = pids.map(String.init).joined(separator: ",")
             let output = try await transport.execute("printf 'uid=%s\\n' \"$(id -u 2>/dev/null)\"; ps -ww -p \(pidList) -o pid=,uid=,user:64=,args= 2>/dev/null || ps -p \(pidList) -o pid= -o uid= -o user= -o args= 2>/dev/null || true")
             guard output.exitStatus == 0 else { return snapshot }
-            let parts = output.standardOutput.split(separator: "\n", maxSplits: 1)
-            let hasUIDLine = parts.first?.hasPrefix("uid=") == true
-            let uid = hasUIDLine ? parts.first.flatMap { Int($0.dropFirst(4)) } : nil
-            let psOutput = hasUIDLine ? String(parts.dropFirst().first ?? "") : output.standardOutput
+            // A shell rc file may print before the command's own output.
+            let lines = output.standardOutput.split(separator: "\n", omittingEmptySubsequences: false)
+            let uidIndex = lines.firstIndex { $0.hasPrefix("uid=") }
+            let uid = uidIndex.flatMap { Int(lines[$0].dropFirst(4)) }
+            let psOutput = uidIndex.map { lines[($0 + 1)...].joined(separator: "\n") } ?? output.standardOutput
             let details = try MetricsParser.parseDetailedPSSection(psOutput)
             let byPID = Dictionary(details.map { ($0.pid, $0) }, uniquingKeysWith: { _, last in last })
             let processes = snapshot.gpus.flatMap(\.processes).map { process in
