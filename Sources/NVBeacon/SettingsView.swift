@@ -755,12 +755,12 @@ struct SettingsView: View {
 
                     HStack(spacing: 10) {
                         Link(destination: repoURL) {
-                            AboutActionLabel(title: "Repository", systemImage: "shippingbox")
+                            AboutActionLabel(title: t("Repository", "저장소"), systemImage: "shippingbox")
                         }
                         .buttonStyle(.plain)
 
                         Link(destination: profileURL) {
-                            AboutActionLabel(title: "GitHub Profile", systemImage: "person.crop.circle")
+                            AboutActionLabel(title: t("GitHub Profile", "GitHub 프로필"), systemImage: "person.crop.circle")
                         }
                         .buttonStyle(.plain)
                     }
