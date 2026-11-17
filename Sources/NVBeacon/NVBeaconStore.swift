@@ -542,6 +542,44 @@ final class NVBeaconStore: ObservableObject {
         restartPollingAndRefresh(resetErrorState: false)
     }
 
+    /// Runs one collection for `server` as configured right now, without touching
+    /// the monitored state. `password` is a password typed but not yet saved.
+    func testConnection(_ server: ServerConfig, password: String? = nil) async -> ConnectionTestOutcome {
+        let typedPassword = password?.trimmingCharacters(in: .newlines) ?? ""
+        let sessionPassword = currentSessionPassword(for: server.id)
+        let effectivePassword = typedPassword.isEmpty ? sessionPassword : typedPassword
+        if server.sshAuthenticationMode == .passwordBased && effectivePassword.isEmpty {
+            return .failure(message: missingPasswordSessionMessage())
+        }
+        do {
+            let reading = try await fetcher.fetchSummary(
+                settings: server.normalized().connectionSettings(from: settings),
+                password: effectivePassword.isEmpty ? nil : effectivePassword
+            )
+            return .success(gpuCount: reading.snapshot.gpus.count)
+        } catch is CancellationError {
+            return .failure(message: t("The test was cancelled.", "테스트가 취소되었습니다."))
+        } catch {
+            return .failure(message: error.localizedDescription)
+        }
+    }
+
+    /// Display preferences changed from the popover, the window or the menu.
+    /// They are not part of `PollingConfiguration`, so collection keeps running.
+    func setDisplayMode(_ mode: MonitorDisplayMode) {
+        guard settings.displayMode != mode else { return }
+        var updated = settings
+        updated.displayMode = mode
+        applySettings(updated)
+    }
+
+    func setKeepsWindowOnTop(_ keepsOnTop: Bool) {
+        guard settings.keepsWindowOnTop != keepsOnTop else { return }
+        var updated = settings
+        updated.keepsWindowOnTop = keepsOnTop
+        applySettings(updated)
+    }
+
     func refreshNow(serverID: String) {
         Task {
             await refresh(serverIDs: [serverID])
@@ -928,6 +966,14 @@ final class NVBeaconStore: ObservableObject {
         } catch {
             gpuHistoryErrors[server.id] = error.localizedDescription
         }
+    }
+
+    /// Removes every saved history file and the loaded charts. Recording, if on,
+    /// starts again from the next minute.
+    func deleteGPUHistory() async {
+        await historyArchive.deleteAll()
+        gpuHistory = [:]
+        gpuHistoryErrors = [:]
     }
 
     /// Saves the partial minute so a normal quit loses nothing.

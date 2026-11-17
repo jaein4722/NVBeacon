@@ -104,7 +104,7 @@ enum UserUtilizationSampler {
 
 /// 24 hours of minute samples per server, stored as append-only JSON Lines.
 ///
-/// A completed minute is appended (a few hundred bytes per GPU). The file is rewritten
+/// A completed minute is appended (about 130–170 bytes per GPU, so roughly 0.3 MB per GPU). The file is rewritten
 /// only every `compactionInterval` to drop expired lines, so it never holds much more
 /// than `retention + compactionInterval` of data.
 actor GPUHistoryArchive {
@@ -170,6 +170,15 @@ actor GPUHistoryArchive {
         servers[key] = server
         guard !completed.isEmpty else { return nil }
         return try commit(completed, key: key, now: snapshot.takenAt)
+    }
+
+    /// Forgets everything in memory and removes all history files.
+    func deleteAll() {
+        servers = [:]
+        let files = (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? []
+        for url in files where url.pathExtension == "jsonl" {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     /// Saves the partial minute, e.g. before the app quits.

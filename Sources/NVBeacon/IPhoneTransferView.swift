@@ -230,6 +230,9 @@ struct IPhoneTransferView: View {
             Text(t("Connect both devices to the same local network. In NVBeacon on iPhone, choose Transfer from Mac and scan this code.",
                    "두 기기를 같은 로컬 네트워크에 연결하세요. iPhone의 NVBeacon에서 Mac에서 가져오기를 선택하고 코드를 스캔하세요."))
                 .fixedSize(horizontal: false, vertical: true)
+            Link(t("Don't have NVBeacon on iPhone? Get it on the App Store", "iPhone에 NVBeacon이 없나요? App Store에서 받기"),
+                 destination: URL(string: "https://apps.apple.com/app/nvbeacon/id6830951631")!)
+                .font(.callout)
             if let image = qrImage(invitation) {
                 Image(nsImage: image).interpolation(.none).resizable().scaledToFit()
                     .frame(width: 218, height: 218).padding(20).background(.white)

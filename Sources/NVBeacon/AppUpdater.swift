@@ -58,6 +58,7 @@ final class AppUpdater: ObservableObject {
     @Published private(set) var automaticallyChecksForUpdates = false
     @Published private(set) var automaticallyDownloadsUpdates = false
     @Published private(set) var feedURL: URL?
+    @Published private(set) var lastUpdateCheckDate: Date?
 
     private var updaterController: SPUStandardUpdaterController?
     private var cancellables = Set<AnyCancellable>()
@@ -123,6 +124,8 @@ final class AppUpdater: ObservableObject {
             .receive(on: RunLoop.main)
             .sink { [weak self] canCheckForUpdates in
                 self?.canCheckForUpdates = canCheckForUpdates
+                // A finished check makes checking possible again; pick up its date.
+                self?.lastUpdateCheckDate = updater.lastUpdateCheckDate
             }
             .store(in: &cancellables)
 
@@ -141,8 +144,13 @@ final class AppUpdater: ObservableObject {
             .store(in: &cancellables)
     }
 
+    func refreshLastUpdateCheckDate() {
+        lastUpdateCheckDate = updaterController?.updater.lastUpdateCheckDate
+    }
+
     private func refreshPublishedValues(from updater: SPUUpdater) {
         canCheckForUpdates = updater.canCheckForUpdates
+        lastUpdateCheckDate = updater.lastUpdateCheckDate
         automaticallyChecksForUpdates = updater.automaticallyChecksForUpdates
         automaticallyDownloadsUpdates = updater.automaticallyDownloadsUpdates
     }

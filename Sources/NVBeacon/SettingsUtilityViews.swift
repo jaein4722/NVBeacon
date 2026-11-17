@@ -71,7 +71,7 @@ struct ServerImportReviewView: View {
                                 LabeledContent(t("Authentication", "인증 방식"), value: server.sshAuthenticationMode.title(in: language))
                                 LabeledContent(t("SSH connection", "SSH 연결"), value: server.sshConnectionReuseMode.title(in: language))
                                 if !server.sshIdentityFilePath.isEmpty {
-                                    Text(t("Identity file: ", "Identity 파일: ") + server.sshIdentityFilePath)
+                                    Text(t("Identity file: ", "키 파일: ") + server.sshIdentityFilePath)
                                         .font(.caption).textSelection(.enabled)
                                 }
                                 Text(t("GPU command", "GPU 명령")).font(.caption.weight(.semibold))
@@ -87,7 +87,7 @@ struct ServerImportReviewView: View {
             }
             Text(t(
                 "Keychain passwords are not included. Review the connection details and commands before adding the servers.",
-                "Keychain 비밀번호는 포함되지 않습니다. 연결 정보와 명령을 확인한 뒤 서버를 추가하세요."
+                "키체인 비밀번호는 포함되지 않습니다. 연결 정보와 명령을 확인한 뒤 서버를 추가하세요."
             )).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()

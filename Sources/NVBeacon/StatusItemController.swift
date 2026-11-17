@@ -2,14 +2,39 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// Whether the popover is open. Its hosting controller lives on while it is
+/// closed, so the content is built only while it is shown; otherwise every
+/// server refresh would recompute a view nobody can see.
+@MainActor
+private final class PopoverPresence: ObservableObject {
+    @Published var isShown: Bool
+
+    init(isShown: Bool) {
+        self.isShown = isShown
+    }
+}
+
 private struct StatusMenuContainerView: View {
     @ObservedObject var store: NVBeaconStore
+    @ObservedObject var presence: PopoverPresence
     let onContentHeightChange: (CGFloat) -> Void
     let onOpenHistory: () -> Void
+    var onOpenSettings: () -> Void = {}
+    var presentation: MonitorDisplayMode = .popover
 
     var body: some View {
-        StatusMenuView(store: store, onContentHeightChange: onContentHeightChange, onOpenHistory: onOpenHistory)
+        if presence.isShown {
+            StatusMenuView(
+                store: store,
+                onContentHeightChange: onContentHeightChange,
+                onOpenHistory: onOpenHistory,
+                onOpenSettings: onOpenSettings,
+                presentation: presentation
+            )
             .preferredColorScheme(colorScheme)
+        } else {
+            Color.clear
+        }
     }
 
     private var colorScheme: ColorScheme? {
@@ -36,6 +61,8 @@ private struct StatusItemContent: Equatable {
 final class StatusItemController: NSObject, NSPopoverDelegate {
     var showSettingsAction: (() -> Void)?
     var showHistoryAction: (() -> Void)?
+    var checkForUpdatesAction: (() -> Void)?
+    var canCheckForUpdates: () -> Bool = { false }
 
     private let store: NVBeaconStore
     private let settingsOpenBridge: SettingsOpenBridge
@@ -47,6 +74,25 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private var globalOutsideClickMonitor: Any?
     private lazy var settingsMenuItem = NSMenuItem(title: "", action: #selector(openSettings), keyEquivalent: ",")
     private lazy var quitMenuItem = NSMenuItem(title: "", action: #selector(quit), keyEquivalent: "q")
+    private lazy var refreshMenuItem = NSMenuItem(title: "", action: #selector(refreshNow), keyEquivalent: "r")
+    private lazy var historyMenuItem = NSMenuItem(title: "", action: #selector(openHistory), keyEquivalent: "")
+    private lazy var checkForUpdatesMenuItem = NSMenuItem(title: "", action: #selector(checkForUpdates), keyEquivalent: "")
+    private lazy var displayModeMenuItem = NSMenuItem(title: "", action: #selector(toggleDisplayMode), keyEquivalent: "")
+    private lazy var keepOnTopMenuItem = NSMenuItem(title: "", action: #selector(toggleKeepOnTop), keyEquivalent: "")
+    private lazy var monitorWindowController = MonitorWindowController(store: store) { [unowned self] in
+        NSHostingController(
+            rootView: StatusMenuContainerView(
+                store: store,
+                presence: PopoverPresence(isShown: true),
+                onContentHeightChange: { _ in },
+                onOpenHistory: { [weak self] in self?.showHistoryAction?() },
+                onOpenSettings: { [weak self] in self?.showSettingsAction?() },
+                presentation: .window
+            )
+        )
+    }
+    private var appliedDisplayMode: MonitorDisplayMode
+    private let popoverPresence = PopoverPresence(isShown: false)
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
     private var measuredContentHeight: CGFloat = 0
     private var appliedStatusItemContent: StatusItemContent?
@@ -56,6 +102,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         self.store = store
         self.settingsOpenBridge = settingsOpenBridge
         self.statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
+        self.appliedDisplayMode = store.settings.displayMode
         super.init()
 
         configurePopover()
@@ -64,6 +111,14 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         bindStore()
         updateStatusItemAppearance()
         updatePopoverSize()
+
+        // Window mode is a saved choice: reopen the window after a relaunch.
+        if appliedDisplayMode == .window {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                guard let self else { return }
+                monitorWindowController.show(anchor: statusItemScreenFrame)
+            }
+        }
     }
 
     @objc private func handleStatusItemClick(_ sender: NSStatusBarButton) {
@@ -76,7 +131,11 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         case .rightMouseUp:
             showContextMenu()
         case .leftMouseUp:
-            togglePopover(sender)
+            if store.settings.displayMode == .window {
+                monitorWindowController.toggle(anchor: statusItemScreenFrame)
+            } else {
+                togglePopover(sender)
+            }
         default:
             break
         }
@@ -91,6 +150,57 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         NSApplication.shared.terminate(nil)
     }
 
+    @objc private func refreshNow() {
+        store.refreshNow()
+    }
+
+    @objc private func openHistory() {
+        popover.performClose(nil)
+        showHistoryAction?()
+    }
+
+    @objc private func checkForUpdates() {
+        popover.performClose(nil)
+        checkForUpdatesAction?()
+    }
+
+    @objc private func toggleDisplayMode() {
+        store.setDisplayMode(store.settings.displayMode == .window ? .popover : .window)
+    }
+
+    @objc private func toggleKeepOnTop() {
+        store.setKeepsWindowOnTop(!store.settings.keepsWindowOnTop)
+    }
+
+    /// Nil until the menu bar has placed the item.
+    private var statusItemScreenFrame: NSRect? {
+        guard let button = statusItem.button, let window = button.window else { return nil }
+        let frame = window.convertToScreen(button.convert(button.bounds, to: nil))
+        // An item the menu bar has not placed (or has hidden) has a zero-height
+        // window at the screen origin.
+        guard window.frame.height > 0, window.frame.minY > 0, frame.width > 0,
+              NSScreen.screens.contains(where: { $0.frame.contains(NSPoint(x: frame.midX, y: frame.midY)) }) else { return nil }
+        return frame
+    }
+
+    /// Applies a display mode change from any source (header button, menu, Settings).
+    private func applyDisplayModeIfNeeded() {
+        let mode = store.settings.displayMode
+        guard mode != appliedDisplayMode else { return }
+        appliedDisplayMode = mode
+        switch mode {
+        case .window:
+            popover.performClose(nil)
+            monitorWindowController.show(anchor: statusItemScreenFrame)
+        case .popover:
+            monitorWindowController.hide()
+            // Open the popover right away so it is clear where the content went.
+            if let button = statusItem.button, !popover.isShown {
+                togglePopover(button)
+            }
+        }
+    }
+
     private func configurePopover() {
         popover.behavior = .applicationDefined
         popover.animates = true
@@ -98,12 +208,16 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.contentViewController = NSHostingController(
             rootView: StatusMenuContainerView(
                 store: store,
+                presence: popoverPresence,
                 onContentHeightChange: { [weak self] height in
                     self?.updateMeasuredContentHeight(height)
                 },
                 onOpenHistory: { [weak self] in
                     self?.popover.performClose(nil)
                     self?.showHistoryAction?()
+                },
+                onOpenSettings: { [weak self] in
+                    self?.openSettings()
                 }
             )
         )
@@ -113,7 +227,21 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     private func configureMenu() {
         settingsMenuItem.target = self
         quitMenuItem.target = self
+        displayModeMenuItem.target = self
+        keepOnTopMenuItem.target = self
+        refreshMenuItem.target = self
+        historyMenuItem.target = self
+        checkForUpdatesMenuItem.target = self
+        // Refresh and update checks set isEnabled themselves.
+        menu.autoenablesItems = false
         menu.items = [
+            refreshMenuItem,
+            historyMenuItem,
+            .separator(),
+            displayModeMenuItem,
+            keepOnTopMenuItem,
+            .separator(),
+            checkForUpdatesMenuItem,
             settingsMenuItem,
             .separator(),
             quitMenuItem,
@@ -144,14 +272,28 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     private func bindStore() {
+        // One store change often publishes several properties in a row; handle the
+        // burst once instead of once per property.
         store.objectWillChange
-            .receive(on: RunLoop.main)
+            .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateStatusItemAppearance()
                 self?.updatePopoverSize()
                 self?.updatePopoverAppearance()
                 self?.updatePopoverAutoCloseBehavior()
-                self?.updateMenuTitles()
+            }
+            .store(in: &cancellables)
+        // The menu is rebuilt when it opens (showContextMenu), not on every refresh.
+        // objectWillChange fires before the value changes; read settings after it.
+        store.$settings
+            .map { ($0.displayMode, $0.keepsWindowOnTop) }
+            .removeDuplicates { $0 == $1 }
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                guard let self else { return }
+                applyDisplayModeIfNeeded()
+                monitorWindowController.applyKeepOnTop()
+                updateMenuTitles()
             }
             .store(in: &cancellables)
         NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification)
@@ -177,6 +319,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func showContextMenu() {
         popover.performClose(nil)
+        updateMenuTitles()
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
         statusItem.menu = nil
@@ -217,6 +360,19 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let language = store.settings.resolvedLanguage
         settingsMenuItem.title = language.text("Settings…", "설정…")
         quitMenuItem.title = language.text("Quit NVBeacon", "NVBeacon 종료")
+        let windowMode = store.settings.displayMode == .window
+        displayModeMenuItem.title = windowMode
+            ? language.text("Show as Popover", "팝오버로 보기")
+            : language.text("Show as Window", "창으로 보기")
+        keepOnTopMenuItem.title = language.text("Keep Window on Top", "항상 위에 표시")
+        keepOnTopMenuItem.state = store.settings.keepsWindowOnTop ? .on : .off
+        keepOnTopMenuItem.isHidden = !windowMode
+        refreshMenuItem.title = language.text("Refresh Now", "지금 새로고침")
+        refreshMenuItem.isEnabled = store.settings.isConfigured
+        historyMenuItem.title = language.text("GPU History…", "GPU 기록…")
+        historyMenuItem.isHidden = !store.settings.recordsGPUHistory
+        checkForUpdatesMenuItem.title = language.text("Check for Updates…", "업데이트 확인…")
+        checkForUpdatesMenuItem.isEnabled = canCheckForUpdates()
     }
 
     private func updatePopoverSize() {
@@ -226,8 +382,16 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         let contentHeight = measuredContentHeight > 0 ? measuredContentHeight : fallbackHeight
         let maxHeight = maxPopoverHeight()
         let minHeight = min(CGFloat(320), maxHeight)
-        let height = min(maxHeight, max(minHeight, contentHeight))
-        popover.contentSize = NSSize(width: CGFloat(store.settings.resolvedPopoverWidth), height: height)
+        let height = switch store.settings.popoverHeightMode {
+        case .automatic:
+            min(maxHeight, max(minHeight, contentHeight))
+        case .fixed:
+            min(maxHeight, CGFloat(store.settings.resolvedPopoverHeight))
+        }
+        let size = NSSize(width: CGFloat(store.settings.resolvedPopoverWidth), height: height)
+        if popover.contentSize != size {
+            popover.contentSize = size
+        }
     }
 
     private func maxPopoverHeight() -> CGFloat {
@@ -329,7 +493,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
+    func popoverWillShow(_ notification: Notification) {
+        popoverPresence.isShown = true
+    }
+
     func popoverDidClose(_ notification: Notification) {
         removeOutsideClickMonitor()
+        popoverPresence.isShown = false
     }
 }

@@ -294,6 +294,41 @@ import Testing
     }
 }
 
+@Test func windowAndPopoverHeightSettingsHaveDefaultsAndPersist() throws {
+    // Settings saved before window mode existed decode with the old behavior.
+    let legacy = try JSONDecoder().decode(AppSettings.self, from: Data(#"{"popoverWidth": 600}"#.utf8))
+    #expect(legacy.displayMode == .popover)
+    #expect(legacy.keepsWindowOnTop == false)
+    #expect(legacy.popoverHeightMode == .automatic)
+    #expect(legacy.popoverHeight == 600)
+
+    let configured = AppSettings(popoverHeightMode: .fixed, popoverHeight: 840, displayMode: .window, keepsWindowOnTop: true)
+    let restored = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(configured))
+    #expect(restored.displayMode == .window)
+    #expect(restored.keepsWindowOnTop == true)
+    #expect(restored.popoverHeightMode == .fixed)
+    #expect(restored.popoverHeight == 840)
+
+    for (requested, expected) in [(-1, 320), (319, 320), (320, 320), (600, 600), (1100, 1100), (1101, 1100), (Int.max, 1100)] {
+        let settings = AppSettings(popoverHeight: requested)
+        #expect(settings.resolvedPopoverHeight == expected)
+        #expect(settings.normalized().popoverHeight == expected)
+    }
+}
+
+@Test func displaySettingsDoNotRestartPolling() {
+    let server = ServerConfig(name: "GPU", sshTarget: "gpu-a")
+    let base = AppSettings(servers: [server])
+    let changed = AppSettings(
+        servers: [server],
+        popoverHeightMode: .fixed,
+        popoverHeight: 900,
+        displayMode: .window,
+        keepsWindowOnTop: true
+    )
+    #expect(PollingConfiguration(base) == PollingConfiguration(changed))
+}
+
 @Test func normalizesLegacySettingsIntoSingleServerConfig() {
     let settings = AppSettings(
         sshTarget: "gpu-prod",
@@ -908,4 +943,23 @@ private func runNetworkSampleCommand(sysNetPath: URL, procNetDevPath: String) th
     #expect(reading.networkSample?.interfaces.count == 1)
     #expect(reading.snapshot.gpus.count == 1)
     #expect(SSHMetricsFetcher.parseHostCPU("__NVBEACON_CPU_SECTION__\ncpu 1 2 3 4\ncpu 1 2 3 4") == nil)
+}
+
+@Test func connectionTestFailuresUseTheDiagnosticCategories() {
+    let message = "Permission denied (publickey)."
+    #expect(DiagnosticsReport.errorCategoryTitle(message, in: .english) == "Authentication")
+    #expect(DiagnosticsReport.errorCategoryTitle(message, in: .korean) == "인증 실패")
+    #expect(DiagnosticsReport.errorCategoryTitle("ssh: connect to host gpu port 22: Operation timed out", in: .korean) == "시간 초과")
+    #expect(DiagnosticsReport.errorCategoryTitle("something unusual", in: .korean) == "기타 오류")
+}
+
+@Test func connectionComparisonIgnoresNameAndEnabledState() {
+    let server = ServerConfig(name: "A", sshTarget: "gpu-a")
+    var renamed = server
+    renamed.name = "B"
+    renamed.isEnabled.toggle()
+    #expect(server.hasSameConnection(as: renamed))
+    var moved = server
+    moved.sshPort = "2222"
+    #expect(!server.hasSameConnection(as: moved))
 }
