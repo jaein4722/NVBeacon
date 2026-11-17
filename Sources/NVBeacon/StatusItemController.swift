@@ -249,9 +249,9 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
                 self?.updatePopoverSize()
                 self?.updatePopoverAppearance()
                 self?.updatePopoverAutoCloseBehavior()
-                self?.updateMenuTitles()
             }
             .store(in: &cancellables)
+        // The menu is rebuilt when it opens (showContextMenu), not on every refresh.
         // objectWillChange fires before the value changes; read settings after it.
         store.$settings
             .map { ($0.displayMode, $0.keepsWindowOnTop) }
