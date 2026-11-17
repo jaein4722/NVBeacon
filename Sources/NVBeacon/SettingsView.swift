@@ -400,6 +400,21 @@ struct SettingsView: View {
                     )
                 )
                 .disabled(!appUpdater.availability.isAvailable || !appUpdater.automaticallyChecksForUpdates)
+
+                LabeledContent {
+                    Button(t("Check Now", "지금 확인")) {
+                        appUpdater.checkForUpdates()
+                    }
+                    .disabled(!appUpdater.canCheckForUpdates)
+                } label: {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(t("Check for Updates", "업데이트 확인"))
+                        Text(lastUpdateCheckText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .onAppear { appUpdater.refreshLastUpdateCheckDate() }
             } header: {
                 Text(t("Updates", "업데이트"))
             }
@@ -823,6 +838,20 @@ struct SettingsView: View {
             .frame(maxWidth: .infinity, alignment: .top)
         }
         .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var lastUpdateCheckText: String {
+        guard appUpdater.availability.isAvailable else {
+            return appUpdater.availability.title(in: language)
+        }
+        guard let date = appUpdater.lastUpdateCheckDate else {
+            return t("Not checked yet", "아직 확인하지 않음")
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: language == .korean ? "ko_KR" : "en_US")
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return t("Last checked: \(formatter.string(from: date))", "마지막 확인: \(formatter.string(from: date))")
     }
 
     private func scheduleAutoApply() {
