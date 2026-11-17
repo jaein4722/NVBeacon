@@ -2,22 +2,39 @@ import AppKit
 import Combine
 import SwiftUI
 
+/// Whether the popover is open. Its hosting controller lives on while it is
+/// closed, so the content is built only while it is shown; otherwise every
+/// server refresh would recompute a view nobody can see.
+@MainActor
+private final class PopoverPresence: ObservableObject {
+    @Published var isShown: Bool
+
+    init(isShown: Bool) {
+        self.isShown = isShown
+    }
+}
+
 private struct StatusMenuContainerView: View {
     @ObservedObject var store: NVBeaconStore
+    @ObservedObject var presence: PopoverPresence
     let onContentHeightChange: (CGFloat) -> Void
     let onOpenHistory: () -> Void
     var onOpenSettings: () -> Void = {}
     var presentation: MonitorDisplayMode = .popover
 
     var body: some View {
-        StatusMenuView(
-            store: store,
-            onContentHeightChange: onContentHeightChange,
-            onOpenHistory: onOpenHistory,
-            onOpenSettings: onOpenSettings,
-            presentation: presentation
-        )
-        .preferredColorScheme(colorScheme)
+        if presence.isShown {
+            StatusMenuView(
+                store: store,
+                onContentHeightChange: onContentHeightChange,
+                onOpenHistory: onOpenHistory,
+                onOpenSettings: onOpenSettings,
+                presentation: presentation
+            )
+            .preferredColorScheme(colorScheme)
+        } else {
+            Color.clear
+        }
     }
 
     private var colorScheme: ColorScheme? {
@@ -58,6 +75,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         NSHostingController(
             rootView: StatusMenuContainerView(
                 store: store,
+                presence: PopoverPresence(isShown: true),
                 onContentHeightChange: { _ in },
                 onOpenHistory: { [weak self] in self?.showHistoryAction?() },
                 onOpenSettings: { [weak self] in self?.showSettingsAction?() },
@@ -66,6 +84,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         )
     }
     private var appliedDisplayMode: MonitorDisplayMode
+    private let popoverPresence = PopoverPresence(isShown: false)
     private var settingsRelayHostingView: NSHostingView<SettingsActionRelayView>?
     private var measuredContentHeight: CGFloat = 0
 
@@ -179,6 +198,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.contentViewController = NSHostingController(
             rootView: StatusMenuContainerView(
                 store: store,
+                presence: popoverPresence,
                 onContentHeightChange: { [weak self] height in
                     self?.updateMeasuredContentHeight(height)
                 },
@@ -443,7 +463,12 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
         popover.performClose(nil)
     }
 
+    func popoverWillShow(_ notification: Notification) {
+        popoverPresence.isShown = true
+    }
+
     func popoverDidClose(_ notification: Notification) {
         removeOutsideClickMonitor()
+        popoverPresence.isShown = false
     }
 }
