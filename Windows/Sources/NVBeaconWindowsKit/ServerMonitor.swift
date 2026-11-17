@@ -39,6 +39,26 @@ public struct ServerState: Sendable {
     }
 }
 
+/// Logins whose saved password the server refused. The app keeps one for its whole
+/// run, so a refusal outlives the monitor that is rebuilt on every settings edit: the
+/// same wrong password is never tried again until it is saved again, or the server's
+/// target, port, key file or authentication method changes.
+public final class PasswordRejections: @unchecked Sendable {
+    private let lock = NSLock()
+    private var logins: Set<String> = []
+
+    public init() {}
+
+    private static func login(_ server: ServerSettings) -> String { server.id + "\n" + server.connectionFingerprint }
+
+    public func contains(_ server: ServerSettings) -> Bool { lock.withLock { logins.contains(Self.login(server)) } }
+    public func insert(_ server: ServerSettings) { _ = lock.withLock { logins.insert(Self.login(server)) } }
+    /// The password was saved again or removed.
+    public func remove(serverID: String) {
+        lock.withLock { logins = logins.filter { !$0.hasPrefix(serverID + "\n") } }
+    }
+}
+
 /// Polls every enabled server on a fixed interval and reports each change.
 public final class ServerMonitor: @unchecked Sendable {
     public let interval: Duration
@@ -49,6 +69,7 @@ public final class ServerMonitor: @unchecked Sendable {
     /// NVBeacon.exe, which answers ssh's password prompt (nil: no password authentication).
     public let askPassExecutable: String?
     public let passwordStore: SSHPasswordStore
+    public let rejections: PasswordRejections
     private let lock = NSLock()
     private var states: [ServerState]
     private var refreshGeneration = 0
@@ -75,17 +96,32 @@ public final class ServerMonitor: @unchecked Sendable {
                 localUsername: String? = ProcessInfo.processInfo.environment["USERNAME"],
                 askPassExecutable: String? = nil, passwordStore: SSHPasswordStore = SSHPasswordStore(),
                 connectionPool: SSHConnectionPool = SSHConnectionPool(),
+                rejections: PasswordRejections = PasswordRejections(),
+                previous: [ServerState] = [],
                 onChange: @escaping @Sendable () -> Void) {
         self.interval = interval
         self.askPassExecutable = askPassExecutable
         self.passwordStore = passwordStore
         self.connectionPool = connectionPool
+        self.rejections = rejections
         self.hostMetrics = hostMetrics
         self.highlightsMyProcesses = highlightsMyProcesses
         self.samplesUserUtilization = samplesUserUtilization
         self.states = servers.map { server in
-            ServerState(server: server, detectedSSHUsername: highlightsMyProcesses
+            var state = ServerState(server: server, detectedSSHUsername: highlightsMyProcesses
                 ? Self.detectedSSHUsername(for: server, sshConfigHosts: sshConfigHosts, localUsername: localUsername) : nil)
+            // A server that still connects the same way keeps what it showed until its next poll.
+            if let old = previous.first(where: { $0.id == server.id && $0.server.connectionFingerprint == server.connectionFingerprint }) {
+                state.snapshot = old.snapshot
+                state.cpuPercent = old.cpuPercent
+                state.networkUsage = old.networkUsage
+                state.lastError = old.lastError
+                state.lastAttempt = old.lastAttempt
+                state.passwordMissing = old.passwordMissing
+                if state.detectedSSHUsername == old.detectedSSHUsername { state.detectedSSHUserID = old.detectedSSHUserID }
+            }
+            state.passwordRejected = rejections.contains(server)
+            return state
         }
         self.onChange = onChange
     }
@@ -143,10 +179,11 @@ public final class ServerMonitor: @unchecked Sendable {
         }
     }
 
-    /// Stops polling and closes every kept connection.
-    public func stop() {
+    /// Stops polling and closes every kept connection. A monitor replaced after a
+    /// settings change passes false, so the next monitor reuses the connections.
+    public func stop(closingConnections: Bool = true) {
         loop?.cancel()
-        connectionPool.closeAll()
+        if closingConnections { connectionPool.closeAll() }
     }
 
     /// Every server's loop polls again right away.
@@ -204,6 +241,7 @@ public final class ServerMonitor: @unchecked Sendable {
     /// The password was saved or removed in Settings: forget the rejection, drop the
     /// connections that used the old password, and poll again.
     public func passwordChanged(serverID: String) {
+        rejections.remove(serverID: serverID)
         connectionPool.close(serverID: serverID)
         lock.withLock {
             guard let index = states.firstIndex(where: { $0.id == serverID }) else { return }
@@ -262,6 +300,8 @@ public final class ServerMonitor: @unchecked Sendable {
 
     private func poll(index: Int) async {
         let claimed: (ServerSettings, String?, Int?)? = lock.withLock {
+            // The rejection may come from the monitor this one replaced, after it was built.
+            if rejections.contains(states[index].server) { states[index].passwordRejected = true }
             guard !states[index].isRefreshing, states[index].server.isPollable,
                   !states[index].passwordRejected else { return nil }
             states[index].isRefreshing = true
@@ -331,7 +371,10 @@ public final class ServerMonitor: @unchecked Sendable {
                 state.lastError = nil
             case .failure(let error):
                 state.lastError = Self.message(for: error)
-                if usesPassword(server), Self.isAuthenticationFailure(error) { state.passwordRejected = true }
+                if usesPassword(server), Self.isAuthenticationFailure(error) {
+                    state.passwordRejected = true
+                    rejections.insert(server)
+                }
             }
             states[index] = state
         }

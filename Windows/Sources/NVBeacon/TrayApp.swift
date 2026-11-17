@@ -139,6 +139,10 @@ final class TrayApp {
     let watches = WatchStore(fileURL: WatchStore.defaultFileURL)
     /// SSH passwords in Windows Credential Manager.
     let passwordStore = SSHPasswordStore()
+    /// Kept for the whole run, so a settings edit does not reconnect every server
+    /// or forget that a server refused its saved password.
+    private let connectionPool: SSHConnectionPool
+    private let rejections: PasswordRejections
     /// What polling tasks read when they evaluate alerts.
     private let alertSettings: Locked<WindowsSettings>
     private let pendingNotifications = Locked<[PendingNotification]>([])
@@ -153,7 +157,11 @@ final class TrayApp {
         self.taskbarCreatedMessage = "TaskbarCreated".withCString(encodedAs: UTF16.self) { RegisterWindowMessageW($0) }
         Theme.preference = settings.appearanceMode
         Theme.languagePreference = settings.languagePreference
-        self.monitor = Self.makeMonitor(servers: sessionServers ?? settings.servers, settings: settings)
+        let connectionPool = SSHConnectionPool(), rejections = PasswordRejections()
+        self.connectionPool = connectionPool
+        self.rejections = rejections
+        self.monitor = Self.makeMonitor(servers: sessionServers ?? settings.servers, settings: settings,
+                                        connectionPool: connectionPool, rejections: rejections)
         configureAlerts(monitor)
     }
 
@@ -195,13 +203,16 @@ final class TrayApp {
         stateChanged()
     }
 
-    private static func makeMonitor(servers: [ServerSettings], settings: WindowsSettings) -> ServerMonitor {
+    private static func makeMonitor(servers: [ServerSettings], settings: WindowsSettings,
+                                    connectionPool: SSHConnectionPool, rejections: PasswordRejections,
+                                    previous: [ServerState] = []) -> ServerMonitor {
         ServerMonitor(servers: servers, interval: .seconds(settings.pollIntervalSeconds),
                       hostMetrics: settings.hostMetricsOptions,
                       highlightsMyProcesses: settings.highlightsMyProcesses,
                       samplesUserUtilization: settings.recordsGPUHistory,
                       sshConfigHosts: SSHConfigHosts.load(),
-                      askPassExecutable: Resources.executablePath) {
+                      askPassExecutable: Resources.executablePath,
+                      connectionPool: connectionPool, rejections: rejections, previous: previous) {
             PostMessageW(HWND(bitPattern: trayWindowBits), stateChangedMessage, 0, 0)
         }
     }
@@ -583,8 +594,18 @@ final class TrayApp {
             || old.highlightsMyProcesses != newSettings.highlightsMyProcesses
             || old.recordsGPUHistory != newSettings.recordsGPUHistory
         if pollingChanged, sessionServers == nil {
-            monitor.stop()
-            monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings)
+            let previous = monitor.snapshot
+            monitor.stop(closingConnections: false)
+            // Kept connections stay open for servers that still use them; a server that now
+            // connects differently gets a new one from the pool.
+            for server in old.servers {
+                let current = newSettings.servers.first { $0.id == server.id }
+                if current == nil || current?.isPollable == false || current?.sshConnectionReuseMode == .newConnectionEachRefresh {
+                    connectionPool.close(serverID: server.id)
+                }
+            }
+            monitor = Self.makeMonitor(servers: newSettings.servers, settings: newSettings,
+                                       connectionPool: connectionPool, rejections: rejections, previous: previous)
             configureAlerts(monitor)
             monitor.start()
         }

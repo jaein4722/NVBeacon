@@ -83,13 +83,16 @@ public final class SSHConnectionPool: @unchecked Sendable {
                 stale.append(other)
                 sessions[otherKey] = nil
             }
-            if let existing = sessions[key] { return existing }
-            let session = PersistentSSHSession(
-                executable: sshExecutable,
-                arguments: SSHTransport.sessionArguments(target: transport.target, port: transport.port,
-                                                         identityFile: transport.identityFile,
-                                                         authentication: transport.authentication),
-                environment: transport.authentication.environment)
+            let arguments = SSHTransport.sessionArguments(target: transport.target, port: transport.port,
+                                                          identityFile: transport.identityFile,
+                                                          authentication: transport.authentication)
+            let environment = transport.authentication.environment
+            if let existing = sessions[key] {
+                // The pool outlives settings edits: a server that now connects differently gets a new connection.
+                if existing.arguments == arguments, existing.environment == environment { return existing }
+                stale.append(existing)
+            }
+            let session = PersistentSSHSession(executable: sshExecutable, arguments: arguments, environment: environment)
             sessions[key] = session
             return session
         }

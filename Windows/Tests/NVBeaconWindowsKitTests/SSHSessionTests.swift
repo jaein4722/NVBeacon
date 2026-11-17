@@ -152,6 +152,37 @@ func sessionTimesOutAndCanBeReplaced() throws {
     #expect(!ServerMonitor.isAuthenticationFailure(MetricsCollectionError.commandFailed(1, "Permission denied")))
 }
 
+@Test func passwordRejectionOutlivesTheMonitorUntilTheLoginChanges() {
+    var server = ServerSettings(sshTarget: "alice@gpu-a")
+    server.sshAuthenticationMode = .passwordBased
+    let rejections = PasswordRejections()
+    rejections.insert(server)
+    func rejected(_ server: ServerSettings) -> Bool {
+        ServerMonitor(servers: [server], interval: .seconds(60), rejections: rejections) {}.snapshot[0].passwordRejected
+    }
+    #expect(rejected(server))
+    var renamed = server
+    renamed.name = "Renamed"
+    #expect(rejected(renamed), "an edit that does not change the login keeps the refusal")
+    var moved = server
+    moved.sshTarget = "alice@gpu-b"
+    #expect(!rejected(moved), "another login may be tried")
+    rejections.remove(serverID: server.id)
+    #expect(!rejected(server))
+}
+
+@Test func rebuiltMonitorKeepsWhatAnUnchangedServerShowed() {
+    let server = ServerSettings(sshTarget: "demo:a")
+    var old = ServerState(server: server)
+    old.lastError = "earlier error"
+    var renamed = server
+    renamed.name = "Renamed"
+    #expect(ServerMonitor(servers: [renamed], interval: .seconds(60), previous: [old]) {}.snapshot[0].lastError == "earlier error")
+    var moved = server
+    moved.sshTarget = "demo:b"
+    #expect(ServerMonitor(servers: [moved], interval: .seconds(60), previous: [old]) {}.snapshot[0].lastError == nil)
+}
+
 // MARK: Settings
 
 @Test func serversSavedBeforeReuseModeExistedDefaultToReuse() throws {

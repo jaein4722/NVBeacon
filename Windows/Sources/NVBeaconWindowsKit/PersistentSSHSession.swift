@@ -111,8 +111,8 @@ final class PersistentSSHSession: @unchecked Sendable {
     }
 
     private let executable: String
-    private let arguments: [String]
-    private let environment: [String: String]
+    let arguments: [String]
+    let environment: [String: String]
     private let outputLimit: Int
     private let requestLock = NSLock()
     private let stateLock = NSLock()
