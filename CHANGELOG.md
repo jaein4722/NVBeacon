@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.9.0 - 2026-11-17
+
+- **NVBeacon for iPhone and iPad is on the App Store.** The **Transfer All Servers to iPhone…** screen now links to it: [Get it on the App Store](https://apps.apple.com/app/nvbeacon/id6830951631).
+- Added a window mode. Choose **Show as Window** from the popover header, the menu bar item's right-click menu, or **Settings → Display → Display mode**. The window opens under the menu bar item, remembers its place, and can stay above other windows with **Keep Window on Top**. Clicking the menu bar item brings it forward or hides it.
+- Added a popover height setting: fit the content as before, or use a fixed height from 320 to 1,100 points.
+- Added **Test Connection** to each server's settings. It runs one collection with the current settings and shows the reason when it fails.
+- Reorganized Settings into General, Servers, Monitoring, Notifications, Display, Advanced and About, with consistent wording and the range and default under each number.
+- The menu bar item's right-click menu now has **Refresh Now**, **Show as Window**, **GPU History…** (while recording) and **Check for Updates…**, and the popover header has a settings button. **Settings → General → Updates** adds **Check Now** and the last check time.
+- Turning on **Record GPU history** now asks for confirmation and explains what is stored, and **Delete History…** removes the recorded data.
+- Each server is now polled on its own schedule, so a slow or unreachable server no longer delays the others.
+- The summary's **Updated** time now shows the oldest data instead of the newest, and a server that missed refreshes shows how long ago it last updated.
+- Fixed process details from a slow lookup replacing a newer process list, and an idle alert firing right after the Mac wakes from sleep.
+- GPU processes whose `/proc` entry is hidden on the server (for example with `hidepid` or in containers) are now listed with an unknown owner instead of disappearing.
+- Text that a server's login profile prints, such as a welcome banner, no longer breaks collection.
+- NVBeacon now uses less CPU: with eight servers it used about 40% less than 0.8.1, because the menu bar item and the popover update only when what they show changes.
+- The About links are now translated into Korean.
+
 ## 0.8.1 - 2026-11-16
 
 - Fixed a crash when opening GPU History after quitting and relaunching NVBeacon within the same minute, for example after an update. History files that already hold a repeated minute are merged when loaded.

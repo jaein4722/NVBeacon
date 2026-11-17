@@ -72,7 +72,7 @@ On each server you only need SSH access and `nvidia-smi`.
 
 | | Mac | iPhone & iPad |
 | --- | --- | --- |
-| Where it lives | Menu bar summary (text or icon) and a popover | Overview of all servers; split view on wider screens |
+| Where it lives | Menu bar summary (text or icon) and a popover, or a window you can keep on top | Overview of all servers; split view on wider screens |
 | Refresh | Every 1–300 seconds (default 10), in the background | Every 5–300 seconds while the app is open |
 | Job alerts | Notifications when a watched process exits or a starred GPU stays idle | — |
 | GPU history | Optional, per user, up to 24 hours | — |
@@ -85,8 +85,8 @@ On each server you only need SSH access and `nvidia-smi`.
 
 1. Open NVBeacon. It appears in the menu bar.
 2. Right-click the menu bar item and choose **Settings…**.
-3. Add a server, or import one from `~/.ssh/config`, and choose key or password authentication.
-4. Left-click the menu bar item to open the popover.
+3. In **Servers**, add a server or import one from `~/.ssh/config`, choose key or password authentication, and click **Test Connection**.
+4. Left-click the menu bar item to open the popover. To keep it open on screen, choose **Show as Window**.
 5. Allow notifications if you want job alerts.
 
 Settings apply as you change them.
@@ -110,7 +110,7 @@ To bring your Mac servers over, put both devices on the same network. On the Mac
 <details>
 <summary>The popover says <code>nvidia-smi</code> was not found.</summary>
 
-Non-interactive SSH shells often have a shorter `PATH`. In the Mac app, open **Settings → Advanced** and set the GPU query command for that server to an absolute path such as `/usr/bin/nvidia-smi`.
+Non-interactive SSH shells often have a shorter `PATH`. In the Mac app, open **Settings → Servers**, select the server and set its GPU query command to an absolute path such as `/usr/bin/nvidia-smi`.
 </details>
 
 <details>
@@ -142,7 +142,7 @@ On Mac, yes: NVBeacon uses your OpenSSH setup, including `ProxyJump` in `~/.ssh/
 <details>
 <summary>Custom query commands</summary>
 
-In **Advanced**, the GPU query command and the host information command apply to the server selected in **General**. An empty host command restores the default script.
+In **Settings → Servers**, the GPU query command and the host information command apply to the selected server. An empty host command restores the default script.
 
 A custom host command must print these sections:
 
@@ -158,7 +158,7 @@ The app sets `NVBEACON_COLLECT_CPU`, `NVBEACON_COLLECT_MEMORY` and `NVBEACON_COL
 <details>
 <summary>Server backups</summary>
 
-**Advanced → Export Servers…** saves server settings as `NVBeacon.servers` JSON (version 2). Each target is resolved with OpenSSH to its effective user, host and port. Export stops if a server needs ProxyJump or ProxyCommand. Backups include key-file paths, authentication and reuse modes, and custom commands; treat them as private.
+**Settings → Advanced → Export Servers…** saves server settings as `NVBeacon.servers` JSON (version 2). Each target is resolved with OpenSSH to its effective user, host and port. Export stops if a server needs ProxyJump or ProxyCommand. Backups include key-file paths, authentication and reuse modes, and custom commands; treat them as private.
 
 **Import Servers…** shows a preview first. Imported servers get new IDs and start disabled, and existing servers are kept. Importing does not install keys or restore passwords. Version 1 backups can still be imported. The limit is 100 servers and 1 MB.
 </details>
