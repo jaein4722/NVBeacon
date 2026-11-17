@@ -5,7 +5,7 @@ import NVBeaconWindowsKit
 /// Windows port of the macOS diagnostics report: an allowlist of facts, never
 /// host names, users, addresses, key paths, custom commands or process details.
 enum DiagnosticsReport {
-    static let appVersion = "Windows preview (feat/windows)"
+    static var appVersion: String { AppIdentity.version.map { $0 + " (Windows)" } ?? "Windows development build" }
 
     static func make(settings: WindowsSettings, states: [ServerState], now: Date = Date()) -> String {
         let dateFormat = ISO8601DateFormatter()

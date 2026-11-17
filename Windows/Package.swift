@@ -40,6 +40,7 @@ let package = Package(
                 .linkedLibrary("Ole32"),
                 .linkedLibrary("Advapi32"),
                 .linkedLibrary("Shcore"),
+                .linkedLibrary("Version"),
             ]
         ),
         .executableTarget(

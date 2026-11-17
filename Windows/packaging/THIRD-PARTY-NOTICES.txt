@@ -1,0 +1,21 @@
+NVBeacon for Windows includes the following third-party components.
+
+Swift runtime and core libraries (swiftCore.dll, swift_Concurrency.dll, Foundation*.dll,
+dispatch.dll, BlocksRuntime.dll and related swift*.dll files)
+  Copyright Apple Inc. and the Swift project authors
+  Apache License 2.0 with Runtime Library Exception
+  https://swift.org/LICENSE.txt
+
+ICU (_FoundationICU.dll)
+  Copyright Unicode, Inc. and others
+  Unicode License v3
+  https://github.com/unicode-org/icu/blob/main/LICENSE
+
+Microsoft Visual C++ runtime (vcruntime140*.dll, msvcp140*.dll)
+  Copyright Microsoft Corporation
+  Redistributed under the Visual Studio redistribution terms
+  https://learn.microsoft.com/visualstudio/releases/2022/redistribution
+
+Microsoft Edge WebView2 SDK loader (WebView2Loader.dll)
+  Copyright Microsoft Corporation
+  BSD 3-Clause License, see WebView2-LICENSE.txt

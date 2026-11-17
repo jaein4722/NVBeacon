@@ -61,4 +61,9 @@ SSH:
   codes), once per connection. If the server rejects the password, polling of
   that server stops until the password is saved again.
 
-Current limits: no automatic updates or installer yet.
+Packaging: `scripts\package.ps1 -Version 1.2.3` builds a release folder and zip in
+`dist\` that runs without the Swift toolchain (Swift and C++ runtime DLLs, the
+WebView2 loader, the UI files and license notices). The icon and version
+information are compiled into the executables from `packaging\NVBeacon.rc.in`.
+
+Current limits: no installer or automatic updates yet.

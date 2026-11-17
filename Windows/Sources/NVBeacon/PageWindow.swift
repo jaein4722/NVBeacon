@@ -42,7 +42,8 @@ final class PageWindow {
             windowClass.lpfnWndProc = pageWindowProcedure
             windowClass.hInstance = instance
             windowClass.hCursor = LoadCursorW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))
-            windowClass.hIcon = LoadIconW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))  // IDI_APPLICATION
+            windowClass.hIcon = AppIdentity.icon(small: false)
+            windowClass.hIconSm = AppIdentity.icon(small: true)
             windowClass.lpszClassName = name
             return RegisterClassExW(&windowClass) != 0
         }

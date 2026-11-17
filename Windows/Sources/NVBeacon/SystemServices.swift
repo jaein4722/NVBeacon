@@ -2,6 +2,41 @@ import Foundation
 import NVBeaconWindowsKit
 import WinSDK
 
+/// The icon and version that scripts/package.ps1 compiles into NVBeacon.exe
+/// (packaging/NVBeacon.rc.in). Development builds have neither and fall back.
+enum AppIdentity {
+    /// ProductVersion from the version resource, e.g. "1.0.0".
+    static let version: String? = {
+        let path = Resources.executablePath
+        var ignored: DWORD = 0
+        let size = path.withCString(encodedAs: UTF16.self) { GetFileVersionInfoSizeW($0, &ignored) }
+        guard size > 0 else { return nil }
+        var data = [UInt8](repeating: 0, count: Int(size))
+        let loaded = path.withCString(encodedAs: UTF16.self) { GetFileVersionInfoW($0, 0, size, &data) }
+        guard loaded else { return nil }
+        // The value points into `data`, so it is read before the buffer closure returns.
+        let text: String? = #"\StringFileInfo\040904b0\ProductVersion"#.withCString(encodedAs: UTF16.self) { key in
+            data.withUnsafeMutableBytes { buffer in
+                var value: UnsafeMutableRawPointer?
+                var length: UINT = 0
+                guard VerQueryValueW(buffer.baseAddress, key, &value, &length), let value, length > 1 else { return nil }
+                return String(decodingCString: value.assumingMemoryBound(to: WCHAR.self), as: UTF16.self)
+            }
+        }
+        return text?.isEmpty == false ? text : nil
+    }()
+
+    /// Icon resource 1 at the system's large or small icon size, else the generic application icon.
+    static func icon(small: Bool) -> HICON? {
+        let size = GetSystemMetrics(small ? SM_CXSMICON : SM_CXICON)
+        if let handle = LoadImageW(GetModuleHandleW(nil), UnsafePointer<WCHAR>(bitPattern: 1), UINT(IMAGE_ICON),
+                                   size, size, UINT(LR_DEFAULTCOLOR)) {
+            return HICON(OpaquePointer(handle))
+        }
+        return LoadIconW(nil, UnsafePointer<WCHAR>(bitPattern: 32512))  // IDI_APPLICATION
+    }
+}
+
 /// Launch at login through the per-user Run key (no elevation needed).
 enum LaunchAtLogin {
     private static let key = #"Software\Microsoft\Windows\CurrentVersion\Run"#
