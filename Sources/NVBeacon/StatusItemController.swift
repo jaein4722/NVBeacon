@@ -262,8 +262,10 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
     }
 
     private func bindStore() {
+        // One store change often publishes several properties in a row; handle the
+        // burst once instead of once per property.
         store.objectWillChange
-            .receive(on: RunLoop.main)
+            .debounce(for: .milliseconds(50), scheduler: RunLoop.main)
             .sink { [weak self] _ in
                 self?.updateStatusItemAppearance()
                 self?.updatePopoverSize()
