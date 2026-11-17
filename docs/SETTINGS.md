@@ -28,9 +28,9 @@ iOS has one Settings screen instead of tabs. Its sections follow the desktop tab
 | Advanced | Transfer from Mac, server import and export, diagnostic information |
 | About | Version and build, open source licenses, links |
 
-Monitoring, GPUs and Processes, and Host Information are the sections of the desktop Monitoring tab, with the same names.
+Monitoring, GPUs and Processes, and Host Information hold what the desktop Monitoring tab holds. On the desktop the first of these sections is titled Collection; all are 수집 in Korean.
 
-- The server list is the main screen. Per-server settings (connection, authentication, reuse, commands) and connection tips live only in the server editor, as in the desktop Servers tab. Its toolbar menu also offers the Advanced transfer, import and export actions.
+- The server list is the main screen. Per-server settings (connection, authentication, reuse, commands, host key trust) and connection tips live only in the server editor, as in the desktop Servers tab. The server list's toolbar menu also offers the Advanced transfer, import and export actions.
 - Platform notes, such as monitoring pausing in the background, go in a section footer rather than in a text row.
 - Desktop-only settings (launch at login, Dock icon, display mode, popover size, alert thresholds) are omitted, not shown disabled.
 
@@ -40,7 +40,7 @@ Monitoring, GPUs and Processes, and Host Information are the sections of the des
 2. **Per-server settings live only in Servers.** Everything that applies to the selected server (connection, commands, reuse, test) is there, and nothing global is.
 3. **Two places for help text.** Help for one item is a single caption line under its label. A note that covers a whole section is the section footer. Longer help for one item opens from a `?` button. No free-standing text rows, except transient status such as an import result.
 4. **Dependent controls.** Controls that depend on a switch stay visible and are disabled while the switch is off. Fields that belong to one choice of a picker (a fixed height, password fields, a threshold for one detection mode) appear only for that choice.
-5. **Order.** Common settings first. Reloading, clearing and deleting come last, use a red button and ask for confirmation.
+5. **Order.** Common settings first. Reloading and clearing saved settings come last. Deleting a server, the history or all saved settings uses a red button and asks for confirmation.
 6. **Ranges and defaults.** Numeric fields state their range and default in the caption, for example `1–300 s · Default 10 s`.
 7. **One name everywhere.** A setting that exists on several clients uses the same English and Korean label on each, even when the control differs (a stepper on macOS, a picker on iOS).
 
@@ -62,6 +62,7 @@ Monitoring, GPUs and Processes, and Host Information are the sections of the des
 | Concept | English | Korean |
 | --- | --- | --- |
 | Periodic remote query | collection, refresh | 수집, 새로고침 |
+| Monitoring tab or section | Monitoring | 수집 |
 | Refresh interval | Refresh interval | 새로고침 주기 |
 | Busy GPU | busy | 사용 중 |
 | Idle GPU | idle | 유휴 |
