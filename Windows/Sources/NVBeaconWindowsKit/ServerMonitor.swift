@@ -51,7 +51,7 @@ public final class ServerMonitor: @unchecked Sendable {
     public let passwordStore: SSHPasswordStore
     private let lock = NSLock()
     private var states: [ServerState]
-    private var refreshRequested = false
+    private var refreshGeneration = 0
     private var loop: Task<Void, Never>?
     private let onChange: @Sendable () -> Void
     /// What a successful poll hands to `afterPoll` (alerts and GPU history).
@@ -114,14 +114,31 @@ public final class ServerMonitor: @unchecked Sendable {
 
     public var snapshot: [ServerState] { lock.withLock { states } }
 
+    /// Each server polls in its own loop (as on macOS 0.9), so a slow or unreachable
+    /// server only delays itself.
     public func start() {
+        let count = lock.withLock { states.count }
         loop = Task.detached { [self] in
-            while !Task.isCancelled {
-                await pollAll()
-                let deadline = ContinuousClock.now + interval
-                while !Task.isCancelled, ContinuousClock.now < deadline, !takeRefreshRequest() {
-                    try? await Task.sleep(for: .milliseconds(200))
+            await withTaskGroup(of: Void.self) { group in
+                for index in 0..<count {
+                    group.addTask { [self] in await serverLoop(index: index) }
                 }
+            }
+        }
+    }
+
+    private func serverLoop(index: Int) async {
+        var seenRefresh = lock.withLock { refreshGeneration }
+        while !Task.isCancelled {
+            await poll(index: index)
+            let deadline = ContinuousClock.now + interval
+            while !Task.isCancelled, ContinuousClock.now < deadline {
+                let generation = lock.withLock { refreshGeneration }
+                if generation != seenRefresh {
+                    seenRefresh = generation
+                    break
+                }
+                try? await Task.sleep(for: .milliseconds(200))
             }
         }
     }
@@ -132,19 +149,13 @@ public final class ServerMonitor: @unchecked Sendable {
         connectionPool.closeAll()
     }
 
-    public func refreshNow() { lock.withLock { refreshRequested = true } }
+    /// Every server's loop polls again right away.
+    public func refreshNow() { lock.withLock { refreshGeneration += 1 } }
 
     /// Polls one server right away unless it is already being polled.
     public func refresh(serverID: String) {
         guard let index = lock.withLock({ states.firstIndex { $0.id == serverID } }) else { return }
         Task.detached { [self] in await poll(index: index) }
-    }
-
-    private func takeRefreshRequest() -> Bool {
-        lock.withLock {
-            defer { refreshRequested = false }
-            return refreshRequested
-        }
     }
 
     public func pollAll() async {
