@@ -25,7 +25,7 @@ struct MobileDiagnosticsView: View {
             }
             .monitorRowInsets()
         }
-        .navigationTitle("Diagnostics")
+        .navigationTitle("Diagnostic Information")
         .onChange(of: report) { _, _ in copied = false }
     }
 }

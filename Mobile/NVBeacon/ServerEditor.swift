@@ -43,7 +43,7 @@ struct ServerEditor: View {
     private func form(_ proxy: ScrollViewProxy) -> some View {
         Form {
             Group {
-                Section("Server") {
+                Section {
                     TextField("Name (optional)", text: $server.name)
                     fieldRow(.server(.host)) {
                         TextField("Hostname or IP address", text: $server.host).keyboardType(.URL)
@@ -59,6 +59,8 @@ struct ServerEditor: View {
                         }
                     }
                     Toggle("Enable monitoring", isOn: $server.isEnabled)
+                } header: { Text("Server") } footer: {
+                    Text("Use a reachable hostname or IP address and an explicit SSH username. Connect your VPN first for private servers. Verify the host fingerprint on your first connection.")
                 }
                 Section {
                     Picker("Authentication", selection: $server.authentication) {
