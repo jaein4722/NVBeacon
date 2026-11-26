@@ -30,7 +30,7 @@ $name = "NVBeacon-$Version-windows-x64"
 $dist = Join-Path $repo "dist\$name"
 New-Item -ItemType Directory -Force $work | Out-Null
 
-function Find-Tool([string]$pattern) {
+function Find-Tool([string[]]$pattern) {
     $found = Get-ChildItem $pattern -ErrorAction SilentlyContinue | Sort-Object FullName -Descending | Select-Object -First 1
     if (-not $found) { throw "Not found: $pattern" }
     $found.FullName
@@ -109,7 +109,9 @@ Copy-Item (Join-Path $bin "NVBeacon.exe"), (Join-Path $bin "nvbeacon-cli.exe"), 
 Copy-Item (Join-Path $bin "NVBeaconWindows_NVBeacon.resources") $dist -Recurse
 
 # Swift and C++ runtime DLLs the executables load, found by walking their imports.
-$dumpbin = Find-Tool "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe"
+# Visual Studio 2022 or 2026 ("18"): Build Tools install under Program Files (x86),
+# full editions (as on GitHub's Windows runners) under Program Files.
+$dumpbin = Find-Tool ("${env:ProgramFiles(x86)}", "$env:ProgramFiles" | ForEach-Object { "$_\Microsoft Visual Studio\*\*\VC\Tools\MSVC\*\bin\Hostx64\x64\dumpbin.exe" })
 $runtime = Split-Path (Get-Command swiftCore.dll).Source
 $pending = [System.Collections.Generic.Queue[string]]::new()
 $pending.Enqueue((Join-Path $dist "NVBeacon.exe")); $pending.Enqueue((Join-Path $dist "nvbeacon-cli.exe"))
