@@ -48,8 +48,7 @@ repeat {
             try await Task.sleep(for: .milliseconds(50))
         }
     }
-    let stamp = Date().formatted(date: .omitted, time: .standard)
-    print("[\(stamp)]")
+    print("[\(LocalTimestamp.now())]")
     for state in monitor.snapshot {
         print(SummaryFormatter.report(state))
         if showsDetails {
