@@ -1,106 +1,64 @@
 import Foundation
+import NVBeaconCore
 
-enum AppInterfaceLanguage: String, Sendable {
-    case english
-    case korean
-    case simplifiedChinese
+typealias AppLanguagePreference = NVBeaconCore.LanguagePreference
+
+/// The language the interface is shown in: one of the files in `Shared/Localization`.
+struct AppInterfaceLanguage: Hashable, Sendable {
+    let code: String
+
+    static let english = AppInterfaceLanguage(code: "en")
+    static let korean = AppInterfaceLanguage(code: "ko")
+    static let simplifiedChinese = AppInterfaceLanguage(code: "zh-Hans")
+
+    /// Read once: from the app bundle, or from the source tree for `swift run` and tests.
+    static let translations = Translations.load(fromFirstOf: [
+        Bundle.main.resourceURL?.appendingPathComponent("Localization"),
+        URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Shared/Localization"),
+    ].compactMap { $0 })
 
     static func resolved(from preference: AppLanguagePreference, preferredLanguages: [String] = Locale.preferredLanguages) -> Self {
-        switch preference {
-        case .system:
-            for identifier in preferredLanguages {
-                let language = Locale.Language(identifier: identifier)
-                switch language.languageCode?.identifier {
-                case "en":
-                    return .english
-                case "ko":
-                    return .korean
-                case "zh" where language.script?.identifier == "Hans":
-                    return .simplifiedChinese
-                default:
-                    continue
-                }
-            }
-            return .english
-        case .english:
-            return .english
-        case .korean:
-            return .korean
-        case .simplifiedChinese:
-            return .simplifiedChinese
-        }
+        Self(code: translations.resolve(preference, preferredLanguages: preferredLanguages))
     }
 
-    func text(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
-        switch self {
-        case .english:
-            return english
-        case .korean:
-            return korean
-        case .simplifiedChinese:
-            return simplifiedChinese
-        }
+    /// The text for a key of the shared files; arguments fill its `%@` placeholders.
+    func text(_ key: String, _ arguments: Any...) -> String {
+        text(key, arguments: arguments)
+    }
+
+    func text(_ key: String, arguments: [Any]) -> String {
+        Self.translations.text(key, language: code, arguments: arguments.map { String(describing: $0) })
     }
 
     var locale: Locale {
-        switch self {
-        case .english:
+        switch code {
+        case "en":
             return Locale(identifier: "en_US_POSIX")
-        case .korean:
+        case "ko":
             return Locale(identifier: "ko_KR")
-        case .simplifiedChinese:
+        case "zh-Hans":
             return Locale(identifier: "zh_CN")
+        default:
+            return Locale(identifier: code)
         }
     }
 }
 
-enum AppLanguagePreference: String, Codable, CaseIterable, Equatable, Hashable, Identifiable, Sendable {
-    case system
-    case english
-    case korean
-    case simplifiedChinese
+extension AppLanguagePreference {
+    /// System, then every language that has a file.
+    static var choices: [AppLanguagePreference] {
+        [.system] + AppInterfaceLanguage.translations.languages.map { .language($0.code) }
+    }
 
-    var id: String { rawValue }
-
+    /// Languages are listed by their own names, as in the macOS language list.
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .system:
-            return language.text("System", "시스템", "跟随系统")
-        case .english:
-            return "English"
-        case .korean:
-            return language.text("Korean", "한국어", "韩语")
-        case .simplifiedChinese:
-            return "简体中文"
-        }
-    }
-
-    func detailText(in language: AppInterfaceLanguage) -> String {
-        switch self {
-        case .system:
-            return language.text(
-                "Follow your macOS preferred languages, using the first one NVBeacon supports. Otherwise English is used.",
-                "macOS 선호 언어 순서에서 NVBeacon이 지원하는 첫 번째 언어를 따릅니다. 없으면 영어로 표시합니다.",
-                "按 macOS 的语言偏好顺序使用 NVBeacon 支持的第一种语言，否则使用英语。"
-            )
-        case .english:
-            return language.text(
-                "Show the NVBeacon interface in English.",
-                "NVBeacon 인터페이스를 영어로 표시합니다.",
-                "以英语显示 NVBeacon 界面。"
-            )
-        case .korean:
-            return language.text(
-                "Show the NVBeacon interface in Korean.",
-                "NVBeacon 인터페이스를 한국어로 표시합니다.",
-                "以韩语显示 NVBeacon 界面。"
-            )
-        case .simplifiedChinese:
-            return language.text(
-                "Show the NVBeacon interface in Simplified Chinese.",
-                "NVBeacon 인터페이스를 중국어 간체로 표시합니다.",
-                "以简体中文显示 NVBeacon 界面。"
-            )
+            return language.text("System")
+        case .language(let code):
+            return AppInterfaceLanguage.translations.language(code)?.name ?? code
         }
     }
 }

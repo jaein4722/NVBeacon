@@ -179,7 +179,7 @@ final class TrayApp {
                 PostMessageW(HWND(bitPattern: trayWindowBits), historyChangedMessage, 0, 0)
             }
             let notifications = await watches.evaluate(snapshot: result.snapshot, server: result.server, settings: settings,
-                                                       korean: Theme.language == "ko", transport: result.transport)
+                                                       language: Theme.interface, transport: result.transport)
             guard !notifications.isEmpty else { return }
             pending.take { $0 += notifications }
             PostMessageW(HWND(bitPattern: trayWindowBits), notificationsPendingMessage, 0, 0)
@@ -193,10 +193,10 @@ final class TrayApp {
         }
         guard !notifications.isEmpty else { return }
         for notification in notifications { Notifier.show(notification, trayWindow: window) }
-        let korean = Theme.language == "ko"
+        let language = Theme.interface
         setNotice(notifications.count == 1
-            ? (korean ? "알림을 보냈습니다: \(notifications[0].title)" : "Sent an alert: \(notifications[0].title)")
-            : (korean ? "알림 \(notifications.count)개를 보냈습니다." : "Sent \(notifications.count) alerts."))
+            ? (language.text("Sent an alert: %@", notifications[0].title))
+            : (language.text("Sent %@ alerts.", notifications.count)))
         pushSettings()
     }
 
@@ -347,9 +347,9 @@ final class TrayApp {
                   let gpu = state.snapshot?.gpus.first(where: { $0.index == index }) else { return }
             let on = watches.toggleIdleWatch(gpu: gpu, server: state.server, snapshotTakenAt: state.snapshot?.takenAt,
                                              idleSeconds: settings.idleNotificationSeconds, memoryThresholdMB: settings.idleMemoryThresholdMB)
-            let korean = Theme.language == "ko"
-            setNotice(on ? (korean ? "GPU idle 알림을 등록했습니다." : "GPU idle alert enabled.")
-                         : (korean ? "GPU idle 알림을 해제했습니다." : "GPU idle alert disabled."))
+            let language = Theme.interface
+            setNotice(on ? (language.text("GPU idle alert enabled."))
+                         : (language.text("GPU idle alert disabled.")))
             pushSettings()
         case "toggleExitWatch":
             guard let id = message["serverId"] as? String, let index = message["gpu"] as? Int, let pid = message["pid"] as? Int,
@@ -357,9 +357,9 @@ final class TrayApp {
                   let gpu = state.snapshot?.gpus.first(where: { $0.index == index }),
                   let process = gpu.processes.first(where: { $0.pid == pid }) else { return }
             let on = watches.toggleExitWatch(process: process, gpu: gpu, server: state.server)
-            let korean = Theme.language == "ko"
-            setNotice(on ? (korean ? "프로세스 종료 알림을 등록했습니다." : "Process exit alert enabled.")
-                         : (korean ? "프로세스 종료 알림을 해제했습니다." : "Process exit alert disabled."))
+            let language = Theme.interface
+            setNotice(on ? (language.text("Process exit alert enabled."))
+                         : (language.text("Process exit alert disabled.")))
             pushSettings()
         case "settings": openSettings()
         case "openHistory": openHistory()
@@ -483,11 +483,10 @@ final class TrayApp {
         let states = monitor.snapshot.filter { $0.server.isPollable }
         guard !states.isEmpty else { return "NVBeacon" }
         let summary = TrayIconRenderer.summary(for: states, settings: settings)
-        let korean = Theme.language == "ko"
+        let language = Theme.interface
         let headline = summary.average.map { average in
-            korean ? "평균 \(average)% · 사용 중 \(summary.busy)/\(summary.total)"
-                   : "Average \(average)% · Busy \(summary.busy)/\(summary.total)"
-        } ?? (korean ? "데이터를 기다리는 중" : "Waiting for data")
+            language.text("Average %@%% · Busy %@/%@", average, summary.busy, summary.total)
+        } ?? (language.text("Waiting for data"))
         let text = (["NVBeacon — " + headline] + states.map(SummaryFormatter.compactLine)).joined(separator: "\n")
         return text.count <= 127 ? text : String(text.prefix(126)) + "…"
     }
@@ -505,20 +504,20 @@ final class TrayApp {
         guard let menu = CreatePopupMenu() else { return }
         defer { DestroyMenu(menu) }
         let owner = fromFlyout ? (flyout?.window ?? window) : window
-        let korean = Theme.language == "ko"
-        append(menu, korean ? "지금 새로고침" : "Refresh Now", command: .refresh)
+        let language = Theme.interface
+        append(menu, language.text("Refresh Now"), command: .refresh)
         if settings.displayMode == .window {
-            append(menu, korean ? "팝오버로 보기" : "Show as Popover", command: .toggleDisplayMode)
-            append(menu, korean ? "항상 위에 표시" : "Keep Window on Top", command: .toggleOnTop, checked: settings.windowAlwaysOnTop)
+            append(menu, language.text("Show as Popover"), command: .toggleDisplayMode)
+            append(menu, language.text("Keep Window on Top"), command: .toggleOnTop, checked: settings.windowAlwaysOnTop)
         } else {
-            append(menu, korean ? "창으로 보기" : "Show as Window", command: .toggleDisplayMode)
+            append(menu, language.text("Show as Window"), command: .toggleDisplayMode)
         }
         if settings.recordsGPUHistory {
-            append(menu, korean ? "GPU 기록…" : "GPU History…", command: .history)
+            append(menu, language.text("GPU History…"), command: .history)
         }
-        append(menu, korean ? "설정…" : "Settings…", command: .settings)
+        append(menu, language.text("Settings…"), command: .settings)
         AppendMenuW(menu, UINT(MF_SEPARATOR), 0, nil)
-        append(menu, korean ? "NVBeacon 종료" : "Quit NVBeacon", command: .quit)
+        append(menu, language.text("Quit NVBeacon"), command: .quit)
 
         var cursor = POINT()
         GetCursorPos(&cursor)
@@ -649,6 +648,10 @@ final class TrayApp {
             "sshConfigPath": SSHConfigHosts.configFile.path,
             "sessionOverride": sessionServers != nil,
             "language": Theme.language,
+            // Settings › General › Language: every language file, by its own name.
+            "languages": InterfaceLanguage.translations.languages.map {
+                ["value": LanguagePreference.language($0.code).storedValue, "name": $0.name]
+            },
             "theme": Theme.resolvedName,
             "launchAtLogin": LaunchAtLogin.status.rawValue,
             "defaults": [
@@ -710,7 +713,7 @@ final class TrayApp {
             apply(decoded)
         case "browseIdentity":
             let folder = (ProcessInfo.processInfo.environment["USERPROFILE"] ?? "") + #"\.ssh"#
-            if let path = FileDialog.open(owner: owner, title: Theme.language == "ko" ? "Identity 파일 선택" : "Choose Identity File",
+            if let path = FileDialog.open(owner: owner, title: Theme.interface.text("Choose Identity File"),
                                           filter: [("All files", "*.*")], initialFolder: folder) {
                 settingsWindow.host.post(["type": "identityPicked", "serverId": message["serverId"] as? String ?? "", "path": path])
             }
@@ -719,7 +722,7 @@ final class TrayApp {
         case "testConnection":
             guard let serverID = message["serverId"] as? String,
                   let server = settings.servers.first(where: { $0.id == serverID }) else { return }
-            let korean = Theme.language == "ko"
+            let language = Theme.interface
             Task.detached {
                 let result = await ServerMonitor.testConnection(server, askPassExecutable: Resources.executablePath)
                 let ok: Bool, text: String
@@ -727,41 +730,41 @@ final class TrayApp {
                 case .success(let count, let seconds):
                     ok = true
                     let time = String(format: "%.1f", seconds)
-                    text = korean ? "연결됨 · GPU \(count)개 · \(time)초" : "Connected · \(count) GPU\(count == 1 ? "" : "s") · \(time) s"
+                    text = language.text(count == 1 ? "Connected · %@ GPU · %@ s" : "Connected · %@ GPUs · %@ s", count, time)
                 case .passwordMissing:
                     ok = false
-                    text = korean ? "비밀번호를 먼저 저장하세요." : "Save the password first."
+                    text = language.text("Save the password first.")
                 case .sshTooOldForPassword(let version):
                     ok = false
-                    text = TrayApp.sshTooOldText(version, korean: korean)
+                    text = TrayApp.sshTooOldText(version, language: language)
                 case .failure(let message):
                     ok = false
                     let category = DiagnosticsReport.errorCategory(message)
-                    text = (korean ? DiagnosticsReport.koreanCategory(category) : category) + " — " + message
+                    text = language.text("error::" + category) + " — " + message
                 }
                 UIThread.run { trayApp?.postToSettings(["type": "testResult", "serverId": serverID, "ok": ok, "text": text]) }
             }
         case "deleteHistory":
-            let history = history, korean = Theme.language == "ko"
+            let history = history, language = Theme.interface
             Task.detached {
                 await history.deleteAll()
                 UIThread.run {
-                    trayApp?.postToSettings(["type": "notice", "text": korean ? "GPU 기록을 삭제했습니다." : "Deleted the GPU history."])
+                    trayApp?.postToSettings(["type": "notice", "text": language.text("Deleted the GPU history.")])
                     trayApp?.historyChanged()
                 }
             }
         case "savePassword", "forgetPassword":
             guard let serverID = message["serverId"] as? String, !serverID.isEmpty else { return }
-            let korean = Theme.language == "ko"
+            let language = Theme.interface
             let saving = message["type"] as? String == "savePassword"
             let saved = saving ? passwordStore.save(message["password"] as? String ?? "", for: serverID)
                                : passwordStore.delete(for: serverID)
             if saved {
                 monitor.passwordChanged(serverID: serverID)
-                settingsToast(saving ? (korean ? "비밀번호를 저장했습니다." : "Saved the password.")
-                                     : (korean ? "저장된 비밀번호를 삭제했습니다." : "Removed the saved password."))
+                settingsToast(saving ? (language.text("Saved the password."))
+                                     : (language.text("Removed the saved password.")))
             } else {
-                failure(korean ? "Windows 자격 증명 관리자에 저장하지 못했습니다." : "Could not update Windows Credential Manager.")
+                failure(language.text("Could not update Windows Credential Manager."))
             }
             pushSettings()
         case "setLaunchAtLogin":
@@ -777,7 +780,7 @@ final class TrayApp {
                 updated.importServers(from: backup)
                 apply(updated)
                 pendingImport = nil
-                settingsToast(Theme.language == "ko" ? "비활성 서버 \(backup.servers.count)개를 추가했습니다." : "Added \(backup.servers.count) disabled servers.")
+                settingsToast(Theme.interface.text("Added %@ disabled servers.", backup.servers.count))
                 pushSettings()
             }
         case "cancelImport":
@@ -788,22 +791,21 @@ final class TrayApp {
             Shell.copyToClipboard(message["text"] as? String ?? "", owner: owner)
         case "reload":
             // Applies the file as if it had been edited here (servers, polling, appearance).
-            let korean = Theme.language == "ko"
+            let language = Theme.interface
             pendingSettingsDraft = nil
             guard FileManager.default.fileExists(atPath: SettingsStore.fileURL.path) else {
-                failure(korean ? "설정 파일이 없습니다: \(SettingsStore.fileURL.windowsPath)\n지금 설정은 그대로 둡니다."
-                               : "There is no settings file: \(SettingsStore.fileURL.windowsPath)\nThe current settings are unchanged.")
+                failure(language.text("There is no settings file: %@\nThe current settings are unchanged.", SettingsStore.fileURL.windowsPath))
                 return
             }
             let loaded = SettingsStore.loadResult()
             if loaded.unreadable {
-                failure(Self.unreadableSettingsText(loaded, korean: korean)
-                    + (korean ? "\n지금 설정은 그대로 둡니다." : "\nThe current settings are unchanged."))
+                failure(Self.unreadableSettingsText(loaded, language: language)
+                    + "\n" + language.text("The current settings are unchanged."))
                 return
             }
             apply(loaded.settings)
             pushSettings()
-            settingsToast(korean ? "설정을 다시 불러왔습니다." : "Reloaded the settings.")
+            settingsToast(language.text("Reloaded the settings."))
         case "clearSettings":
             // Like macOS: servers, saved passwords, alerts and notification history all go.
             for serverID in passwordStore.savedServerIDs() { passwordStore.delete(for: serverID) }
@@ -816,10 +818,10 @@ final class TrayApp {
             stateChanged()
             pushSettings()
         case "testNotification":
-            let korean = Theme.language == "ko"
+            let language = Theme.interface
             let shown = Notifier.show(PendingNotification(
-                title: korean ? "NVBeacon 테스트 알림" : "NVBeacon test notification",
-                body: korean ? "프로세스 종료 알림과 GPU idle 알림이 정상적으로 표시됩니다." : "Process exit and GPU idle alerts are working normally."),
+                title: language.text("NVBeacon test notification"),
+                body: language.text("Process exit and GPU idle alerts are working normally.")),
                 trayWindow: window)
             if shown { watches.record(NotificationHistoryEntry(kind: .testNotificationScheduled)) }
             pushSettings()
@@ -841,19 +843,17 @@ final class TrayApp {
         settingsWindow?.host.post(message)
     }
 
-    static func sshTooOldText(_ version: SSHClientVersion, korean: Bool) -> String {
-        let minimum = SSHClientVersion.passwordLoginMinimum
-        return korean
-            ? "이 PC의 OpenSSH \(version)로는 비밀번호 로그인을 쓸 수 없습니다(\(minimum) 이상 필요). 키 인증을 쓰세요. Windows 11에는 새 버전이 들어 있습니다."
-            : "Password login needs OpenSSH \(minimum) or later, and this PC has \(version). Use key authentication; Windows 11 includes a newer OpenSSH."
+    static func sshTooOldText(_ version: SSHClientVersion, language: InterfaceLanguage) -> String {
+        language.text("Password login needs OpenSSH %@ or later, and this PC has %@. Use key authentication; Windows 11 includes a newer OpenSSH.",
+                      SSHClientVersion.passwordLoginMinimum, version)
     }
 
     /// The file and, when there is one, the copy kept of it; callers add what happens next.
-    static func unreadableSettingsText(_ loaded: SettingsStore.LoadResult, korean: Bool) -> String {
+    static func unreadableSettingsText(_ loaded: SettingsStore.LoadResult, language: InterfaceLanguage) -> String {
         let file = SettingsStore.fileURL.windowsPath
-        var text = korean ? "설정 파일을 읽을 수 없습니다: \(file)" : "The settings file could not be read: \(file)"
+        var text = language.text("The settings file could not be read: %@", file)
         if let copy = loaded.preservedCopy?.windowsPath {
-            text += korean ? "\n원본은 \(copy)에 보관했습니다." : "\nThe original was kept as \(copy)."
+            text += "\n" + language.text("The original was kept as %@.", copy)
         }
         return text
     }
@@ -869,18 +869,18 @@ final class TrayApp {
     private func exportServers(owner: HWND) {
         do {
             let data = try settings.backup().encoded()
-            guard let path = FileDialog.save(owner: owner, title: Theme.language == "ko" ? "서버 내보내기" : "Export Servers",
+            guard let path = FileDialog.save(owner: owner, title: Theme.interface.text("Export Servers"),
                                              filter: [("JSON", "*.json")], fileName: "NVBeacon-servers.json",
                                              defaultExtension: "json") else { return }
             try data.write(to: URL(fileURLWithPath: path), options: .atomic)
-            settingsToast(Theme.language == "ko" ? "서버 설정을 내보냈습니다." : "Server settings exported.")
+            settingsToast(Theme.interface.text("Server settings exported."))
         } catch {
             failure(error.localizedDescription)
         }
     }
 
     private func chooseImport(owner: HWND) {
-        guard let path = FileDialog.open(owner: owner, title: Theme.language == "ko" ? "서버 가져오기" : "Import Servers",
+        guard let path = FileDialog.open(owner: owner, title: Theme.interface.text("Import Servers"),
                                          filter: [("JSON", "*.json")]) else { return }
         do {
             let data = try Data(contentsOf: URL(fileURLWithPath: path))

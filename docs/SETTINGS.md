@@ -16,7 +16,11 @@ NVBeacon has three clients: macOS, iPhone and iPad, and Windows (in the works). 
 
 ## macOS
 
-Under General → Language, choose System, English, Korean, or Simplified Chinese. System follows the first supported language in the macOS preference order.
+Under General → Language, choose System or one of the languages in `Shared/Localization` (English, 한국어, 简体中文), each listed by its own name. System follows the first supported language in the macOS preference order.
+
+## Windows
+
+General → Language offers the same choices as macOS. System follows the Windows display language.
 
 ## iPhone and iPad
 
@@ -24,7 +28,7 @@ iOS has one Settings screen instead of tabs. Its sections follow the desktop tab
 
 | Section | Contents |
 | --- | --- |
-| General | Language |
+| General | Language: System, English, 한국어 or 简体中文 |
 | Monitoring | Refresh interval; the footer explains that iOS pauses collection in the background |
 | GPUs and Processes | Busy GPU detection and its threshold, highlighting your own processes |
 | Host Information | CPU, memory (RAM / Swap), network |
@@ -77,3 +81,7 @@ Monitoring, GPUs and Processes, and Host Information hold what the desktop Monit
 | macOS Keychain | Keychain | 키체인 |
 | SSH identity file | key file | 키 파일 |
 | Popover / window | popover / window | 팝오버 / 창 |
+| SSH destination (`user@host` or an alias) | SSH target | SSH 대상 |
+| Process reported by `nvidia-smi` | compute process | 연산 프로세스 |
+| Swap space | Swap | 스왑 |
+| Sparkle appcast | update feed | 업데이트 피드 |

@@ -12,7 +12,6 @@ const PALETTE = ["#0a84ff", "#ff9f0a", "#30d158", "#bf5af2", "#ff375f", "#64d2ff
 
 const ui = { servers: [], language: "en", recording: true, serverId: null, gpu: null, hours: 1, data: null, selected: null };
 try { ui.serverId = localStorage.getItem("historyServer"); } catch { /* storage unavailable */ }
-const t = (english, korean) => (ui.language === "ko" ? korean : english);
 
 function h(tag, className, ...children) {
   const node = document.createElement(tag);
@@ -51,7 +50,7 @@ function controls() {
   const nodes = [];
   if (ui.servers.length > 1) {
     const picker = h("select", "server-picker");
-    picker.setAttribute("aria-label", t("Server", "서버"));
+    picker.setAttribute("aria-label", t("Server"));
     for (const entry of ui.servers) {
       const option = h("option", "", entry.name);
       option.value = entry.id;
@@ -71,7 +70,7 @@ function controls() {
   if (!ui.recording) {
     const status = h("div", "status");
     status.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.4 5.5v5M9.6 5.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-    status.append(t("Recording is off. Turn on Record GPU history in Settings › Appearance.", "기록이 꺼져 있습니다. 설정 › 표시에서 GPU 기록 저장을 켜세요."));
+    status.append(t("Recording is off. Turn on Record GPU history in Monitoring settings."));
     nodes.push(status);
   }
   const gpus = server()?.gpus || [];
@@ -86,7 +85,7 @@ function controls() {
   gpuPicker.addEventListener("change", () => { ui.gpu = Number(gpuPicker.value); ui.data = null; render(); query(); });
   const segmented = h("div", "segmented");
   segmented.setAttribute("role", "group");
-  segmented.setAttribute("aria-label", t("Time range", "시간 범위"));
+  segmented.setAttribute("aria-label", t("Time range"));
   for (const hours of [1, 5, 12, 24]) {
     const button = h("button", "", hours + "h");
     button.setAttribute("aria-pressed", String(hours === ui.hours));
@@ -102,7 +101,7 @@ function controls() {
 function chart(data) {
   const container = h("div", "chart");
   container.setAttribute("role", "img");
-  container.setAttribute("aria-label", t("GPU utilization history by user", "사용자별 GPU 사용률 기록"));
+  container.setAttribute("aria-label", t("GPU utilization history by user"));
   const width = Math.max(200, document.getElementById("root").clientWidth - 32);
   const height = 230, left = 46, bottom = 22, top = 6, right = 6;
   const plotW = width - left - right, plotH = height - top - bottom;
@@ -192,15 +191,14 @@ function setSelected(index) {
 function legend(data) {
   const reading = ui.selected != null ? data.readings[ui.selected] : data.readings[data.readings.length - 1];
   if (!reading) return [];
-  const avg = h("span", "", t(data.rollupMinutes + "m avg", data.rollupMinutes + "분 평균"));
-  avg.title = t("Interval averages. Short per-user sampling gaps are connected visually, but read as unavailable. Offline and longer gaps stay open.",
-                "구간 평균입니다. 짧은 사용자별 측정 누락은 시각적으로 연결하지만 측정 불가로 표시합니다. 오프라인 및 긴 누락 구간은 연결하지 않습니다.");
+  const avg = h("span", "", t("%@m avg", data.rollupMinutes));
+  avg.title = t("Interval averages. Short per-user sampling gaps are connected visually, but read as unavailable. Offline and longer gaps stay open.");
   const row = (user, value) => {
     const swatch = h("span", "swatch");
     swatch.style.background = user === TOTAL ? "var(--total)" : colorFor(user);
-    const name = h("span", "metric-name", user === TOTAL ? t("GPU total", "GPU 전체") : user);
+    const name = h("span", "metric-name", user === TOTAL ? t("GPU total") : user);
     name.title = user;
-    const formatted = value == null ? t("Unavailable", "측정 불가") : value.toFixed(1) + "%";
+    const formatted = value == null ? t("measurement::Unavailable") : value.toFixed(1) + "%";
     return h("div", "metric", swatch, name, h("span", "metric-value" + (value == null ? " unavailable" : ""), formatted));
   };
   const box = h("div", "legend", row(TOTAL, reading.total));
@@ -212,7 +210,7 @@ function render() {
   const root = document.getElementById("root");
   document.documentElement.lang = ui.language;
   if (!ui.servers.length) {
-    root.replaceChildren(h("div", "secondary", t("Configure a server to begin recording GPU history.", "GPU 기록을 시작하려면 서버를 설정하세요.")));
+    root.replaceChildren(h("div", "secondary", t("Configure a server to begin recording GPU history.")));
     return;
   }
   const nodes = controls();
@@ -220,11 +218,10 @@ function render() {
   if (data && (data.total.length || data.areas.length)) {
     nodes.push(...legend(data), chart(data));
     if (!data.users.length || !data.lastReadingHasUsers) {
-      nodes.push(h("div", "footnote", t("Per-user SM sampling unavailable or GPU idle. The gray line is measured GPU utilization.",
-                                        "사용자별 SM 측정 불가 또는 GPU 유휴 상태입니다. 회색 선은 GPU 사용률입니다.")));
+      nodes.push(h("div", "footnote", t("Per-user SM sampling unavailable or GPU idle. The gray line is measured GPU utilization.")));
     }
   } else if (data) {
-    nodes.push(h("div", "empty", t("Waiting for the first history sample.", "첫 GPU 기록을 기다리는 중입니다.")));
+    nodes.push(h("div", "empty", t("Waiting for the first history sample.")));
   }
   const focusedTag = document.activeElement && document.activeElement.className;
   root.replaceChildren(...nodes);

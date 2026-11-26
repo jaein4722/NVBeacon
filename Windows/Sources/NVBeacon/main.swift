@@ -72,15 +72,15 @@ do {
 }
 let loadedSettings = SettingsStore.loadResult()
 if loadedSettings.unreadable {
-    let korean = Theme.language == "ko"
+    let language = Theme.interface
     guard loadedSettings.preservedCopy != nil else {
         // Starting with the defaults would overwrite the file on the next save.
-        showError(TrayApp.unreadableSettingsText(loadedSettings, korean: korean)
-            + (korean ? "\n\nNVBeacon을 종료합니다. 파일을 확인한 뒤 다시 실행하세요." : "\n\nNVBeacon will quit. Check the file and start it again."))
+        showError(TrayApp.unreadableSettingsText(loadedSettings, language: language)
+            + "\n\n" + language.text("NVBeacon will quit. Check the file and start it again."))
         exit(1)
     }
-    showError(TrayApp.unreadableSettingsText(loadedSettings, korean: korean)
-        + (korean ? "\n\n기본 설정으로 시작합니다." : "\n\nNVBeacon starts with the default settings."))
+    showError(TrayApp.unreadableSettingsText(loadedSettings, language: language)
+        + "\n\n" + language.text("NVBeacon starts with the default settings."))
 }
 var savedSettings = loadedSettings.settings
 // --interval without targets still applies for this session.
@@ -132,13 +132,13 @@ func runUIThread() {
         app.attach(monitorWindow)
     }
     if let settingsWindow = PageWindow(instance: instance, page: "settings.html",
-                                       titles: ("NVBeacon Settings", "NVBeacon 설정"),
+                                       title: "NVBeacon Settings",
                                        size: (760, 620), minimumSize: (620, 460)) {
         app.attach(settings: settingsWindow)
     }
     // macOS: GPU History window, 560×440 minimum.
     if let historyWindow = PageWindow(instance: instance, page: "history.html",
-                                      titles: ("GPU History", "GPU 기록"),
+                                      title: "GPU History",
                                       size: (720, 600), minimumSize: (560, 440)) {
         app.attach(history: historyWindow)
     }

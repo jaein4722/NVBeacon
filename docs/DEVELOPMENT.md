@@ -12,6 +12,7 @@ Branching, commits and the pull request format are in [AGENTS.md](../AGENTS.md).
 | `Windows` | Windows tray app: its own Swift package, with the UI as HTML pages in WebView2 |
 | `Shared/NVBeaconCore` | Models, parsers, remote commands, the server backup format and the metrics collector. No dependencies, and no process, Keychain or UI code: every client uses it, and each runs commands through its own `RemoteCommandExecuting` |
 | `Shared/NVBeaconTransfer` | Mac → iPhone server transfer |
+| `Shared/Localization` | Interface strings for every client, one JSON file per language |
 | `site` | Landing page, deployed when `master` changes |
 
 Settings tabs, labels and wording follow [SETTINGS.md](SETTINGS.md).
@@ -34,6 +35,36 @@ swift test --package-path Windows    # on Windows
 ```
 
 Pull requests run the first three on macOS, the shared core on Linux as well, and the Windows client on Windows. A change to `Shared/NVBeaconCore` affects all three clients. `./scripts/test_ios_ssh_keys.sh` runs the iOS transport against a local OpenSSH server with every supported key type.
+
+## Translations
+
+Every client reads its interface text from `Shared/Localization`: `en.json` lists every key, and each other file (`ko.json`, `zh-Hans.json`) translates some of them. A missing key shows the English text.
+
+```json
+{
+  "name": "한국어",
+  "strings": {
+    "Settings": "설정",
+    "%@ finished": "%@ 종료",
+    "measurement::Unavailable": "측정 불가"
+  }
+}
+```
+
+- The key is the English text. Where one English text has two meanings, the key starts with a context, `context::English`; only the part after the last `::` is shown in English.
+- `ios::` keys hold iPhone and iPad text that differs from the desktop text with the same English.
+- `%@` (or `%lld` for an integer, as iOS uses) stands for a value. Use `%1$@`, `%2$@` to put values in another order, and `%%` for a percent sign in a text that has values. A text without values is shown as written.
+- The macOS app looks texts up with `language.text("Key", value)` or a view's `t("Key", value)`; the Windows pages with `t("Key", value)`, and the Windows app with `InterfaceLanguage.text`. Add a new text to `en.json` and to the translations you can write.
+- The app packages ship the files: `scripts/package_app.sh` copies them into `NVBeacon.app/Contents/Resources/Localization`, and `Windows/scripts/package.ps1` next to `NVBeacon.exe`. Development builds read them from the source tree.
+
+To add a language, copy `en.json` to `<code>.json`, using the language code iOS and macOS use (`ja`, `de`, `pt-BR`, `zh-Hant`), set `name` to the language's own name, and translate the texts; untranslated keys can be left out. The macOS and Windows language settings list every file. For iOS, also add the code to `knownRegions` in `Mobile/NVBeacon.xcodeproj/project.pbxproj` and to the language picker in `Mobile/NVBeacon/RootView.swift`.
+
+```bash
+python3 scripts/translations.py check   # unknown keys, placeholders that differ, unused texts
+python3 scripts/translations.py ios     # regenerate Mobile/NVBeacon/<code>.lproj/Localizable.strings
+```
+
+iOS looks texts up by their English through Xcode string files, so run the second command after any change to the shared files and commit the result; pull requests check both.
 
 ## Mac app
 

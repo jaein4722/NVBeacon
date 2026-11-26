@@ -35,7 +35,7 @@ private struct PSFixture: RemoteCommandExecuting {
                                   idleSeconds: 60, memoryThresholdMB: 50))
     func poll(_ offset: TimeInterval, util: Int, memory: Int) async -> [PendingNotification] {
         await store.evaluate(snapshot: GPUSnapshot(takenAt: start.addingTimeInterval(offset), gpus: [gpu(0, util: util, memory: memory)]),
-                             server: server, settings: settings, korean: false, transport: transport)
+                             server: server, settings: settings, language: .english, transport: transport)
     }
     #expect(await poll(10, util: 0, memory: 10).isEmpty)        // idle starts
     #expect(await poll(40, util: 0, memory: 10).isEmpty)        // 30 s idle
@@ -59,7 +59,7 @@ private struct PSFixture: RemoteCommandExecuting {
     store.toggleIdleWatch(gpu: gpu(0, util: 50, memory: 500), server: server, snapshotTakenAt: start, idleSeconds: 60, memoryThresholdMB: 50)
     func poll(_ offset: TimeInterval) async -> Int {
         await store.evaluate(snapshot: GPUSnapshot(takenAt: start.addingTimeInterval(offset), gpus: [gpu(0, util: 0, memory: 10)]),
-                             server: server, settings: settings, korean: false, transport: transport).count
+                             server: server, settings: settings, language: .english, transport: transport).count
     }
     #expect(await poll(10) == 0)
     #expect(await poll(40) == 0)
@@ -81,12 +81,12 @@ private struct PSFixture: RemoteCommandExecuting {
 
     // Gone from nvidia-smi but ps still shows it (e.g. between samples): no alert.
     let stillRunning = await store.evaluate(snapshot: GPUSnapshot(takenAt: Date(), gpus: [gpu(0, util: 0, memory: 0)]), server: server,
-                                            settings: settings, korean: true, transport: AnyRemoteCommandExecutor(PSFixture(running: [42])))
+                                            settings: settings, language: InterfaceLanguage(code: "ko"), transport: AnyRemoteCommandExecutor(PSFixture(running: [42])))
     #expect(stillRunning.isEmpty)
     #expect(store.processWatches.count == 1)
 
     let exited = await store.evaluate(snapshot: GPUSnapshot(takenAt: Date(), gpus: [gpu(0, util: 0, memory: 0)]), server: server,
-                                      settings: settings, korean: true, transport: AnyRemoteCommandExecutor(PSFixture(running: [])))
+                                      settings: settings, language: InterfaceLanguage(code: "ko"), transport: AnyRemoteCommandExecutor(PSFixture(running: [])))
     #expect(exited == [PendingNotification(title: "python 종료", body: "Lab · GPU 0 · PID 42 · alice")])
     #expect(store.processWatches.isEmpty)
 }

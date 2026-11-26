@@ -28,8 +28,8 @@ struct StatusMenuView: View {
         store.settings.resolvedLanguage
     }
 
-    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
-        language.text(english, korean, simplifiedChinese)
+    private func t(_ key: String, _ arguments: Any...) -> String {
+        language.text(key, arguments: arguments)
     }
 
     var body: some View {
@@ -111,7 +111,7 @@ struct StatusMenuView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
-                    .help(t("Open GPU history", "GPU 기록 열기", "打开 GPU 使用记录"))
+                    .help(t("Open GPU history"))
                 }
 
                 if store.settings.isConfigured {
@@ -123,19 +123,19 @@ struct StatusMenuView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
-                    .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침", "立即刷新，必要时重新开始监控"))
+                    .help(t("Refresh now and restart polling if needed"))
                 }
 
                 displayModeButtons
 
-                headerIconButton("gearshape", help: t("Settings", "설정", "设置"), action: onOpenSettings)
+                headerIconButton("gearshape", help: t("Settings"), action: onOpenSettings)
             }
 
             if store.totalGPUCount > 0 {
                 HStack(spacing: 6) {
-                    SummaryPill(title: t("Avg", "평균", "平均"), value: "\(store.fleetAverageUtilization)%")
-                    SummaryPill(title: t("Busy", "사용중", "使用中"), value: "\(store.fleetBusyCount)/\(store.totalGPUCount)")
-                    SummaryPill(title: t("Proc", "프로세스", "进程"), value: "\(store.totalProcessCount)")
+                    SummaryPill(title: t("Avg"), value: "\(store.fleetAverageUtilization)%")
+                    SummaryPill(title: t("Busy"), value: "\(store.fleetBusyCount)/\(store.totalGPUCount)")
+                    SummaryPill(title: t("Proc"), value: "\(store.totalProcessCount)")
                     if let oldestSnapshotDate = store.oldestSnapshotDate {
                         UpdatedPill(date: oldestSnapshotDate, language: language)
                     }
@@ -148,7 +148,7 @@ struct StatusMenuView: View {
 
             if store.shouldHighlightMyProcesses, store.configuredServerCount == 1, let detectedSSHUsername = store.detectedSSHUsername {
                 Label(
-                    t("My processes: \(detectedSSHUsername)", "내 프로세스: \(detectedSSHUsername)", "我的进程：\(detectedSSHUsername)"),
+                    t("My processes: %@", detectedSSHUsername),
                     systemImage: "person.crop.circle.badge.checkmark"
                 )
                 .font(.caption2.weight(.semibold))
@@ -176,19 +176,19 @@ struct StatusMenuView: View {
     private var displayModeButtons: some View {
         switch presentation {
         case .popover:
-            headerIconButton("macwindow", help: t("Show as Window", "창으로 보기", "显示为窗口")) {
+            headerIconButton("macwindow", help: t("Show as Window")) {
                 store.setDisplayMode(.window)
             }
         case .window:
             let pinned = store.settings.keepsWindowOnTop
             headerIconButton(pinned ? "pin.fill" : "pin", help: pinned
-                ? t("Stop keeping the window on top", "항상 위에 표시 끄기", "取消窗口置顶")
-                : t("Keep Window on Top", "항상 위에 표시", "窗口置顶"), tint: pinned ? .accentColor : .primary) {
+                ? t("Stop keeping the window on top")
+                : t("Keep Window on Top"), tint: pinned ? .accentColor : .primary) {
                 store.setKeepsWindowOnTop(!pinned)
             }
             .accessibilityAddTraits(pinned ? .isSelected : [])
 
-            headerIconButton("menubar.arrow.up.rectangle", help: t("Show as Popover", "팝오버로 보기", "显示为弹出面板")) {
+            headerIconButton("menubar.arrow.up.rectangle", help: t("Show as Popover")) {
                 store.setDisplayMode(.popover)
             }
         }
@@ -207,26 +207,26 @@ struct StatusMenuView: View {
 
     private var headerTitle: String {
         guard store.settings.isConfigured else {
-            return t("No server configured", "서버 미설정", "尚未配置服务器")
+            return t("No server configured")
         }
 
         if store.configuredServerCount == 1, let server = store.serverStates.first?.server {
             return server.displayName
         }
 
-        return t("\(store.pollableServerCount)/\(store.configuredServerCount) servers", "\(store.pollableServerCount)/\(store.configuredServerCount) 서버", "\(store.pollableServerCount)/\(store.configuredServerCount) 台服务器")
+        return t("%@/%@ servers", store.pollableServerCount, store.configuredServerCount)
     }
 
     private var headerEmptyStateText: String {
         if !store.settings.isConfigured {
-            return t("Open Settings with the gear button to configure a server.", "톱니바퀴 버튼으로 설정을 열어 서버를 추가하세요.", "点击齿轮打开设置，添加服务器。")
+            return t("Open Settings with the gear button to configure a server.")
         }
 
         if store.pollableServerCount == 0 {
-            return t("No enabled server is ready for polling.", "Polling할 활성 서버가 없습니다.", "没有可监控的已启用服务器。")
+            return t("No enabled server is ready for polling.")
         }
 
-        return t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.", "正在等待首次采集结果。")
+        return t("Waiting for the first polling result.")
     }
 
     private var serverList: some View {
@@ -239,11 +239,11 @@ struct StatusMenuView: View {
 
     private func serverToggleHelp(_ state: ServerRuntimeState) -> String {
         let action = store.isServerExpanded(for: state.id)
-            ? t("Collapse this server", "이 서버 접기", "收起此服务器")
-            : t("Expand this server", "이 서버 펼치기", "展开此服务器")
+            ? t("Collapse this server")
+            : t("Expand this server")
         guard let takenAt = state.snapshot?.takenAt else { return action }
         let time = takenAt.formatted(date: .omitted, time: .standard)
-        return action + "\n" + t("Last update: \(time)", "마지막 업데이트: \(time)", "上次更新：\(time)")
+        return action + "\n" + t("Last update: %@", time)
     }
 
     /// Shown only when a server has missed refreshes, so a growing "Updated" value
@@ -256,7 +256,7 @@ struct StatusMenuView: View {
            NVBeaconStore.isSnapshotStale(takenAt: takenAt, pollIntervalSeconds: store.settings.pollIntervalSeconds) {
             TimelineView(.periodic(from: .now, by: 5)) { context in
                 let age = Self.ageText(context.date.timeIntervalSince(takenAt), language: language)
-                Label(t("Last update \(age) ago", "마지막 업데이트 \(age) 전", "\(age)前更新"), systemImage: "clock.badge.exclamationmark")
+                Label(t("Last update %@ ago", age), systemImage: "clock.badge.exclamationmark")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.orange)
                     .help(state.lastErrorMessage ?? "")
@@ -266,9 +266,9 @@ struct StatusMenuView: View {
 
     nonisolated static func ageText(_ seconds: TimeInterval, language: AppInterfaceLanguage) -> String {
         let seconds = max(Int(seconds), 0)
-        if seconds < 60 { return language.text("\(seconds)s", "\(seconds)초", "\(seconds) 秒") }
-        if seconds < 3_600 { return language.text("\(seconds / 60)m", "\(seconds / 60)분", "\(seconds / 60) 分钟") }
-        return language.text("\(seconds / 3_600)h \(seconds % 3_600 / 60)m", "\(seconds / 3_600)시간 \(seconds % 3_600 / 60)분", "\(seconds / 3_600) 小时 \(seconds % 3_600 / 60) 分钟")
+        if seconds < 60 { return language.text("%@s", seconds) }
+        if seconds < 3_600 { return language.text("%@m", seconds / 60) }
+        return language.text("%@h %@m", seconds / 3_600, seconds % 3_600 / 60)
     }
 
     private func serverSection(_ state: ServerRuntimeState) -> some View {
@@ -289,10 +289,10 @@ struct StatusMenuView: View {
                 }
                 .buttonStyle(.plain)
                 .help(serverToggleHelp(state))
-                .accessibilityValue(store.isServerExpanded(for: state.id) ? t("Expanded", "펼침", "已展开") : t("Collapsed", "접힘", "已收起"))
+                .accessibilityValue(store.isServerExpanded(for: state.id) ? t("Expanded") : t("Collapsed"))
 
                 if !state.server.isEnabled {
-                    Text(t("Disabled", "비활성", "已停用"))
+                    Text(t("Disabled"))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 6)
@@ -333,7 +333,7 @@ struct StatusMenuView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
-                    .help(t("Refresh this server now", "이 서버를 지금 새로고침", "立即刷新此服务器"))
+                    .help(t("Refresh this server now"))
                 }
             }
 
@@ -355,9 +355,9 @@ struct StatusMenuView: View {
         VStack(alignment: .leading, spacing: 8) {
             if let snapshot = state.snapshot {
                 HStack(spacing: 6) {
-                    SummaryPill(title: t("Avg", "평균", "平均"), value: "\(snapshot.averageUtilization)%")
-                    SummaryPill(title: t("Busy", "사용중", "使用中"), value: "\(snapshot.busyCount(using: store.settings))/\(snapshot.gpus.count)")
-                    SummaryPill(title: t("Proc", "프로세스", "进程"), value: "\(snapshot.totalProcessCount)")
+                    SummaryPill(title: t("Avg"), value: "\(snapshot.averageUtilization)%")
+                    SummaryPill(title: t("Busy"), value: "\(snapshot.busyCount(using: store.settings))/\(snapshot.gpus.count)")
+                    SummaryPill(title: t("Proc"), value: "\(snapshot.totalProcessCount)")
                     UpdatedPill(date: snapshot.takenAt, language: language)
                 }
 
@@ -376,11 +376,11 @@ struct StatusMenuView: View {
 
                 gpuList(state, snapshot: snapshot)
             } else if state.server.isEnabled {
-                Text(state.lastErrorMessage ?? t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.", "正在等待首次采集结果。"))
+                Text(state.lastErrorMessage ?? t("Waiting for the first polling result."))
                     .font(.caption)
                     .foregroundStyle(state.lastErrorMessage == nil ? Color.secondary : Color.orange)
             } else {
-                Text(t("This server is disabled in Settings.", "이 서버는 Settings에서 비활성화되어 있습니다.", "此服务器已在设置中停用。"))
+                Text(t("This server is disabled in Settings."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -393,7 +393,7 @@ struct StatusMenuView: View {
 
             if store.shouldHighlightMyProcesses, store.configuredServerCount > 1, let detectedSSHUsername = state.detectedSSHUsername {
                 Label(
-                    t("My processes: \(detectedSSHUsername)", "내 프로세스: \(detectedSSHUsername)", "我的进程：\(detectedSSHUsername)"),
+                    t("My processes: %@", detectedSSHUsername),
                     systemImage: "person.crop.circle.badge.checkmark"
                 )
                 .font(.caption2.weight(.semibold))
@@ -441,7 +441,7 @@ struct StatusMenuView: View {
     }
 
     private var emptyState: some View {
-        Text(t("No GPU data is available yet.", "표시할 GPU 데이터가 아직 없습니다.", "暂无 GPU 数据。"))
+        Text(t("No GPU data is available yet."))
             .font(.subheadline)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -466,14 +466,14 @@ struct StatusMenuView: View {
         var parts = [String]()
 
         if processCount > 0 {
-            parts.append(t("\(processCount) process exit", "\(processCount)개 프로세스 종료", "\(processCount) 个进程退出"))
+            parts.append(t("%@ process exit", processCount))
         }
 
         if idleCount > 0 {
-            parts.append(t("\(idleCount) GPU idle", "\(idleCount)개 GPU idle", "\(idleCount) 块 GPU 空闲"))
+            parts.append(t("%@ GPU idle", idleCount))
         }
 
-        return t("Watching ", "감시 중: ", "正在监视：") + parts.joined(separator: " · ")
+        return t("Watching %@", parts.joined(separator: " · "))
     }
 }
 
@@ -490,8 +490,8 @@ private struct GPUListRow: View {
     let toggleProcessExitWatch: (GPUProcessReading) -> Void
     let toggleExpansion: () -> Void
 
-    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
-        language.text(english, korean, simplifiedChinese)
+    private func t(_ key: String, _ arguments: Any...) -> String {
+        language.text(key, arguments: arguments)
     }
 
     var body: some View {
@@ -505,10 +505,10 @@ private struct GPUListRow: View {
                 }
                 .buttonStyle(.plain)
                 .contentShape(Rectangle())
-                .help(isWatchingIdle ? t("Disable GPU idle alert", "GPU idle 알림 해제", "关闭 GPU 空闲通知") : t("Enable GPU idle alert", "GPU idle 알림 받기", "开启 GPU 空闲通知"))
+                .help(isWatchingIdle ? t("Disable GPU idle alert") : t("Enable GPU idle alert"))
 
                 Button(action: toggleExpansion) {
-                    GPUCardSummary(gpu: gpu, mine: hasCurrentUserProcess, badge: Text(t("Mine", "내 프로세스", "我的进程")),
+                    GPUCardSummary(gpu: gpu, mine: hasCurrentUserProcess, badge: Text(t("Mine")),
                                    expanded: isExpanded, expandable: true, language: language)
                         .contentShape(Rectangle())
                 }
@@ -520,7 +520,7 @@ private struct GPUListRow: View {
                     Color.clear
                         .frame(width: 26, height: 1)
 
-                    Label(t("Idle notification armed", "Idle 알림 설정됨", "已开启空闲通知"), systemImage: "star.fill")
+                    Label(t("Idle notification armed"), systemImage: "star.fill")
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.yellow)
                         .padding(.horizontal, 7)
@@ -541,14 +541,14 @@ private struct GPUListRow: View {
                             ProgressView()
                                 .controlSize(.small)
 
-                            Text(t("Loading process details...", "프로세스 상세를 불러오는 중...", "正在加载进程详情…"))
+                            Text(t("Loading process details..."))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                     }
 
                     if gpu.processes.isEmpty {
-                        Text(t("There are no active compute processes reported on this GPU.", "이 GPU에서 보고된 active compute process가 없습니다.", "此 GPU 暂无运行中的计算进程。"))
+                        Text(t("There are no active compute processes reported on this GPU."))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     } else {
@@ -579,8 +579,8 @@ private func memoryTint(ratio: Double) -> Color {
 }
 
 private func memoryUsageNotice(ratio: Double, language: AppInterfaceLanguage) -> String {
-    if ratio >= 0.95 { return language.text(" · Very high usage", " · 매우 높은 사용량", " · 使用率过高") }
-    if ratio >= 0.85 { return language.text(" · High usage", " · 높은 사용량", " · 使用率较高") }
+    if ratio >= 0.95 { return language.text(" · Very high usage") }
+    if ratio >= 0.85 { return language.text(" · High usage") }
     return ""
 }
 
@@ -606,7 +606,7 @@ private struct HostInformationView: View {
                     if let networkUsage {
                         NetworkUsageRow(usage: networkUsage, language: language)
                     } else {
-                        Text(language.text("Network: Unavailable", "네트워크: 확인 불가", "网络不可用"))
+                        Text(language.text("Network: Unavailable"))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -615,7 +615,7 @@ private struct HostInformationView: View {
             .padding(.top, 6)
             .frame(maxWidth: .infinity, alignment: .leading)
         } label: {
-            Label(language.text("Host Information", "호스트 정보", "主机信息"), systemImage: "desktopcomputer")
+            Label(language.text("Host Information"), systemImage: "desktopcomputer")
                 .font(.caption.weight(.semibold))
         }
         .padding(10)
@@ -633,8 +633,8 @@ private struct HostCPUView: View {
             ThinMetricBar(title: "CPU", valueText: "\(cpu)%", ratio: Double(cpu) / 100, tint: .orange)
         } else {
             Text(isMeasuring
-                 ? language.text("CPU: Measuring…", "CPU: 측정 중…", "CPU 正在测量…")
-                 : language.text("CPU: Unavailable", "CPU: 확인 불가", "CPU 数据不可用"))
+                 ? language.text("CPU: Measuring…")
+                 : language.text("CPU: Unavailable"))
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         }
@@ -649,29 +649,29 @@ private struct HostMemoryView: View {
         VStack(alignment: .leading, spacing: 6) {
             if let memory {
                 ThinMetricBar(
-                    title: language.text("RAM", "RAM", "内存"),
+                    title: language.text("RAM"),
                     valueText: "\(memory.usagePercent)% · \(HostMemoryReading.capacityText(kibibytes: memory.usedKiB)) / \(HostMemoryReading.capacityText(kibibytes: memory.totalKiB))",
                     ratio: memory.usageRatio,
                     tint: memoryTint(ratio: memory.usageRatio)
                 )
-                .help(language.text("Available: ", "사용 가능: ", "可用：") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
+                .help(language.text("Available: %@", HostMemoryReading.capacityText(kibibytes: memory.availableKiB)) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
 
                 if let swapTotal = memory.swapTotalKiB, let swapUsed = memory.swapUsedKiB, let swapRatio = memory.swapUsageRatio {
                     if swapTotal > 0 {
                         ThinMetricBar(
-                            title: language.text("Swap", "Swap", "交换空间"),
+                            title: language.text("Swap"),
                             valueText: "\(HostMemoryReading.capacityText(kibibytes: swapUsed)) / \(HostMemoryReading.capacityText(kibibytes: swapTotal))",
                             ratio: swapRatio,
                             tint: memoryTint(ratio: swapRatio)
                         )
                     }
                 } else {
-                    Text(language.text("Swap: Unavailable", "Swap: 확인 불가", "交换空间数据不可用"))
+                    Text(language.text("Swap: Unavailable"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
             } else {
-                Text(language.text("RAM / Swap: Unavailable", "RAM / Swap: 확인 불가", "内存和交换空间数据不可用"))
+                Text(language.text("RAM / Swap: Unavailable"))
                     .font(.caption2)
                     .foregroundStyle(.secondary)
             }
@@ -683,14 +683,14 @@ private struct NetworkUsageRow: View {
     let usage: NetworkUsage
     let language: AppInterfaceLanguage
 
-    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
-        language.text(english, korean, simplifiedChinese)
+    private func t(_ key: String, _ arguments: Any...) -> String {
+        language.text(key, arguments: arguments)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 12) {
-                Label(t("Network", "네트워크", "网络"), systemImage: "network")
+                Label(t("Network"), systemImage: "network")
                     .font(.caption2.weight(.semibold))
                     .foregroundStyle(.secondary)
                 Spacer(minLength: 4)
@@ -706,7 +706,7 @@ private struct NetworkUsageRow: View {
                 )
             }
 
-            Text("\(t("Total since boot", "부팅 후 누적", "开机以来累计")) \(usage.totalSummary)")
+            Text("\(t("Total since boot")) \(usage.totalSummary)")
                 .font(.caption2.monospacedDigit())
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
@@ -718,15 +718,15 @@ private struct NetworkUsageRow: View {
         var lines = [String]()
 
         if usage.interfaceNames.isEmpty {
-            lines.append(t("The server did not report any network interface.", "서버에서 네트워크 인터페이스 정보를 가져오지 못했습니다.", "服务器未返回网络接口信息。"))
+            lines.append(t("The server did not report any network interface."))
         } else {
-            lines.append("\(t("Interfaces", "인터페이스", "网络接口")): \(usage.interfaceNames.joined(separator: ", "))")
+            lines.append("\(t("Interfaces")): \(usage.interfaceNames.joined(separator: ", "))")
         }
 
-        lines.append("\(t("Total since boot", "부팅 후 누적", "开机以来累计")): \(usage.totalSummary)")
+        lines.append("\(t("Total since boot")): \(usage.totalSummary)")
 
         if !usage.hasRates {
-            lines.append(t("The transfer rate is measured from the next refresh on.", "전송 속도는 다음 새로고침부터 표시됩니다.", "传输速率从下次刷新起显示。"))
+            lines.append(t("The transfer rate is measured from the next refresh on."))
         }
 
         return lines.joined(separator: "\n")
@@ -779,12 +779,8 @@ private struct UpdatedPill: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            SummaryPill(title: language.text("Updated", "업데이트", "更新"), value: relativeText(referenceDate: context.date))
-                .help(language.text(
-                    "Oldest data shown: \(date.formatted(date: .omitted, time: .standard))",
-                    "가장 오래된 데이터: \(date.formatted(date: .omitted, time: .standard))",
-                    "最早一条数据的时间：\(date.formatted(date: .omitted, time: .standard))"
-                ))
+            SummaryPill(title: language.text("Updated"), value: relativeText(referenceDate: context.date))
+                .help(language.text("Oldest data shown: %@", date.formatted(date: .omitted, time: .standard)))
         }
     }
 
@@ -792,12 +788,12 @@ private struct UpdatedPill: View {
         let seconds = max(Int(referenceDate.timeIntervalSince(date)), 0)
 
         if seconds < 60 {
-            return language.text("\(seconds)s", "\(seconds)s", "\(seconds) 秒")
+            return language.text("%@s", seconds)
         }
 
         let minutes = seconds / 60
         let remainingSeconds = seconds % 60
-        return language.text("\(minutes)m \(remainingSeconds)s", "\(minutes)m \(remainingSeconds)s", "\(minutes) 分 \(remainingSeconds) 秒")
+        return language.text("%@m %@s", minutes, remainingSeconds)
     }
 }
 
@@ -826,7 +822,7 @@ private struct ProcessRow: View {
                             .lineLimit(1)
 
                         if isCurrentUserProcess {
-                            Text(language.text("Mine", "내 프로세스", "我的进程"))
+                            Text(language.text("Mine"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.green)
                                 .padding(.horizontal, 5)
@@ -854,7 +850,7 @@ private struct ProcessRow: View {
                         Image(systemName: isWatched ? "bell.fill" : "bell")
                             .font(.system(size: 11, weight: .semibold))
 
-                        Text(isWatched ? language.text("Watching", "감시 중", "监视中") : language.text("Notify", "알림", "通知"))
+                        Text(isWatched ? language.text("Watching") : language.text("Notify"))
                             .font(.caption2.weight(.semibold))
                     }
                     .foregroundStyle(isWatched ? Color.orange : Color.secondary)
@@ -872,7 +868,7 @@ private struct ProcessRow: View {
                 .contentShape(Capsule(style: .continuous))
                 .buttonStyle(.plain)
                 .animation(.easeInOut(duration: 0.16), value: isWatched)
-                .help(isWatched ? language.text("Disable process exit alert", "프로세스 종료 알림 해제", "关闭进程退出通知") : language.text("Enable process exit alert", "프로세스 종료 알림 받기", "开启进程退出通知"))
+                .help(isWatched ? language.text("Disable process exit alert") : language.text("Enable process exit alert"))
             }
  
             if process.showsSeparateCommandSummary {

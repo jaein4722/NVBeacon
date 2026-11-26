@@ -150,7 +150,7 @@ struct FlyoutState: Encodable {
             isEnabled: config.isEnabled,
             inactiveReason: inactiveReason,
             updatedAt: snapshot.map { $0.takenAt.timeIntervalSince1970 * 1000 },
-            error: state.sshTooOldForPassword.map { TrayApp.sshTooOldText($0, korean: Theme.language == "ko") } ?? state.lastError,
+            error: state.sshTooOldForPassword.map { TrayApp.sshTooOldText($0, language: Theme.interface) } ?? state.lastError,
             isRefreshing: state.isRefreshing,
             averageUtilization: snapshot?.averageUtilization,
             busyCount: snapshot.map { _ in gpus.filter(settings.isBusy).count },

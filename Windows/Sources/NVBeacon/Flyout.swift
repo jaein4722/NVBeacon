@@ -1,4 +1,5 @@
 import Foundation
+import NVBeaconCore
 import NVBeaconWindowsKit
 import WinSDK
 
@@ -18,7 +19,7 @@ final class Flyout {
     private let host: WebViewHost
     private var hiddenAt: UInt64 = 0
     private let releaseAfter: UINT
-    /// Popover width in logical (96 DPI) pixels; Settings › Appearance.
+    /// Popover width in logical (96 DPI) pixels; Settings › Display.
     var logicalWidth = 500.0 { didSet { if isVisible { position() } } }
     var closesOnOutsideClick = true
     /// Settings › Popover Height › Fixed, in logical pixels; nil follows the content.
@@ -241,7 +242,7 @@ func paintBackground(_ window: HWND?, _ dc: HDC?) {
 }
 
 enum Theme {
-    /// Settings › Appearance › Theme; UI thread only.
+    /// Settings › Display › Theme; UI thread only.
     nonisolated(unsafe) static var preference = AppearancePreference.system
     nonisolated(unsafe) static var languagePreference = LanguagePreference.system
 
@@ -286,12 +287,9 @@ enum Theme {
         isDark ? COLORREF(0x1E1E1E) : COLORREF(0xECECEC)  // 0x00BBGGRR, macOS window backgrounds
     }
 
-    /// "ko" or "en": the setting, or the Windows display language for System.
-    static var language: String {
-        switch languagePreference {
-        case .english: "en"
-        case .korean: "ko"
-        case .system: (GetUserDefaultUILanguage() & 0x3FF) == 0x12 ? "ko" : "en"
-        }
-    }
+    /// The setting, or the Windows display language for System.
+    static var interface: InterfaceLanguage { InterfaceLanguage.resolved(from: languagePreference) }
+
+    /// The language code ("en", "ko", "zh-Hans"), for the pages.
+    static var language: String { interface.code }
 }

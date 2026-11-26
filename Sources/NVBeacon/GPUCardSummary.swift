@@ -53,7 +53,7 @@ struct GPUCardSummary: View {
 #if os(iOS)
         "Util"
 #else
-        language.text("Util", "Util", "使用率")
+        language.text("Util")
 #endif
     }
 
@@ -61,7 +61,7 @@ struct GPUCardSummary: View {
 #if os(iOS)
         "VRAM"
 #else
-        language.text("Memory", "Memory", "显存")
+        language.text("Memory")
 #endif
     }
 
@@ -115,7 +115,7 @@ struct GPUCardSummary: View {
             }
             .accessibilityLabel(Text("\(gpu.processes.count) processes"))
 #else
-            let processCount = language.text("\(gpu.processes.count)p", "\(gpu.processes.count)p", "\(gpu.processes.count) 个进程")
+            let processCount = language.text("%@p", gpu.processes.count)
             Text(verbatim: "\(gpu.temperatureSummary) · \(processCount) · \(gpu.utilization)%")
                 .font(.caption.weight(.semibold)).monospacedDigit()
 #endif

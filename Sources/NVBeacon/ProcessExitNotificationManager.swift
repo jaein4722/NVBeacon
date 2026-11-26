@@ -66,7 +66,7 @@ struct ProcessExitNotificationManager {
         let language = AppLocalizer.currentLanguage()
 
         let content = UNMutableNotificationContent()
-        content.title = language.text("\(watch.displayProcessName) finished", "\(watch.displayProcessName) 종료", "\(watch.displayProcessName) 已退出")
+        content.title = language.text("%@ finished", watch.displayProcessName)
         content.body = watch.subtitle(language: language)
         content.sound = .default
         content.interruptionLevel = .active
@@ -90,12 +90,12 @@ struct ProcessExitNotificationManager {
         let language = AppLocalizer.currentLanguage()
 
         let content = UNMutableNotificationContent()
-        content.title = language.text("\(watch.title) is idle", "\(watch.title) idle 상태", "\(watch.title) 已空闲")
+        content.title = language.text("%@ is idle", watch.title)
         content.body = [
             watch.connectionLabel,
             watch.gpuName,
-            language.text("Idle \(idleDurationSeconds)s", "Idle \(idleDurationSeconds)초", "已空闲 \(idleDurationSeconds) 秒"),
-            language.text("Mem \(memoryUsedMB) MB", "메모리 \(memoryUsedMB) MB", "显存占用 \(memoryUsedMB) MB")
+            language.text("Idle %@s", idleDurationSeconds),
+            language.text("Mem %@ MB", memoryUsedMB)
         ]
         .filter { !$0.isEmpty }
         .joined(separator: " · ")
@@ -121,12 +121,8 @@ struct ProcessExitNotificationManager {
         let language = AppLocalizer.currentLanguage()
 
         let content = UNMutableNotificationContent()
-        content.title = language.text("NVBeacon test notification", "NVBeacon 테스트 알림", "NVBeacon 测试通知")
-        content.body = language.text(
-            "Process exit and GPU idle alerts are working normally.",
-            "프로세스 종료 알림과 GPU idle 알림이 정상적으로 표시됩니다.",
-            "进程退出通知和 GPU 空闲通知工作正常。"
-        )
+        content.title = language.text("NVBeacon test notification")
+        content.body = language.text("Process exit and GPU idle alerts are working normally.")
         content.sound = .default
         content.interruptionLevel = .active
 
