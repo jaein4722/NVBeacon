@@ -81,3 +81,7 @@ Monitoring, GPUs and Processes, and Host Information hold what the desktop Monit
 | macOS Keychain | Keychain | 키체인 |
 | SSH identity file | key file | 키 파일 |
 | Popover / window | popover / window | 팝오버 / 창 |
+| SSH destination (`user@host` or an alias) | SSH target | SSH 대상 |
+| Process reported by `nvidia-smi` | compute process | 연산 프로세스 |
+| Swap space | Swap | 스왑 |
+| Sparkle appcast | update feed | 업데이트 피드 |
