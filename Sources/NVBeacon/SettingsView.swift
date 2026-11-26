@@ -512,7 +512,7 @@ struct SettingsView: View {
             Section {
                 Toggle(isOn: gpuHistoryRecordingBinding) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(t("Record GPU history", "GPU 기록 저장", "记录 GPU 历史"))
+                        Text(t("Record GPU history", "GPU 기록 저장", "保存 GPU 使用记录"))
                         Text(t("Keep 24 hours of per-user GPU utilization on this Mac. Open it from the chart button in the popover.", "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장합니다. 팝오버의 차트 버튼으로 엽니다.", "在这台 Mac 上保留过去 24 小时内各用户的 GPU 使用率。点击弹出面板里的图表按钮查看。"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
@@ -520,26 +520,26 @@ struct SettingsView: View {
                 }
 
                 LabeledContent {
-                    Button(t("Delete History…", "기록 삭제…", "删除历史记录…"), role: .destructive) {
+                    Button(t("Delete History…", "기록 삭제…", "删除使用记录…"), role: .destructive) {
                         showsDeleteGPUHistoryConfirmation = true
                     }
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(t("Saved history", "저장된 기록", "已保存的历史记录"))
-                        Text(t("Turning recording off keeps the saved history until you delete it.", "기록을 꺼도 저장된 기록은 삭제할 때까지 남아 있습니다.", "关闭记录功能后，已保存的历史记录会保留，直到你将其删除。"))
+                        Text(t("Saved history", "저장된 기록", "已保存的使用记录"))
+                        Text(t("Turning recording off keeps the saved history until you delete it.", "기록을 꺼도 저장된 기록은 삭제할 때까지 남아 있습니다.", "关闭记录功能后，已保存的使用记录会保留，直到你将其删除。"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
                 }
             } header: {
-                Text(t("GPU History", "GPU 기록", "GPU 历史记录"))
+                Text(t("GPU History", "GPU 기록", "GPU 使用记录"))
             } footer: {
                 Text(t("Each server runs nvidia-smi pmon at most once a minute while recording.", "기록하는 동안 서버마다 최대 1분에 한 번 nvidia-smi pmon을 실행합니다.", "记录期间，每台服务器每分钟最多运行一次 nvidia-smi pmon。"))
             }
         }
         .formStyle(.grouped)
-        .alert(t("Record GPU history?", "GPU 기록을 저장할까요?", "要记录 GPU 历史吗？"), isPresented: $showsGPUHistoryConfirmation) {
-            Button(t("Record", "저장", "记录")) {
+        .alert(t("Record GPU history?", "GPU 기록을 저장할까요?", "要保存 GPU 使用记录吗？"), isPresented: $showsGPUHistoryConfirmation) {
+            Button(t("Record", "저장", "保存")) {
                 draft.recordsGPUHistory = true
             }
             Button(t("Cancel", "취소", "取消"), role: .cancel) {}
@@ -548,7 +548,7 @@ struct SettingsView: View {
                    "이 Mac에 최근 24시간의 사용자별 GPU 사용률을 저장합니다. 공용 서버라면 다른 사용자의 이름도 함께 저장됩니다. 서버마다 최대 1분에 한 번 nvidia-smi pmon(약 1초)을 실행합니다. 저장 공간은 GPU 하나당 약 0.3MB로 작습니다. 기록은 언제든 삭제할 수 있습니다.",
                    "NVBeacon 会在这台 Mac 上保留过去 24 小时内各用户的 GPU 使用率，其中包含共享服务器上其他用户的用户名。每台服务器每分钟最多运行一次 nvidia-smi pmon，每次约 1 秒。每块 GPU 的记录约占用 0.3 MB 空间，你可以随时删除。"))
         }
-        .alert(t("Delete GPU history?", "GPU 기록을 삭제할까요?", "要删除 GPU 历史记录吗？"), isPresented: $showsDeleteGPUHistoryConfirmation) {
+        .alert(t("Delete GPU history?", "GPU 기록을 삭제할까요?", "要删除 GPU 使用记录吗？"), isPresented: $showsDeleteGPUHistoryConfirmation) {
             Button(t("Delete", "삭제", "删除"), role: .destructive) {
                 Task { await store.deleteGPUHistory() }
             }
@@ -556,7 +556,7 @@ struct SettingsView: View {
         } message: {
             Text(t("All saved GPU history on this Mac will be deleted. This cannot be undone.",
                    "이 Mac에 저장된 GPU 기록이 모두 삭제됩니다. 되돌릴 수 없습니다.",
-                   "删除后，这台 Mac 上保存的 GPU 历史记录将无法恢复。"))
+                   "删除后，这台 Mac 上保存的 GPU 使用记录将无法恢复。"))
         }
     }
 
@@ -636,9 +636,9 @@ struct SettingsView: View {
                     }
                 }
             } header: {
-                Text(t("GPU Idle Alert", "GPU 유휴 알림", "GPU 空闲提醒"))
+                Text(t("GPU Idle Alert", "GPU 유휴 알림", "GPU 空闲通知"))
             } footer: {
-                Text(t("Starred GPUs send an alert when they stay idle this long with memory at or below the threshold.", "별표한 GPU가 이 시간 동안 기준 이하의 메모리로 쉬고 있으면 알림을 보냅니다.", "标星的 GPU 持续空闲达到设定时长，且显存占用未超过阈值时，会发送提醒。"))
+                Text(t("Starred GPUs send an alert when they stay idle this long with memory at or below the threshold.", "별표한 GPU가 이 시간 동안 기준 이하의 메모리로 쉬고 있으면 알림을 보냅니다.", "标星的 GPU 持续空闲达到设定时长，且显存占用未超过阈值时，会发送通知。"))
             }
 
             Section {
@@ -733,14 +733,14 @@ struct SettingsView: View {
                     NumericStepperField(
                         value: $draft.popoverWidth,
                         range: AppSettings.popoverWidthRange,
-                        suffix: t("pt", "pt", "点"),
+                        suffix: t("pt", "pt", "pt"),
                         fieldWidth: 72,
                         step: 20
                     )
                 } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(t("Width", "너비", "宽度"))
-                        Text(t("480–800 pt · Default 500 pt", "480–800pt · 기본값 500pt", "480–800 点 · 默认 500 点"))
+                        Text(t("480–800 pt · Default 500 pt", "480–800pt · 기본값 500pt", "480–800 pt · 默认 500 pt"))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -763,14 +763,14 @@ struct SettingsView: View {
                         NumericStepperField(
                             value: $draft.popoverHeight,
                             range: AppSettings.popoverHeightRange,
-                            suffix: t("pt", "pt", "点"),
+                            suffix: t("pt", "pt", "pt"),
                             fieldWidth: 72,
                             step: 20
                         )
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(t("Fixed height", "고정 높이", "固定高度"))
-                            Text(t("320–1100 pt · Default 600 pt", "320–1100pt · 기본값 600pt", "320–1100 点 · 默认 600 点"))
+                            Text(t("320–1100 pt · Default 600 pt", "320–1100pt · 기본값 600pt", "320–1100 pt · 默认 600 pt"))
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -802,13 +802,13 @@ struct SettingsView: View {
                         .disabled(isReadingBackup || isPreparingExport)
                     if isReadingBackup || isPreparingExport { ProgressView().controlSize(.small) }
                 }
-                Button(t("Transfer All Servers to iPhone…", "iPhone으로 모든 서버 전송…", "将所有服务器传到 iPhone…")) { utilitySheet = .transfer }
+                Button(t("Transfer All Servers to iPhone…", "iPhone으로 모든 서버 전송…", "将所有服务器传输到 iPhone…")) { utilitySheet = .transfer }
                     .disabled(draft.configuredServers.isEmpty || isReadingBackup || isPreparingExport)
                 if let utilityNotice {
                     Text(utilityNotice).font(.caption).foregroundStyle(.secondary)
                 }
             } header: {
-                Text(t("Server Backup and Transfer", "서버 백업과 전송", "服务器备份与迁移"))
+                Text(t("Server Backup and Transfer", "서버 백업과 전송", "服务器备份与传输"))
             } footer: {
                 Text(t(
                     "Exports host names, key-file paths and remote commands. Keychain passwords, private-key contents and notification watches are excluded. Imports add disabled servers without replacing existing settings.",
@@ -845,7 +845,7 @@ struct SettingsView: View {
                 } message: {
                     Text(t("This removes every server, its saved password in Keychain, all GPU and process alerts, and the notification history. It cannot be undone.",
                            "모든 서버와 키체인에 저장된 비밀번호, GPU·프로세스 알림, 알림 기록이 삭제됩니다. 되돌릴 수 없습니다.",
-                           "所有服务器、在钥匙串中保存的服务器密码、GPU 和进程提醒，以及通知历史记录都将永久删除。"))
+                           "所有服务器、在钥匙串中保存的服务器密码、GPU 和进程通知，以及通知记录都将永久删除。"))
                 }
             } header: {
                 Text(t("Saved Settings", "저장된 설정", "已保存的设置"))
@@ -1478,7 +1478,7 @@ struct SettingsView: View {
             VStack(alignment: .leading, spacing: 14) {
                 if !store.watchedIdleGPUs.isEmpty {
                     watchGroup(
-                        title: t("GPU Idle Alerts", "GPU 유휴 알림", "GPU 空闲提醒"),
+                        title: t("GPU Idle Alerts", "GPU 유휴 알림", "GPU 空闲通知"),
                         rows: store.watchedIdleGPUs.map { watch in
                             AnyView(
                                 NotificationWatchRow(
@@ -1500,7 +1500,7 @@ struct SettingsView: View {
 
                 if !store.watchedProcesses.isEmpty {
                     watchGroup(
-                        title: t("Process Exit Alerts", "프로세스 종료 알림", "进程退出提醒"),
+                        title: t("Process Exit Alerts", "프로세스 종료 알림", "进程退出通知"),
                         rows: store.watchedProcesses.map { watch in
                             AnyView(
                                 NotificationWatchRow(

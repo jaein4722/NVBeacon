@@ -123,7 +123,7 @@ struct StatusMenuView: View {
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.primary)
-                    .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침", "立即刷新，必要时重启轮询"))
+                    .help(t("Refresh now and restart polling if needed", "필요하면 polling을 다시 시작하면서 새로고침", "立即刷新，必要时重新开始监控"))
                 }
 
                 displayModeButtons
@@ -223,7 +223,7 @@ struct StatusMenuView: View {
         }
 
         if store.pollableServerCount == 0 {
-            return t("No enabled server is ready for polling.", "Polling할 활성 서버가 없습니다.", "没有可轮询的已启用服务器。")
+            return t("No enabled server is ready for polling.", "Polling할 활성 서버가 없습니다.", "没有可监控的已启用服务器。")
         }
 
         return t("Waiting for the first polling result.", "첫 polling 결과를 기다리는 중입니다.", "正在等待首次采集结果。")
