@@ -83,11 +83,11 @@ def check():
                 used.add(key)
                 if not key.endswith(SEPARATOR) and key not in english:
                     problems.append(f"{path.relative_to(ROOT)}: {key!r} is not in en.json")
-    ios_keys = set(parse_strings(IOS / "ko.lproj" / "Localizable.strings"))
-    unused = [key for key in english if key not in used and key not in ios_keys and "error::" not in key
-              and not key.startswith(IOS_CONTEXT + SEPARATOR)]
+    ios_texts = ios_literals()
+    unused = [key for key in english if key not in used and "error::" not in key
+              and skeleton(english_text(key)) not in ios_texts]
     for key in unused:
-        print(f"unused (or looked up at run time): {key!r}")
+        print(f"possibly unused (or looked up at run time): {key!r}")
     for problem in problems:
         print(problem)
     counts = ", ".join(f"{code} {len(data['strings'])}" for code, data in files.items())
@@ -96,6 +96,21 @@ def check():
 
 
 # ---------- iOS ----------
+
+def skeleton(text):
+    """A text with every placeholder replaced by NUL, to compare keys with source literals."""
+    return PLACEHOLDER.sub(lambda m: "%" if m.group(0) == "%%" else "\0", text)
+
+
+def ios_literals():
+    """The string literals of the iOS app, interpolations replaced by NUL. iOS looks texts
+    up by these literals (Text("…"), String(localized: "…")), so they stand for its keys."""
+    texts = set()
+    for path in [*(ROOT / "Mobile").rglob("*.swift"), *(ROOT / "Shared").rglob("*.swift")]:
+        for match in re.finditer(SWIFT_LITERAL, path.read_text()):
+            literal = re.sub(r"\\\((?:[^()]|\([^()]*\))*\)", "\0", match.group(1))
+            texts.add(unescape(literal))
+    return texts
 
 def parse_strings(path):
     if not path.exists():
