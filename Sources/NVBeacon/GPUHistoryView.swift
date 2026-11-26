@@ -218,7 +218,7 @@ struct GPUHistoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if !store.settings.recordsGPUHistory {
-                Label(t("Recording is off. Turn on Record GPU history in General settings.", "기록이 꺼져 있습니다. 일반 설정에서 GPU 기록 저장을 켜세요.", "记录已关闭。可在「设置 → 监控」中开启 GPU 使用记录。"),
+                Label(t("Recording is off. Turn on Record GPU history in Monitoring settings.", "기록이 꺼져 있습니다. 수집 설정에서 GPU 기록 저장을 켜세요.", "记录已关闭。可在「设置 → 监控」中开启 GPU 使用记录。"),
                       systemImage: "pause.circle")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
