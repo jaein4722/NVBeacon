@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.9.1 - 2026-11-26
+
+- Added Simplified Chinese. Choose it in **Settings → General → Language**, or keep **System** to follow your macOS preferred languages.
+- The GPU History window now points to **Settings → Monitoring** when recording is off, where **Record GPU history** actually is.
+- Thanks @veydon for contributing the Simplified Chinese translation in [#20](https://github.com/jaein4722/NVBeacon/pull/20).
+
 ## 0.9.0 - 2026-11-17
 
 - **NVBeacon for iPhone and iPad is on the App Store.** The **Transfer All Servers to iPhone…** screen now links to it: [Get it on the App Store](https://apps.apple.com/app/nvbeacon/id6830951631).
