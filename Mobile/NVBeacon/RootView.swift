@@ -54,6 +54,7 @@ struct RootView: View {
                                 Text("System").tag("system")
                                 Text(verbatim: "English").tag("en")
                                 Text(verbatim: "한국어").tag("ko")
+                                Text(verbatim: "简体中文").tag("zh-Hans")
                             }
                         }
                         Section {
