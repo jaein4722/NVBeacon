@@ -8,6 +8,9 @@ struct GPUCardSummary: View {
     let badge: Text
     let expanded: Bool
     let expandable: Bool
+#if os(macOS)
+    let language: AppInterfaceLanguage
+#endif
     @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
@@ -36,7 +39,7 @@ struct GPUCardSummary: View {
                 : AnyLayout(HStackLayout(alignment: .bottom, spacing: 10))
 #endif
             layout {
-                ThinMetricBar(title: "Util", valueText: "\(gpu.utilization)%", ratio: gpu.utilizationRatio,
+                ThinMetricBar(title: utilizationLabel, valueText: "\(gpu.utilization)%", ratio: gpu.utilizationRatio,
                               tint: Color(red: 0.93, green: 0.45, blue: 0.15))
                 ThinMetricBar(title: memoryLabel, valueText: memoryValue,
                               ratio: gpu.memoryUsageRatio, tint: Color(red: 0.12, green: 0.54, blue: 0.94))
@@ -46,11 +49,19 @@ struct GPUCardSummary: View {
         .accessibilityElement(children: .combine)
     }
 
+    private var utilizationLabel: String {
+#if os(iOS)
+        "Util"
+#else
+        language.text("Util", "Util", "使用率")
+#endif
+    }
+
     private var memoryLabel: String {
 #if os(iOS)
         "VRAM"
 #else
-        "Memory"
+        language.text("Memory", "Memory", "显存")
 #endif
     }
 
@@ -104,7 +115,8 @@ struct GPUCardSummary: View {
             }
             .accessibilityLabel(Text("\(gpu.processes.count) processes"))
 #else
-            Text(verbatim: "\(gpu.temperatureSummary) · \(gpu.processes.count)p · \(gpu.utilization)%")
+            let processCount = language.text("\(gpu.processes.count)p", "\(gpu.processes.count)p", "\(gpu.processes.count) 个进程")
+            Text(verbatim: "\(gpu.temperatureSummary) · \(processCount) · \(gpu.utilization)%")
                 .font(.caption.weight(.semibold)).monospacedDigit()
 #endif
             if mine {

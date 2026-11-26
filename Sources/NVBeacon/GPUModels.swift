@@ -11,13 +11,13 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .averageAndBusy:
-            return language.text("Average + Busy", "평균 + 사용 중")
+            return language.text("Average + Busy", "평균 + 사용 중", "平均使用率 + 使用中数量")
         case .averageOnly:
-            return language.text("Average Util", "평균 사용률")
+            return language.text("Average Util", "평균 사용률", "平均使用率")
         case .busyOnly:
-            return language.text("Busy Count", "사용 중 개수")
+            return language.text("Busy Count", "사용 중 개수", "使用中数量")
         case .iconOnly:
-            return language.text("Icon Only", "아이콘만")
+            return language.text("Icon Only", "아이콘만", "仅图标")
         }
     }
 
@@ -26,22 +26,26 @@ enum MenuBarDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
         case .averageAndBusy:
             return language.text(
                 "Show both average GPU utilization and busy GPU count.",
-                "평균 GPU 사용률과 사용 중인 GPU 수를 함께 표시합니다."
+                "평균 GPU 사용률과 사용 중인 GPU 수를 함께 표시합니다.",
+                "同时显示 GPU 平均使用率和使用中的 GPU 数量。"
             )
         case .averageOnly:
             return language.text(
                 "Show only average GPU utilization in the menu bar.",
-                "평균 GPU 사용률만 메뉴바에 표시합니다."
+                "평균 GPU 사용률만 메뉴바에 표시합니다.",
+                "菜单栏仅显示 GPU 平均使用率。"
             )
         case .busyOnly:
             return language.text(
                 "Show only the busy GPU count in the menu bar.",
-                "사용 중인 GPU 개수만 메뉴바에 표시합니다."
+                "사용 중인 GPU 개수만 메뉴바에 표시합니다.",
+                "菜单栏仅显示使用中的 GPU 数量。"
             )
         case .iconOnly:
             return language.text(
                 "Show only the icon without text. Issues are indicated by the icon color and symbol.",
-                "텍스트 없이 아이콘만 표시합니다. 상태 이상은 아이콘 색/심볼로 구분합니다."
+                "텍스트 없이 아이콘만 표시합니다. 상태 이상은 아이콘 색/심볼로 구분합니다.",
+                "菜单栏仅显示图标。颜色和图标样式会提示异常状态。"
             )
         }
     }
@@ -72,9 +76,9 @@ enum MonitorDisplayMode: String, Codable, CaseIterable, Equatable, Hashable, Ide
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .popover:
-            return language.text("Popover", "팝오버")
+            return language.text("Popover", "팝오버", "弹出面板")
         case .window:
-            return language.text("Window", "창")
+            return language.text("Window", "창", "窗口")
         }
     }
 }
@@ -89,9 +93,9 @@ enum PopoverHeightMode: String, Codable, CaseIterable, Equatable, Hashable, Iden
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .automatic:
-            return language.text("Fit Content", "내용에 맞춤")
+            return language.text("Fit Content", "내용에 맞춤", "随内容调整")
         case .fixed:
-            return language.text("Fixed", "고정")
+            return language.text("Fixed", "고정", "固定")
         }
     }
 }
@@ -112,11 +116,11 @@ enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Iden
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .system:
-            return language.text("System", "시스템")
+            return language.text("System", "시스템", "跟随系统")
         case .light:
-            return language.text("Light", "라이트")
+            return language.text("Light", "라이트", "浅色")
         case .dark:
-            return language.text("Dark", "다크")
+            return language.text("Dark", "다크", "深色")
         }
     }
 
@@ -125,17 +129,20 @@ enum AppAppearanceMode: String, Codable, CaseIterable, Equatable, Hashable, Iden
         case .system:
             return language.text(
                 "Follow the macOS system appearance.",
-                "macOS 시스템 설정을 그대로 따릅니다."
+                "macOS 시스템 설정을 그대로 따릅니다.",
+                "跟随 macOS 的外观设置。"
             )
         case .light:
             return language.text(
                 "Always show NVBeacon in light mode.",
-                "NVBeacon을 항상 라이트 모드로 표시합니다."
+                "NVBeacon을 항상 라이트 모드로 표시합니다.",
+                "始终以浅色模式显示 NVBeacon。"
             )
         case .dark:
             return language.text(
                 "Always show NVBeacon in dark mode.",
-                "NVBeacon을 항상 다크 모드로 표시합니다."
+                "NVBeacon을 항상 다크 모드로 표시합니다.",
+                "始终以深色模式显示 NVBeacon。"
             )
         }
     }
@@ -145,9 +152,9 @@ extension SSHAuthenticationMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .keyBased:
-            return language.text("Key-based", "키 기반")
+            return language.text("Key-based", "키 기반", "SSH 密钥")
         case .passwordBased:
-            return language.text("Password-based", "비밀번호")
+            return language.text("Password-based", "비밀번호", "SSH 密码")
         }
     }
 
@@ -156,12 +163,14 @@ extension SSHAuthenticationMode {
         case .keyBased:
             return language.text(
                 "Use SSH keys and ssh-agent. The app does not read Keychain during background polling.",
-                "SSH 키와 ssh-agent를 사용합니다. 백그라운드 수집 중에는 키체인을 읽지 않습니다."
+                "SSH 키와 ssh-agent를 사용합니다. 백그라운드 수집 중에는 키체인을 읽지 않습니다.",
+                "使用 SSH 密钥和 ssh-agent。后台轮询时，应用不会读取钥匙串。"
             )
         case .passwordBased:
             return language.text(
                 "Use the SSH password stored in the macOS Keychain.",
-                "macOS 키체인에 저장된 SSH 비밀번호를 사용합니다."
+                "macOS 키체인에 저장된 SSH 비밀번호를 사용합니다.",
+                "使用 macOS 钥匙串中保存的 SSH 密码。"
             )
         }
     }
@@ -171,9 +180,9 @@ extension SSHConnectionReuseMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .reuseWhenPossible:
-            return language.text("Reuse connection (Recommended)", "연결 재사용 (권장)")
+            return language.text("Reuse connection (Recommended)", "연결 재사용 (권장)", "复用连接（推荐）")
         case .newConnectionEachRefresh:
-            return language.text("New connection every refresh", "매 새로고침마다 새 연결")
+            return language.text("New connection every refresh", "매 새로고침마다 새 연결", "每次刷新时新建连接")
         }
     }
 
@@ -182,12 +191,14 @@ extension SSHConnectionReuseMode {
         case .reuseWhenPossible:
             return language.text(
                 "Keep one SSH connection open briefly and reuse it for repeated refreshes. This is usually faster and can reduce repeated login overhead.",
-                "SSH 연결을 잠시 유지하고 반복 새로고침에 재사용합니다. 보통 더 빠르고 반복 로그인 부담도 줄어듭니다."
+                "SSH 연결을 잠시 유지하고 반복 새로고침에 재사용합니다. 보통 더 빠르고 반복 로그인 부담도 줄어듭니다.",
+                "短暂保留 SSH 连接，供后续刷新复用。这通常更快，也可减少重复登录的开销。"
             )
         case .newConnectionEachRefresh:
             return language.text(
                 "Open a brand-new SSH connection for every refresh. This is slower, but useful for unusual SSH servers.",
-                "새로고침마다 완전히 새 SSH 연결을 엽니다. 더 느리지만 특이한 SSH 서버와는 더 잘 맞을 수 있습니다."
+                "새로고침마다 완전히 새 SSH 연결을 엽니다. 더 느리지만 특이한 SSH 서버와는 더 잘 맞을 수 있습니다.",
+                "每次刷新时都新建 SSH 连接。这样速度较慢，但适用于部分特殊的 SSH 服务器。"
             )
         }
     }
@@ -197,12 +208,14 @@ extension SSHConnectionReuseMode {
         case .reuseWhenPossible:
             return language.text(
                 "NVBeacon can reuse the SSH connection for a short time instead of logging in again for every poll. No extra software is required on the server. If your server behaves strangely, switch to the fresh-connection mode.",
-                "NVBeacon은 수집할 때마다 다시 로그인하지 않고 SSH 연결을 잠시 재사용할 수 있습니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요."
+                "NVBeacon은 수집할 때마다 다시 로그인하지 않고 SSH 연결을 잠시 재사용할 수 있습니다. 서버에 별도 설치가 필요한 기능은 아닙니다. 서버 동작이 이상하면 새 연결 모드로 바꾸세요.",
+                "NVBeacon 可以短暂复用 SSH 连接，减少每次轮询的登录开销。服务器无需另外安装软件。若连接异常，可改为每次刷新时新建连接。"
             )
         case .newConnectionEachRefresh:
             return language.text(
                 "This disables SSH connection reuse and starts a fresh session on every poll.",
-                "SSH 연결 재사용을 끄고 수집할 때마다 새 세션을 시작합니다."
+                "SSH 연결 재사용을 끄고 수집할 때마다 새 세션을 시작합니다.",
+                "关闭 SSH 连接复用，每次轮询时新建会话。"
             )
         }
     }
@@ -217,13 +230,13 @@ enum SSHPasswordSessionState: Equatable, Sendable {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .notRequired:
-            return language.text("Not required", "불필요")
+            return language.text("Not required", "불필요", "无需密码")
         case .missing:
-            return language.text("Not saved", "저장 안 됨")
+            return language.text("Not saved", "저장 안 됨", "未保存")
         case .locked:
-            return language.text("Locked", "잠김")
+            return language.text("Locked", "잠김", "已锁定")
         case .unlocked:
-            return language.text("Unlocked", "해제됨")
+            return language.text("Unlocked", "해제됨", "已解锁")
         }
     }
 
@@ -232,22 +245,26 @@ enum SSHPasswordSessionState: Equatable, Sendable {
         case .notRequired:
             return language.text(
                 "Key-based authentication is active, so no SSH password is needed.",
-                "키 기반 인증을 사용 중이라 SSH 비밀번호가 필요하지 않습니다."
+                "키 기반 인증을 사용 중이라 SSH 비밀번호가 필요하지 않습니다.",
+                "当前使用 SSH 密钥认证，无需 SSH 密码。"
             )
         case .missing:
             return language.text(
                 "Save an SSH password first. Background polling will stay paused until a password is saved and unlocked.",
-                "먼저 SSH 비밀번호를 저장해야 합니다. 저장 후 세션에서 한 번 해제하기 전까지 백그라운드 수집은 멈춘 상태를 유지합니다."
+                "먼저 SSH 비밀번호를 저장해야 합니다. 저장 후 세션에서 한 번 해제하기 전까지 백그라운드 수집은 멈춘 상태를 유지합니다.",
+                "请先保存 SSH 密码。保存并解锁密码后，后台轮询才会开始。"
             )
         case .locked:
             return language.text(
                 "A password is saved in Keychain, but this app session has not unlocked it yet. Unlock once to avoid repeated Keychain prompts during polling.",
-                "키체인에 저장된 비밀번호는 있지만 현재 앱 세션에서 아직 해제하지 않았습니다. 수집할 때 반복해서 묻지 않도록 한 번만 해제하세요."
+                "키체인에 저장된 비밀번호는 있지만 현재 앱 세션에서 아직 해제하지 않았습니다. 수집할 때 반복해서 묻지 않도록 한 번만 해제하세요.",
+                "当前会话尚未解锁钥匙串中保存的密码。解锁一次即可避免轮询时反复弹出钥匙串提示。"
             )
         case .unlocked:
             return language.text(
                 "The saved SSH password is cached in memory for this app session. Background polling will not read Keychain again until the app restarts.",
-                "저장된 SSH 비밀번호가 현재 앱 세션 메모리에 캐시되어 있습니다. 앱을 다시 시작하기 전까지 백그라운드 수집은 키체인을 다시 읽지 않습니다."
+                "저장된 SSH 비밀번호가 현재 앱 세션 메모리에 캐시되어 있습니다. 앱을 다시 시작하기 전까지 백그라운드 수집은 키체인을 다시 읽지 않습니다.",
+                "已将 SSH 密码缓存在当前会话的内存中。应用重启前，后台轮询无需再次读取钥匙串。"
             )
         }
     }
@@ -265,13 +282,13 @@ extension BusyDetectionMode {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .activeProcess:
-            return language.text("Active Process", "활성 프로세스")
+            return language.text("Active Process", "활성 프로세스", "有运行中的进程")
         case .memoryThreshold:
-            return language.text("Memory Threshold", "메모리 기준")
+            return language.text("Memory Threshold", "메모리 기준", "显存阈值")
         case .activeProcessOrMemoryThreshold:
-            return language.text("Process or Memory", "프로세스 또는 메모리")
+            return language.text("Process or Memory", "프로세스 또는 메모리", "进程或显存阈值")
         case .utilizationThreshold:
-            return language.text("Utilization Threshold", "사용률 기준")
+            return language.text("Utilization Threshold", "사용률 기준", "使用率阈值")
         }
     }
 
@@ -280,22 +297,26 @@ extension BusyDetectionMode {
         case .activeProcess:
             return language.text(
                 "Count a GPU as busy when `nvidia-smi` reports at least one active compute process.",
-                "`nvidia-smi`에 실행 중인 연산 프로세스가 하나 이상 보이면 사용 중으로 판단합니다."
+                "`nvidia-smi`에 실행 중인 연산 프로세스가 하나 이상 보이면 사용 중으로 판단합니다.",
+                "当 nvidia-smi 报告至少一个运行中的计算进程时，将 GPU 判为使用中。"
             )
         case .memoryThreshold:
             return language.text(
                 "Count a GPU as busy when used memory is above the configured threshold.",
-                "사용 중인 메모리가 지정 기준을 넘으면 사용 중으로 판단합니다."
+                "사용 중인 메모리가 지정 기준을 넘으면 사용 중으로 판단합니다.",
+                "已用显存超过设定阈值时，将 GPU 判为使用中。"
             )
         case .activeProcessOrMemoryThreshold:
             return language.text(
                 "Count a GPU as busy when either an active process exists or used memory is above the threshold.",
-                "실행 중인 프로세스가 있거나 사용 메모리가 기준을 넘으면 사용 중으로 판단합니다."
+                "실행 중인 프로세스가 있거나 사용 메모리가 기준을 넘으면 사용 중으로 판단합니다.",
+                "有运行中的进程或已用显存超过阈值时，将 GPU 判为使用中。"
             )
         case .utilizationThreshold:
             return language.text(
                 "Legacy behavior: count a GPU as busy when utilization is above the configured threshold.",
-                "기존 방식입니다. 사용률이 지정 기준을 넘으면 사용 중으로 판단합니다."
+                "기존 방식입니다. 사용률이 지정 기준을 넘으면 사용 중으로 판단합니다.",
+                "沿用旧版规则，GPU 使用率超过设定阈值即判为使用中。"
             )
         }
     }
@@ -310,13 +331,13 @@ enum NotificationPermissionState: Equatable, Sendable {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .unsupported:
-            return language.text("Unavailable", "사용 불가")
+            return language.text("Unavailable", "사용 불가", "不可用")
         case .notDetermined:
-            return language.text("Not enabled", "비활성화")
+            return language.text("Not enabled", "비활성화", "未启用")
         case .denied:
-            return language.text("Denied", "거부됨")
+            return language.text("Denied", "거부됨", "已拒绝")
         case .authorized:
-            return language.text("Enabled", "활성화")
+            return language.text("Enabled", "활성화", "已启用")
         }
     }
 
@@ -325,22 +346,26 @@ enum NotificationPermissionState: Equatable, Sendable {
         case .unsupported:
             return language.text(
                 "macOS notifications are unavailable when running with `swift run`.",
-                "개발용 `swift run` 실행에서는 macOS 알림을 사용할 수 없습니다."
+                "개발용 `swift run` 실행에서는 macOS 알림을 사용할 수 없습니다.",
+                "通过 swift run 启动时，macOS 通知不可用。"
             )
         case .notDetermined:
             return language.text(
                 "Allow macOS notification permission to use process exit alerts.",
-                "프로세스 종료 알림을 쓰려면 macOS 알림 권한을 허용해야 합니다."
+                "프로세스 종료 알림을 쓰려면 macOS 알림 권한을 허용해야 합니다.",
+                "允许 macOS 通知权限，即可接收进程退出通知。"
             )
         case .denied:
             return language.text(
                 "NVBeacon notifications are denied in macOS. Enable them in System Settings.",
-                "macOS에서 NVBeacon 알림 권한이 거부된 상태입니다. 시스템 설정에서 허용해야 합니다."
+                "macOS에서 NVBeacon 알림 권한이 거부된 상태입니다. 시스템 설정에서 허용해야 합니다.",
+                "NVBeacon 的通知权限已被 macOS 拒绝。请前往「系统设置」允许通知。"
             )
         case .authorized:
             return language.text(
                 "Notifications are ready for process exit and GPU idle alerts.",
-                "프로세스 종료 알림과 GPU 유휴 알림을 보낼 준비가 되어 있습니다."
+                "프로세스 종료 알림과 GPU 유휴 알림을 보낼 준비가 되어 있습니다.",
+                "可以接收进程退出通知和 GPU 空闲通知。"
             )
         }
     }
@@ -999,7 +1024,7 @@ struct ProcessExitWatch: Codable, Identifiable, Equatable, Sendable {
         var parts = [
             connectionLabel,
             "GPU \(gpuIndex)",
-            language.text("PID \(pid)", "PID \(pid)")
+            language.text("PID \(pid)", "PID \(pid)", "PID \(pid)")
         ]
         if let user, !user.isEmpty {
             parts.append(user)
@@ -1109,23 +1134,23 @@ enum NotificationHistoryKind: String, Codable, Equatable, Sendable {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .permissionEnabled:
-            return language.text("Permission enabled", "권한 허용")
+            return language.text("Permission enabled", "권한 허용", "已允许通知")
         case .permissionDenied:
-            return language.text("Permission denied", "권한 거부")
+            return language.text("Permission denied", "권한 거부", "已拒绝通知")
         case .watchAdded:
-            return language.text("Process watch enabled", "프로세스 감시 등록")
+            return language.text("Process watch enabled", "프로세스 감시 등록", "已开启进程监视")
         case .watchRemoved:
-            return language.text("Process watch removed", "프로세스 감시 해제")
+            return language.text("Process watch removed", "프로세스 감시 해제", "已停止进程监视")
         case .idleWatchAdded:
-            return language.text("GPU idle watch enabled", "GPU 유휴 감시 등록")
+            return language.text("GPU idle watch enabled", "GPU 유휴 감시 등록", "已开启 GPU 空闲监视")
         case .idleWatchRemoved:
-            return language.text("GPU idle watch removed", "GPU 유휴 감시 해제")
+            return language.text("GPU idle watch removed", "GPU 유휴 감시 해제", "已停止 GPU 空闲监视")
         case .testNotificationScheduled:
-            return language.text("Test notification sent", "테스트 알림 전송")
+            return language.text("Test notification sent", "테스트 알림 전송", "已发送测试通知")
         case .exitNotificationScheduled:
-            return language.text("Process exit notification sent", "프로세스 종료 알림 전송")
+            return language.text("Process exit notification sent", "프로세스 종료 알림 전송", "已发送进程退出通知")
         case .idleNotificationScheduled:
-            return language.text("GPU idle notification sent", "GPU 유휴 알림 전송")
+            return language.text("GPU idle notification sent", "GPU 유휴 알림 전송", "已发送 GPU 空闲通知")
         }
     }
 }

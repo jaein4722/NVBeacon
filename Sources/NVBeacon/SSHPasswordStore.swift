@@ -105,17 +105,17 @@ enum PasswordStoreError: LocalizedError {
         let language = AppLocalizer.currentLanguage()
         switch self {
         case .invalidData:
-            return language.text("Could not read the saved SSH password.", "저장된 SSH 비밀번호를 읽을 수 없습니다.")
+            return language.text("Could not read the saved SSH password.", "저장된 SSH 비밀번호를 읽을 수 없습니다.", "无法读取已保存的 SSH 密码。")
         case .osStatus(let status):
             switch status {
             case errSecUserCanceled:
-                return language.text("The Keychain prompt was canceled.", "키체인 확인 창이 취소되었습니다.")
+                return language.text("The Keychain prompt was canceled.", "키체인 확인 창이 취소되었습니다.", "已取消钥匙串授权。")
             case errSecAuthFailed:
-                return language.text("The Keychain password or confirmation was rejected.", "키체인 암호 또는 확인이 거부되었습니다.")
+                return language.text("The Keychain password or confirmation was rejected.", "키체인 암호 또는 확인이 거부되었습니다.", "钥匙串密码错误，或授权请求被拒绝。")
             case errSecInteractionNotAllowed:
-                return language.text("The Keychain item needs to be unlocked from Settings.", "설정에서 Keychain 항목을 한 번 해제해야 합니다.")
+                return language.text("The Keychain item needs to be unlocked from Settings.", "설정에서 Keychain 항목을 한 번 해제해야 합니다.", "请在设置中解锁钥匙串项目。")
             default:
-                return language.text("The Keychain operation failed. (OSStatus \(status))", "키체인 작업이 실패했습니다. (OSStatus \(status))")
+                return language.text("The Keychain operation failed. (OSStatus \(status))", "키체인 작업이 실패했습니다. (OSStatus \(status))", "钥匙串操作失败（OSStatus \(status)）。")
             }
         }
     }

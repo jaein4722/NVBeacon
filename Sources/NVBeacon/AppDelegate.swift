@@ -62,7 +62,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApplication.shared.activate(ignoringOtherApps: true)
         if historyWindow == nil {
             let window = NSWindow(contentViewController: NSHostingController(rootView: GPUHistoryWindowView(store: store)))
-            window.title = store.settings.resolvedLanguage.text("GPU History", "GPU 기록")
+            window.title = store.settings.resolvedLanguage.text("GPU History", "GPU 기록", "GPU 使用记录")
             window.setContentSize(NSSize(width: 640, height: 520))
             window.isReleasedWhenClosed = false
             window.delegate = self

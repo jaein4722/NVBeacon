@@ -14,6 +14,10 @@ NVBeacon has three clients: macOS, iPhone and iPad, and Windows (in the works). 
 | Advanced | Server backup, import and transfer, diagnostic information, reloading and clearing saved settings |
 | About | App identity, version and build, links, open source licenses (Windows), runtime snapshot |
 
+## macOS
+
+Under General → Language, choose System, English, Korean, or Simplified Chinese. System follows the first supported language in the macOS preference order.
+
 ## iPhone and iPad
 
 iOS has one Settings screen instead of tabs. Its sections follow the desktop tab order and names, and leave out what does not exist on iOS:

@@ -333,7 +333,7 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
             iconOnly: store.settings.menuBarDisplayMode == .iconOnly,
             title: store.menuBarTitle,
             symbolName: store.menuBarSymbolName,
-            accessibilityDescription: store.settings.resolvedLanguage.text("GPU Usage", "GPU 사용량"),
+            accessibilityDescription: store.settings.resolvedLanguage.text("GPU Usage", "GPU 사용량", "GPU 使用情况"),
             toolTip: store.menuBarToolTip
         )
         let applied = appliedStatusItemContent
@@ -358,20 +358,20 @@ final class StatusItemController: NSObject, NSPopoverDelegate {
 
     private func updateMenuTitles() {
         let language = store.settings.resolvedLanguage
-        settingsMenuItem.title = language.text("Settings…", "설정…")
-        quitMenuItem.title = language.text("Quit NVBeacon", "NVBeacon 종료")
+        settingsMenuItem.title = language.text("Settings…", "설정…", "设置…")
+        quitMenuItem.title = language.text("Quit NVBeacon", "NVBeacon 종료", "退出 NVBeacon")
         let windowMode = store.settings.displayMode == .window
         displayModeMenuItem.title = windowMode
-            ? language.text("Show as Popover", "팝오버로 보기")
-            : language.text("Show as Window", "창으로 보기")
-        keepOnTopMenuItem.title = language.text("Keep Window on Top", "항상 위에 표시")
+            ? language.text("Show as Popover", "팝오버로 보기", "显示为弹出面板")
+            : language.text("Show as Window", "창으로 보기", "显示为窗口")
+        keepOnTopMenuItem.title = language.text("Keep Window on Top", "항상 위에 표시", "窗口置顶")
         keepOnTopMenuItem.state = store.settings.keepsWindowOnTop ? .on : .off
         keepOnTopMenuItem.isHidden = !windowMode
-        refreshMenuItem.title = language.text("Refresh Now", "지금 새로고침")
+        refreshMenuItem.title = language.text("Refresh Now", "지금 새로고침", "立即刷新")
         refreshMenuItem.isEnabled = store.settings.isConfigured
-        historyMenuItem.title = language.text("GPU History…", "GPU 기록…")
+        historyMenuItem.title = language.text("GPU History…", "GPU 기록…", "GPU 使用记录…")
         historyMenuItem.isHidden = !store.settings.recordsGPUHistory
-        checkForUpdatesMenuItem.title = language.text("Check for Updates…", "업데이트 확인…")
+        checkForUpdatesMenuItem.title = language.text("Check for Updates…", "업데이트 확인…", "检查更新…")
         checkForUpdatesMenuItem.isEnabled = canCheckForUpdates()
     }
 
