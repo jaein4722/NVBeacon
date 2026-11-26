@@ -298,7 +298,7 @@ public final class WatchStore: @unchecked Sendable {
     /// After a successful poll: returns the notifications to show. Exited
     /// processes are confirmed with `ps` (the macOS command) before notifying,
     /// and their watches are removed; an idle GPU notifies once per idle stretch.
-    public func evaluate(snapshot: GPUSnapshot, server: ServerSettings, settings: WindowsSettings, korean: Bool,
+    public func evaluate(snapshot: GPUSnapshot, server: ServerSettings, settings: WindowsSettings, language: InterfaceLanguage,
                          transport: AnyRemoteCommandExecutor) async -> [PendingNotification] {
         var notifications: [PendingNotification] = []
         let fingerprint = server.connectionFingerprint
@@ -316,7 +316,7 @@ public final class WatchStore: @unchecked Sendable {
                     for watch in exited { appendHistory(NotificationHistoryEntry(kind: .exitNotificationScheduled, watch: watch)) }
                 }
                 notifications += exited.map {
-                    PendingNotification(title: korean ? "\($0.displayProcessName) 종료" : "\($0.displayProcessName) finished", body: $0.subtitle)
+                    PendingNotification(title: language.text("%@ finished", $0.displayProcessName), body: $0.subtitle)
                 }
             }
         }
@@ -350,10 +350,10 @@ public final class WatchStore: @unchecked Sendable {
                     appendHistory(NotificationHistoryEntry(kind: .idleNotificationScheduled, idleWatch: watch,
                                                            detail: "Idle \(seconds)s · \(gpu.memoryUsedMB)MB"))
                     let body = [watch.connectionLabel, watch.gpuName,
-                                korean ? "유휴 \(seconds)초" : "Idle \(seconds)s",
-                                korean ? "메모리 \(gpu.memoryUsedMB) MB" : "Mem \(gpu.memoryUsedMB) MB"]
+                                language.text("windows::Idle %@s", seconds),
+                                language.text("Mem %@ MB", gpu.memoryUsedMB)]
                         .filter { !$0.isEmpty }.joined(separator: " · ")
-                    notifications.append(PendingNotification(title: korean ? "\(watch.title) 유휴 상태" : "\(watch.title) is idle", body: body))
+                    notifications.append(PendingNotification(title: language.text("windows::%@ is idle", watch.title), body: body))
                 }
                 tracking[watch.id] = state
             }

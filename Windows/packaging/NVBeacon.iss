@@ -99,8 +99,10 @@ Name: "launchatlogin"; Description: "{cm:LaunchAtLogin}"; GroupDescription: "{cm
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "NVBeacon"; ValueData: """{app}\NVBeacon.exe"""; Tasks: launchatlogin
 
 [InstallDelete]
-; The UI files are replaced as a whole so pages removed in a newer version do not linger.
+; The UI and translation files are replaced as a whole so pages and languages removed in a
+; newer version do not linger.
 Type: filesandordirs; Name: "{app}\NVBeaconWindows_NVBeacon.resources"
+Type: filesandordirs; Name: "{app}\Localization"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs

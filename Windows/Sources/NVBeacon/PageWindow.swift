@@ -8,20 +8,21 @@ final class PageWindow {
     static let className = "NVBeaconPageWindow"
     let window: HWND
     let host: WebViewHost
-    private let titles: (english: String, korean: String)
+    /// A key of the shared translation files.
+    private let title: String
     private let size: (width: Double, height: Double)
     private let minimumSize: (width: Double, height: Double)
     var onMessage: ([String: Any]) -> Void = { _ in }
     var onPageReady: () -> Void = {}
     var onClosed: () -> Void = {}
 
-    init?(instance: HINSTANCE?, page: String, titles: (english: String, korean: String),
+    init?(instance: HINSTANCE?, page: String, title: String,
           size: (width: Double, height: Double), minimumSize: (width: Double, height: Double)) {
-        self.titles = titles
+        self.title = title
         self.size = size
         self.minimumSize = minimumSize
         let created = Self.className.withCString(encodedAs: UTF16.self) { name in
-            titles.english.withCString(encodedAs: UTF16.self) { title in
+            title.withCString(encodedAs: UTF16.self) { title in
                 CreateWindowExW(0, name, title, DWORD(WS_OVERLAPPEDWINDOW) | DWORD(WS_CLIPCHILDREN),
                                 Int32(bitPattern: 0x8000_0000), 0, Int32(size.width), Int32(size.height), nil, nil, instance, nil)
             }
@@ -73,7 +74,7 @@ final class PageWindow {
     func applyTheme() {
         var dark: Int32 = Theme.isDark ? 1 : 0
         DwmSetWindowAttribute(window, DWORD(DWMWA_USE_IMMERSIVE_DARK_MODE.rawValue), &dark, DWORD(MemoryLayout<Int32>.size))
-        let title = Theme.language == "ko" ? titles.korean : titles.english
+        let title = Theme.interface.text(self.title)
         _ = title.withCString(encodedAs: UTF16.self) { SetWindowTextW(window, $0) }
         InvalidateRect(window, nil, true)
     }

@@ -70,7 +70,7 @@ struct ServerImportReviewView: View {
                                 LabeledContent(t("Authentication"), value: server.sshAuthenticationMode.title(in: language))
                                 LabeledContent(t("SSH connection"), value: server.sshConnectionReuseMode.title(in: language))
                                 if !server.sshIdentityFilePath.isEmpty {
-                                    Text(t("Identity file: ") + server.sshIdentityFilePath)
+                                    Text(t("Identity file: %@", server.sshIdentityFilePath))
                                         .font(.caption).textSelection(.enabled)
                                 }
                                 Text(t("GPU command")).font(.caption.weight(.semibold))

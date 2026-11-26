@@ -148,7 +148,7 @@ public struct Translations: Sendable {
 
     /// `"metric::Unavailable"` → `"Unavailable"`.
     public static func englishText(ofKey key: String) -> String {
-        guard let range = key.range(of: contextSeparator) else { return key }
+        guard let range = key.range(of: contextSeparator, options: .backwards) else { return key }
         return String(key[range.upperBound...])
     }
 

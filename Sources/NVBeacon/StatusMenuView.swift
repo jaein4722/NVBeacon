@@ -473,7 +473,7 @@ struct StatusMenuView: View {
             parts.append(t("%@ GPU idle", idleCount))
         }
 
-        return t("Watching ") + parts.joined(separator: " · ")
+        return t("Watching %@", parts.joined(separator: " · "))
     }
 }
 
@@ -654,7 +654,7 @@ private struct HostMemoryView: View {
                     ratio: memory.usageRatio,
                     tint: memoryTint(ratio: memory.usageRatio)
                 )
-                .help(language.text("Available: ") + HostMemoryReading.capacityText(kibibytes: memory.availableKiB) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
+                .help(language.text("Available: %@", HostMemoryReading.capacityText(kibibytes: memory.availableKiB)) + memoryUsageNotice(ratio: memory.usageRatio, language: language))
 
                 if let swapTotal = memory.swapTotalKiB, let swapUsed = memory.swapUsedKiB, let swapRatio = memory.swapUsageRatio {
                     if swapTotal > 0 {

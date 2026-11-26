@@ -1,5 +1,6 @@
 import CWebView2
 import Foundation
+import NVBeaconWindowsKit
 import WinSDK
 
 /// Hosts one WebView2 page inside a Win32 window: creation, JSON messages both
@@ -11,6 +12,8 @@ final class WebViewHost {
     var nonClientRegions = false
     private(set) var view: OpaquePointer?
     private(set) var pageReady = false
+    /// The language of the strings table the page has (see strings.js).
+    private var stringsLanguage: String?
     private var creating = false
     private var createStarted = ContinuousClock.now
     /// Called with each message the page sends, after `ready` has been handled.
@@ -37,21 +40,20 @@ final class WebViewHost {
         Diagnostics.logError(detail)
         guard !failureShown else { return }
         failureShown = true
-        let korean = Theme.language == "ko"
-        var text = korean ? "NVBeacon 창을 열 수 없습니다. " : "NVBeacon cannot open its windows. "
+        let language = Theme.interface
+        var text = language.text("NVBeacon cannot open its windows.") + " "
         switch kind {
         case .missingFiles:
-            text += korean ? "설치된 파일 일부가 없습니다. NVBeacon을 다시 설치하세요." : "Some installed files are missing. Install NVBeacon again."
+            text += language.text("Some installed files are missing. Install NVBeacon again.")
         case .runtimeMissing:
-            text += korean ? "이 PC에 Microsoft Edge WebView2 런타임이 설치되어 있지 않습니다." : "The Microsoft Edge WebView2 Runtime is not installed on this PC."
+            text += language.text("The Microsoft Edge WebView2 Runtime is not installed on this PC.")
         case .startFailed:
-            text += korean ? "Microsoft Edge WebView2를 시작하지 못했습니다." : "Microsoft Edge WebView2 could not be started."
+            text += language.text("Microsoft Edge WebView2 could not be started.")
         }
-        text += korean ? "\n\n오류: \(detail)\n기록: \(Diagnostics.logURL.windowsPath)" : "\n\nError: \(detail)\nLog: \(Diagnostics.logURL.windowsPath)"
+        text += "\n\n" + language.text("Error: %@\nLog: %@", detail, Diagnostics.logURL.windowsPath)
         let offersDownload = kind != .missingFiles
         if offersDownload {
-            text += korean ? "\n\nWebView2 런타임 다운로드 페이지를 열까요? 설치하거나 복구한 뒤 NVBeacon을 다시 실행하세요. 트레이 아이콘과 알림은 계속 동작합니다."
-                           : "\n\nOpen the WebView2 Runtime download page? Install or repair it, then start NVBeacon again. The tray icon and alerts keep working."
+            text += "\n\n" + language.text("Open the WebView2 Runtime download page? Install or repair it, then start NVBeacon again. The tray icon and alerts keep working.")
         }
         let answer = text.withCString(encodedAs: UTF16.self) { body in
             "NVBeacon".withCString(encodedAs: UTF16.self) { title in
@@ -112,6 +114,7 @@ final class WebViewHost {
               let type = message["type"] as? String else { return }
         if type == "ready" {
             pageReady = true
+            stringsLanguage = nil
             var client = RECT()
             GetClientRect(window, &client)
             Diagnostics.log("\(page) ready after \(ContinuousClock.now - createStarted); page \(message["width"] ?? "?")x\(message["height"] ?? "?") css px at scale \(message["scale"] ?? "?"), client \(client.right)x\(client.bottom) px")
@@ -127,7 +130,22 @@ final class WebViewHost {
 
     func post(_ json: String) {
         guard let view, pageReady else { return }
+        postStringsIfNeeded(to: view)
         _ = json.withCString(encodedAs: UTF16.self) { NVBWebViewPostJSON(view, $0) }
+    }
+
+    /// Before the first message, and after the language changes, the page gets the
+    /// interface strings in the current language (English where a text is missing).
+    private func postStringsIfNeeded(to view: OpaquePointer) {
+        let language = Theme.language
+        guard language != stringsLanguage else { return }
+        stringsLanguage = language
+        let message: [String: Any] = [
+            "type": "strings", "language": language,
+            "strings": InterfaceLanguage.translations.resolvedStrings(for: language),
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: message) else { return }
+        _ = String(decoding: data, as: UTF8.self).withCString(encodedAs: UTF16.self) { NVBWebViewPostJSON(view, $0) }
     }
 
     func post(_ object: [String: Any]) {
@@ -160,6 +178,7 @@ final class WebViewHost {
         NVBWebViewClose(view)
         self.view = nil
         pageReady = false
+        stringsLanguage = nil
         Diagnostics.log("WebView2 for \(page) released")
     }
 

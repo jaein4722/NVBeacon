@@ -107,6 +107,8 @@ if (Test-Path $dist) { Remove-Item $dist -Recurse -Force }
 New-Item -ItemType Directory -Force $dist | Out-Null
 Copy-Item (Join-Path $bin "NVBeacon.exe"), (Join-Path $bin "nvbeacon-cli.exe"), $loader $dist
 Copy-Item (Join-Path $bin "NVBeaconWindows_NVBeacon.resources") $dist -Recurse
+# Interface strings shared with the other clients (Shared/Localization), read at startup.
+Copy-Item (Join-Path $repo "Shared\Localization") (Join-Path $dist "Localization") -Recurse
 
 # Swift and C++ runtime DLLs the executables load, found by walking their imports.
 # Visual Studio 2022 or 2026 ("18"): Build Tools install under Program Files (x86),

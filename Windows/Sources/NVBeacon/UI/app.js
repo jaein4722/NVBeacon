@@ -22,8 +22,6 @@ function saveSet(key, set) {
   try { localStorage.setItem(key, JSON.stringify([...set])); } catch { /* storage unavailable */ }
 }
 
-const t = (english, korean) => (view.state && view.state.language === "ko" ? korean : english);
-
 // ---------- DOM helpers ----------
 
 function h(tag, className, ...children) {
@@ -88,8 +86,8 @@ function summaryPill(title, value) {
 // "Last update 3m ago" (macOS 0.9). The ticker below keeps both parts current.
 function updatedPillParts(updatedAt) {
   const stale = Date.now() - updatedAt > (view.state?.staleAfterMs ?? Infinity);
-  if (!stale) return [t("Updated", "업데이트"), relative(updatedAt)];
-  return [t("Last update", "마지막 업데이트"), t(relative(updatedAt) + " ago", relative(updatedAt) + " 전")];
+  if (!stale) return [t("Updated"), relative(updatedAt)];
+  return [t("Last update"), t("%@ ago", relative(updatedAt))];
 }
 function updatedPill(updatedAt) {
   const [title, value] = updatedPillParts(updatedAt);
@@ -101,9 +99,9 @@ function updatedPill(updatedAt) {
 
 function pills(average, busy, total, processes, updatedAt) {
   const row = h("div", "pills",
-    summaryPill(t("Avg", "평균"), average + "%"),
-    summaryPill(t("Busy", "사용 중"), busy + "/" + total),
-    summaryPill(t("Proc", "프로세스"), String(processes)));
+    summaryPill(t("Avg"), average + "%"),
+    summaryPill(t("windows::Busy"), busy + "/" + total),
+    summaryPill(t("Proc"), String(processes)));
   if (updatedAt) row.append(updatedPill(updatedAt));
   return row;
 }
@@ -129,48 +127,48 @@ function headerStrip(state) {
   const servers = state.servers;
   let title;
   const pollable = state.pollableServerCount;
-  if (!servers.length) title = t("No server configured", "서버 미설정");
+  if (!servers.length) title = t("No server configured");
   else if (servers.length === 1) title = servers[0].name;
-  else title = t(pollable + "/" + servers.length + " servers", pollable + "/" + servers.length + " 서버");
+  else title = t("%@/%@ servers", pollable, servers.length);
 
   const top = h("div", "row baseline", label("serverRack", title, "headline"), h("span", "spacer"),
     spinnerSlot(fleet.isRefreshing));
   if (state.recordsGPUHistory) {
-    top.append(iconButton("chart", t("Open GPU history", "GPU 기록 열기"), () => send({ type: "openHistory" }), "open-history"));
+    top.append(iconButton("chart", t("Open GPU history"), () => send({ type: "openHistory" }), "open-history"));
   }
   // Popover ⇄ window. In window mode "keep on top" lives in the title bar.
   if (state.displayMode === "window") {
-    top.append(iconButton("popover", t("Show as Popover", "팝오버로 보기"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));
+    top.append(iconButton("popover", t("Show as Popover"), () => send({ type: "setDisplayMode", mode: "popover" }), "to-popover"));
   } else {
-    top.append(iconButton("openWindow", t("Show as Window", "창으로 보기"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
+    top.append(iconButton("openWindow", t("Show as Window"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
   }
   if (servers.length) {
-    top.append(iconButton("refresh", t("Refresh now and restart polling if needed", "필요하면 수집을 다시 시작하면서 새로고침"),
+    top.append(iconButton("refresh", t("windows::Refresh now and restart polling if needed"),
       () => send({ type: "refresh" }), "refresh-all"));
   }
-  top.append(iconButton("gear", t("Settings…", "설정…"), () => send({ type: "settings" }), "open-settings"));
+  top.append(iconButton("gear", t("Settings…"), () => send({ type: "settings" }), "open-settings"));
 
   const strip = h("div", "card header", top);
   if (fleet.gpuCount > 0) {
     strip.append(pills(fleet.averageUtilization, fleet.busyCount, fleet.gpuCount, fleet.processCount, fleet.latestUpdate));
   } else {
     const text = !servers.length
-      ? t("Open Settings with the gear button to add a server.", "톱니바퀴 버튼으로 설정을 열어 서버를 추가하세요.")
+      ? t("Open Settings with the gear button to add a server.")
       : pollable === 0
-        ? t("No enabled server is ready for polling.", "수집할 활성 서버가 없습니다.")
-        : t("Waiting for the first polling result.", "첫 수집 결과를 기다리는 중입니다.");
+        ? t("windows::No enabled server is ready for polling.")
+        : t("windows::Waiting for the first polling result.");
     strip.append(h("span", "caption secondary", text));
   }
   if (state.displayMode !== "window") {
-    strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for more, including Quit.", "종료 등 다른 메뉴는 트레이 아이콘을 우클릭하세요.")));
+    strip.append(h("span", "caption2 secondary", t("Right-click the tray icon for more, including Quit.")));
   }
   if (servers.length === 1 && servers[0].myUser) strip.append(myProcessesLabel(servers[0].myUser));
   const processes = fleet.watchedProcessCount, idle = fleet.watchedIdleCount;
   if (processes + idle > 0) {
     const parts = [];
-    if (processes) parts.push(t(processes + " process exit", processes + "개 프로세스 종료"));
-    if (idle) parts.push(t(idle + " GPU idle", idle + "개 GPU 유휴"));
-    strip.append(h("span", "watching", icon("bellFill"), t("Watching ", "감시 중: ") + parts.join(" · ")));
+    if (processes) parts.push(t("%@ process exit", processes));
+    if (idle) parts.push(t("windows::%@ GPU idle", idle));
+    strip.append(h("span", "watching", icon("bellFill"), t("Watching %@", parts.join(" · "))));
   }
   return strip;
 }
@@ -179,7 +177,7 @@ function hostInformation(server) {
   const hostData = server.host;
   const expanded = !view.collapsedHosts.has(server.id);
   const toggle = h("button", "host-toggle",
-    label("desktop", t("Host Information", "호스트 정보")),
+    label("desktop", t("Host Information")),
     icon("chevronRight", "chevron"));
   toggle.setAttribute("aria-expanded", String(expanded));
   toggle.dataset.key = "host:" + server.id;
@@ -196,7 +194,7 @@ function hostInformation(server) {
   if (hostData.cpuPercent != null) {
     body.append(metricBar("CPU", hostData.cpuPercent + "%", hostData.cpuPercent / 100, "var(--orange)"));
   } else {
-    body.append(h("span", "caption2 secondary", hostData.cpuMeasuring ? t("CPU: Measuring…", "CPU: 측정 중…") : t("CPU: Unavailable", "CPU: 확인 불가")));
+    body.append(h("span", "caption2 secondary", hostData.cpuMeasuring ? t("CPU: Measuring…") : t("CPU: Unavailable")));
   }
   body.append(h("div", "divider"));
 
@@ -205,24 +203,24 @@ function hostInformation(server) {
     const memoryGroup = h("div", "host-body");
     memoryGroup.style.paddingTop = "0";
     memoryGroup.style.gap = "6px";
-    const notice = memory.ratio >= 0.95 ? t(" · Very high usage", " · 매우 높은 사용량") : memory.ratio >= 0.85 ? t(" · High usage", " · 높은 사용량") : "";
+    const notice = memory.ratio >= 0.95 ? t(" · Very high usage") : memory.ratio >= 0.85 ? t(" · High usage") : "";
     memoryGroup.append(metricBar("RAM", memory.usedPercent + "% · " + memory.usedText + " / " + memory.totalText, memory.ratio,
-      memoryTint(memory.ratio), t("Available: ", "사용 가능: ") + memory.availableText + notice));
+      memoryTint(memory.ratio), t("Available: %@", memory.availableText) + notice));
     if (memory.swapTotalKiB == null) {
-      memoryGroup.append(h("span", "caption2 secondary", t("Swap: Unavailable", "Swap: 확인 불가")));
+      memoryGroup.append(h("span", "caption2 secondary", t("Swap: Unavailable")));
     } else if (memory.swapTotalKiB > 0) {
       memoryGroup.append(metricBar("Swap", memory.swapUsedText + " / " + memory.swapTotalText, memory.swapRatio, memoryTint(memory.swapRatio)));
     }
     body.append(memoryGroup);
   } else {
-    body.append(h("span", "caption2 secondary", t("RAM / Swap: Unavailable", "RAM / Swap: 확인 불가")));
+    body.append(h("span", "caption2 secondary", t("RAM / Swap: Unavailable")));
   }
   body.append(h("div", "divider"));
 
   const network = hostData.network;
   if (network) {
     const head = h("div", "network-head",
-      label("network", t("Network", "네트워크"), "caption2 semibold secondary"),
+      label("network", t("Network"), "caption2 semibold secondary"),
       h("span", "spacer"));
     const down = h("span", "rate", icon("arrowDown"), network.downText);
     down.firstChild.style.color = "var(--memory)";
@@ -230,29 +228,29 @@ function hostInformation(server) {
     up.firstChild.style.color = "var(--util)";
     head.append(down, up);
     const lines = [network.interfaces.length
-      ? t("Interfaces", "인터페이스") + ": " + network.interfaces.join(", ")
-      : t("The server did not report any network interface.", "서버에서 네트워크 인터페이스 정보를 가져오지 못했습니다.")];
-    lines.push(t("Total since boot", "부팅 후 누적") + ": " + network.totalText);
-    if (!network.hasRates) lines.push(t("The transfer rate is measured from the next refresh on.", "전송 속도는 다음 새로고침부터 표시됩니다."));
-    const group = h("div", "", head, h("div", "caption2 secondary mono truncate", t("Total since boot", "부팅 후 누적") + " " + network.totalText));
+      ? t("Interfaces") + ": " + network.interfaces.join(", ")
+      : t("The server did not report any network interface.")];
+    lines.push(t("Total since boot") + ": " + network.totalText);
+    if (!network.hasRates) lines.push(t("The transfer rate is measured from the next refresh on."));
+    const group = h("div", "", head, h("div", "caption2 secondary mono truncate", t("Total since boot") + " " + network.totalText));
     group.style.display = "flex";
     group.style.flexDirection = "column";
     group.style.gap = "4px";
     group.title = lines.join("\n");
     body.append(group);
   } else {
-    body.append(h("span", "caption2 secondary", t("Network: Unavailable", "네트워크: 확인 불가")));
+    body.append(h("span", "caption2 secondary", t("Network: Unavailable")));
   }
   box.append(body);
   return box;
 }
 
 function mineBadge() {
-  return h("span", "mine-badge", t("Mine", "내 프로세스"));
+  return h("span", "mine-badge", t("Mine"));
 }
 
 function myProcessesLabel(user) {
-  return h("span", "my-processes", icon("person"), t("My processes: " + user, "내 프로세스: " + user));
+  return h("span", "my-processes", icon("person"), t("My processes: %@", user));
 }
 
 function processRow(server, gpu, process) {
@@ -260,8 +258,8 @@ function processRow(server, gpu, process) {
   nameLine.style.gap = "6px";
   // macOS's "Notify / Watching" capsule: alert when this process exits.
   const watch = h("button", "watch-button" + (process.isWatched ? " on" : ""),
-    icon(process.isWatched ? "bellFill" : "bellSmall"), process.isWatched ? t("Watching", "감시 중") : t("Notify", "알림"));
-  watch.title = process.isWatched ? t("Disable process exit alert", "프로세스 종료 알림 해제") : t("Enable process exit alert", "프로세스 종료 알림 받기");
+    icon(process.isWatched ? "bellFill" : "bellSmall"), process.isWatched ? t("Watching") : t("Notify"));
+  watch.title = process.isWatched ? t("Disable process exit alert") : t("Enable process exit alert");
   watch.setAttribute("aria-pressed", String(!!process.isWatched));
   watch.dataset.key = "watch:" + server.id + ":" + gpu.index + ":" + process.pid;
   watch.addEventListener("click", () => send({ type: "toggleExitWatch", serverId: server.id, gpu: gpu.index, pid: process.pid }));
@@ -311,7 +309,7 @@ function gpuRow(server, gpu) {
 
   // macOS layout: the idle-alert star sits left of the row, outside the expand button.
   const star = h("button", "star-button" + (gpu.isWatchingIdle ? " on" : ""), icon(gpu.isWatchingIdle ? "starFill" : "star"));
-  star.title = gpu.isWatchingIdle ? t("Disable GPU idle alert", "GPU 유휴 알림 해제") : t("Enable GPU idle alert", "GPU 유휴 알림 받기");
+  star.title = gpu.isWatchingIdle ? t("windows::Disable GPU idle alert") : t("windows::Enable GPU idle alert");
   star.setAttribute("aria-label", star.title);
   star.setAttribute("aria-pressed", String(!!gpu.isWatchingIdle));
   star.dataset.key = "star:" + key;
@@ -319,18 +317,18 @@ function gpuRow(server, gpu) {
 
   const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), h("div", "gpu-line", star, toggle));
   if (gpu.isWatchingIdle) {
-    const armed = h("span", "armed", icon("starFill"), t("Idle notification armed", "유휴 알림 설정됨"));
+    const armed = h("span", "armed", icon("starFill"), t("windows::Idle notification armed"));
     card.append(h("div", "armed-row", armed));
   }
   if (expanded) {
     const list = h("div", "processes" + (view.justToggled === "gpu:" + key ? " appear" : ""), h("div", "divider"));
     if ((server.loadingDetailGPUs || []).includes(gpu.index)) {
-      const loading = h("div", "row", spinner(), h("span", "caption secondary", t("Loading process details...", "프로세스 상세를 불러오는 중...")));
+      const loading = h("div", "row", spinner(), h("span", "caption secondary", t("Loading process details...")));
       loading.style.gap = "6px";
       list.append(loading);
     }
     if (!gpu.processes.length) {
-      list.append(h("span", "caption secondary", t("There are no active compute processes reported on this GPU.", "이 GPU에서 보고된 active compute process가 없습니다.")));
+      list.append(h("span", "caption secondary", t("There are no active compute processes reported on this GPU.")));
     }
     for (const process of gpu.processes) list.append(processRow(server, gpu, process));
     card.append(list);
@@ -343,7 +341,7 @@ function serverSection(server) {
   const toggle = h("button", "server-toggle" + (expanded ? " expanded" : ""),
     icon("chevronRight", "chevron"),
     label("serverRack", server.name, "subheadline semibold"));
-  toggle.title = expanded ? t("Collapse this server", "이 서버 접기") : t("Expand this server", "이 서버 펼치기");
+  toggle.title = expanded ? t("Collapse this server") : t("Expand this server");
   toggle.setAttribute("aria-expanded", String(expanded));
   toggle.dataset.key = "server:" + server.id;
   toggle.addEventListener("click", () => {
@@ -354,7 +352,7 @@ function serverSection(server) {
   });
 
   const head = h("div", "row baseline", toggle);
-  if (!server.isEnabled) head.append(h("span", "badge", t("Disabled", "비활성")));
+  if (!server.isEnabled) head.append(h("span", "badge", t("Disabled")));
   head.append(h("span", "spacer"));
   if (!expanded) {
     if (server.busyCount != null) {
@@ -370,7 +368,7 @@ function serverSection(server) {
   const pollable = server.isEnabled && !server.inactiveReason;
   if (pollable) {
     head.append(spinnerSlot(server.isRefreshing));
-    head.append(iconButton("refresh", t("Refresh this server now", "이 서버를 지금 새로고침"),
+    head.append(iconButton("refresh", t("Refresh this server now"),
       () => send({ type: "refreshServer", id: server.id }), "refresh:" + server.id));
   }
 
@@ -379,30 +377,28 @@ function serverSection(server) {
 
   const details = h("div", "details" + (view.justToggled === "server:" + server.id ? " appear" : ""));
   if (!server.isEnabled) {
-    details.append(h("div", "message secondary", t("This server is disabled in Settings.", "이 서버는 설정에서 비활성화되어 있습니다.")));
+    details.append(h("div", "message secondary", t("windows::This server is disabled in Settings.")));
   } else if (server.inactiveReason === "password") {
-    details.append(h("div", "message orange", t("Save the SSH password for this server in Settings. Polling is paused until a password is saved.",
-      "설정에서 이 서버의 SSH 비밀번호를 저장하세요. 비밀번호를 저장하기 전까지 수집하지 않습니다.")));
+    details.append(h("div", "message orange", t("Save the SSH password for this server in Settings. Polling is paused until a password is saved.")));
   } else if (server.inactiveReason === "passwordRejected") {
-    details.append(h("div", "message orange", t("The server rejected the saved password, so polling stopped to avoid locking the account. Save the password again in Settings to resume.",
-      "서버가 저장된 비밀번호를 거부해 계정 잠금을 막으려고 수집을 멈췄습니다. 설정에서 비밀번호를 다시 저장하면 재개합니다.")));
+    details.append(h("div", "message orange", t("The server rejected the saved password, so polling stopped to avoid locking the account. Save the password again in Settings to resume.")));
     if (server.error) details.append(h("div", "message secondary", server.error));
   } else if (server.inactiveReason === "sshTooOld") {
     details.append(h("div", "message orange", server.error || ""));
   } else if (server.inactiveReason === "target") {
-    details.append(h("div", "message secondary", t("Enter an SSH target for this server in Settings.", "설정에서 이 서버의 SSH 대상을 입력하세요.")));
+    details.append(h("div", "message secondary", t("Enter an SSH target for this server in Settings.")));
   } else if (server.updatedAt) {
     details.append(pills(server.averageUtilization, server.busyCount, server.gpus.length, server.processCount, server.updatedAt));
     if (server.host) details.append(hostInformation(server));
     for (const gpu of server.gpus) details.append(gpuRow(server, gpu));
     if (server.error) details.append(h("div", "message orange", server.error));
     if (server.detailError) {
-      details.append(h("div", "message orange", t("Failed to load process details: ", "프로세스 상세를 가져오지 못했습니다: ") + server.detailError));
+      details.append(h("div", "message orange", t("Failed to load process details: %@", server.detailError)));
     }
     if (server.myUser && view.state.servers.length > 1) details.append(myProcessesLabel(server.myUser));
   } else {
     details.append(h("div", "message" + (server.error ? " orange" : " secondary"),
-      server.error || t("Waiting for the first polling result.", "첫 수집 결과를 기다리는 중입니다.")));
+      server.error || t("windows::Waiting for the first polling result.")));
   }
   section.append(details);
   return section;
@@ -437,15 +433,15 @@ function renderTitleBar(state) {
   const focusedKey = document.activeElement?.dataset?.key;
   const pinned = !!state.alwaysOnTop;
   const pin = captionButton(pinned ? "pinFill" : "pin",
-    pinned ? t("Stop keeping the window on top", "항상 위에 표시 끄기") : t("Keep the window on top", "항상 위에 표시"),
+    pinned ? t("Stop keeping the window on top") : t("Keep the window on top"),
     () => send({ type: "togglePin" }), pinned ? "active" : "");
   pin.setAttribute("aria-pressed", String(pinned));
   bar.replaceChildren(
     h("span", "titlebar-title", icon("serverRack"), "NVBeacon"),
     h("span", "spacer"),
     pin,
-    captionButton("minimize", t("Minimize", "최소화"), () => send({ type: "minimizeWindow" })),
-    captionButton("close", t("Close", "닫기"), () => send({ type: "closeWindow" }), "close"));
+    captionButton("minimize", t("Minimize"), () => send({ type: "minimizeWindow" })),
+    captionButton("close", t("Close"), () => send({ type: "closeWindow" }), "close"));
   if (focusedKey && focusedKey.startsWith("caption:")) bar.querySelector('[data-key="' + CSS.escape(focusedKey) + '"]')?.focus();
 }
 
@@ -468,7 +464,7 @@ function render() {
 
   const nodes = [headerStrip(state)];
   if (!state.servers.length) {
-    nodes.push(h("div", "subheadline secondary empty", t("No GPU data is available yet.", "표시할 GPU 데이터가 아직 없습니다.")));
+    nodes.push(h("div", "subheadline secondary empty", t("No GPU data is available yet.")));
   }
   for (const server of state.servers) nodes.push(serverSection(server));
   if (state.notice) nodes.push(h("div", "notice", icon("info"), state.notice));

@@ -84,7 +84,6 @@ public struct ServerSettings: Codable, Equatable, Identifiable, Sendable {
     }
 }
 
-public enum LanguagePreference: String, Codable, CaseIterable, Sendable { case system, english, korean }
 public enum AppearancePreference: String, Codable, CaseIterable, Sendable { case system, light, dark }
 /// How the popover is sized: hug the content (macOS behaviour) or a fixed height.
 public enum PopoverHeightMode: String, Codable, CaseIterable, Sendable { case automatic, fixed }

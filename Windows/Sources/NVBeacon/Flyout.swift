@@ -1,4 +1,5 @@
 import Foundation
+import NVBeaconCore
 import NVBeaconWindowsKit
 import WinSDK
 
@@ -286,12 +287,9 @@ enum Theme {
         isDark ? COLORREF(0x1E1E1E) : COLORREF(0xECECEC)  // 0x00BBGGRR, macOS window backgrounds
     }
 
-    /// "ko" or "en": the setting, or the Windows display language for System.
-    static var language: String {
-        switch languagePreference {
-        case .english: "en"
-        case .korean: "ko"
-        case .system: (GetUserDefaultUILanguage() & 0x3FF) == 0x12 ? "ko" : "en"
-        }
-    }
+    /// The setting, or the Windows display language for System.
+    static var interface: InterfaceLanguage { InterfaceLanguage.resolved(from: languagePreference) }
+
+    /// The language code ("en", "ko", "zh-Hans"), for the pages.
+    static var language: String { interface.code }
 }
