@@ -88,6 +88,7 @@ When adding, renaming or moving a setting on any client (macOS, iOS or Windows),
 
 - `scripts/package_app.sh` is the canonical packaging entrypoint.
 - Release artifacts should be DMG-based: `NVBeacon-<version>.dmg`. The release workflow also uploads a copy named `NVBeacon.dmg`, so `releases/latest/download/NVBeacon.dmg` always serves the newest build.
+- From 1.0.0, a `vX.Y.Z` tag also builds the unsigned Windows installer `NVBeacon-<version>-windows-x64-setup.exe` on a Windows runner and adds it to the same release once the macOS job has created it. Tags before 1.0.0 stay macOS-only. Running the Release workflow manually (`workflow_dispatch`) is a dry run: it builds the Windows installer as a workflow artifact and publishes nothing.
 - Local builds are ad-hoc signed by default.
 
 ## Repository Safety
