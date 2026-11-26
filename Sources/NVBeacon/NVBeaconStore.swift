@@ -94,8 +94,8 @@ final class NVBeaconStore: ObservableObject {
         settings.resolvedLanguage
     }
 
-    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
-        language.text(english, korean, simplifiedChinese)
+    private func t(_ key: String, _ arguments: Any...) -> String {
+        language.text(key, arguments: arguments)
     }
 
     init(
@@ -128,7 +128,7 @@ final class NVBeaconStore: ObservableObject {
             .intersection(Set(initialServerStates.map(\.id)))
         self.lastErrorMessage = settings.isConfigured
             ? Self.initialStatusMessage(for: initialServerStates, language: settings.resolvedLanguage)
-            : settings.resolvedLanguage.text("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.", "请输入 SSH 目标以开始监控。")
+            : settings.resolvedLanguage.text("Enter an SSH target to start polling.")
 
         syncAggregateRuntimeState()
         configurePolling(resetState: false)
@@ -163,7 +163,7 @@ final class NVBeaconStore: ObservableObject {
             return "GPU !"
         }
 
-        return settings.pollableServers.isEmpty ? t("GPU off", "GPU off", "GPU 监控关闭") : "GPU --"
+        return settings.pollableServers.isEmpty ? t("GPU off") : "GPU --"
     }
 
     var menuBarSymbolName: String {
@@ -176,16 +176,12 @@ final class NVBeaconStore: ObservableObject {
 
     var menuBarToolTip: String {
         guard settings.isConfigured else {
-            return t("NVBeacon: configure a server to start polling.", "NVBeacon: 서버를 설정하면 polling을 시작합니다.", "NVBeacon：配置服务器后即可开始监控。")
+            return t("NVBeacon: configure a server to start polling.")
         }
 
         if totalGPUCount > 0 {
             var lines = [
-                t(
-                    "Average \(fleetAverageUtilization)% · Busy \(fleetBusyCount)/\(totalGPUCount) · Processes \(totalProcessCount)",
-                    "평균 \(fleetAverageUtilization)% · 사용중 \(fleetBusyCount)/\(totalGPUCount) · 프로세스 \(totalProcessCount)",
-                    "平均使用率 \(fleetAverageUtilization)% · 使用中 \(fleetBusyCount)/\(totalGPUCount) · 进程 \(totalProcessCount)"
-                )
+                t("Average %@%% · Busy %@/%@ · Processes %@", fleetAverageUtilization, fleetBusyCount, totalGPUCount, totalProcessCount)
             ]
 
             let serverLines = serverStates.map { state -> String in
@@ -210,7 +206,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         if isRefreshing {
-            return t("NVBeacon: refreshing server status.", "NVBeacon: 서버 상태를 새로 가져오는 중입니다.", "NVBeacon：正在刷新服务器状态。")
+            return t("NVBeacon: refreshing server status.")
         }
 
         if let lastErrorMessage {
@@ -218,7 +214,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         if settings.pollableServers.isEmpty {
-            return t("NVBeacon: no enabled server is ready for polling.", "NVBeacon: polling할 활성 서버가 없습니다.", "NVBeacon：没有可监控的已启用服务器。")
+            return t("NVBeacon: no enabled server is ready for polling.")
         }
 
         return "NVBeacon"
@@ -397,7 +393,7 @@ final class NVBeaconStore: ObservableObject {
         guard let server = server(for: serverID) else { return }
         guard server.sshAuthenticationMode == .passwordBased else { return }
         guard !trimmedPassword.isEmpty else {
-            lastErrorMessage = t("Enter an SSH password before saving it.", "SSH 비밀번호를 입력한 뒤 저장하세요.", "请输入 SSH 密码后再保存。")
+            lastErrorMessage = t("Enter an SSH password before saving it.")
             return
         }
 
@@ -413,7 +409,7 @@ final class NVBeaconStore: ObservableObject {
                 state.lastErrorMessage = nil
             }
             lastErrorMessage = nil
-            noticeMessage = t("SSH password saved and unlocked for this app session.", "SSH 비밀번호를 저장했고 현재 앱 세션에서 해제했습니다.", "SSH 密码已保存，并已为本次使用解锁。")
+            noticeMessage = t("SSH password saved and unlocked for this app session.")
             syncAggregateRuntimeState()
             refreshNow()
         } catch {
@@ -440,7 +436,7 @@ final class NVBeaconStore: ObservableObject {
                     state.lastErrorMessage = missingPasswordSessionMessage()
                 }
                 lastErrorMessage = missingPasswordSessionMessage()
-                noticeMessage = t("There is no saved SSH password in Keychain.", "Keychain에 저장된 SSH 비밀번호가 없습니다.", "钥匙串中没有已保存的 SSH 密码。")
+                noticeMessage = t("There is no saved SSH password in Keychain.")
                 syncAggregateRuntimeState()
                 return
             }
@@ -452,7 +448,7 @@ final class NVBeaconStore: ObservableObject {
                 state.lastErrorMessage = nil
             }
             lastErrorMessage = nil
-            noticeMessage = t("SSH password unlocked for this app session.", "현재 앱 세션에서 SSH 비밀번호를 해제했습니다.", "SSH 密码已为本次使用解锁。")
+            noticeMessage = t("SSH password unlocked for this app session.")
             syncAggregateRuntimeState()
             refreshNow()
         } catch {
@@ -485,7 +481,7 @@ final class NVBeaconStore: ObservableObject {
                 state.lastErrorMessage = server.sshAuthenticationMode == .passwordBased ? missingPasswordSessionMessage() : nil
             }
             lastErrorMessage = server.sshAuthenticationMode == .passwordBased ? missingPasswordSessionMessage() : nil
-            noticeMessage = t("Removed the saved SSH password from Keychain.", "Keychain에서 저장된 SSH 비밀번호를 삭제했습니다.", "已从钥匙串移除保存的 SSH 密码。")
+            noticeMessage = t("Removed the saved SSH password from Keychain.")
             syncAggregateRuntimeState()
         } catch {
             lastErrorMessage = error.localizedDescription
@@ -534,7 +530,7 @@ final class NVBeaconStore: ObservableObject {
         userDefaults.removeObject(forKey: collapsedHostSectionsKey)
         userDefaults.removeObject(forKey: collapsedServersKey)
         userDefaults.removeObject(forKey: passwordStoredHintKey)
-        lastErrorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.", "请输入 SSH 目标以开始监控。")
+        lastErrorMessage = t("Enter an SSH target to start polling.")
         noticeMessage = nil
         configurePolling(resetState: false)
     }
@@ -559,7 +555,7 @@ final class NVBeaconStore: ObservableObject {
             )
             return .success(gpuCount: reading.snapshot.gpus.count)
         } catch is CancellationError {
-            return .failure(message: t("The test was cancelled.", "테스트가 취소되었습니다.", "连接测试已取消。"))
+            return .failure(message: t("The test was cancelled."))
         } catch {
             return .failure(message: error.localizedDescription)
         }
@@ -692,7 +688,7 @@ final class NVBeaconStore: ObservableObject {
 
         let removedWatch = watchedProcesses.remove(at: existingIndex)
         persistWatchedProcesses()
-        noticeMessage = t("Process exit alert disabled.", "프로세스 종료 알림을 해제했습니다.", "已关闭进程退出通知。")
+        noticeMessage = t("Process exit alert disabled.")
         appendNotificationHistory(NotificationHistoryEntry(kind: .watchRemoved, watch: removedWatch))
     }
 
@@ -702,7 +698,7 @@ final class NVBeaconStore: ObservableObject {
         let removedWatch = watchedIdleGPUs.remove(at: existingIndex)
         idleWatchTrackingStates.removeValue(forKey: removedWatch.id)
         persistWatchedIdleGPUs()
-        noticeMessage = t("GPU idle alert disabled.", "GPU idle 알림을 해제했습니다.", "已关闭 GPU 空闲通知。")
+        noticeMessage = t("GPU idle alert disabled.")
         appendNotificationHistory(NotificationHistoryEntry(kind: .idleWatchRemoved, idleWatch: removedWatch))
     }
 
@@ -718,23 +714,15 @@ final class NVBeaconStore: ObservableObject {
             let connectionLabel = serverStates.first?.server.displayName
             switch state {
             case .authorized:
-                noticeMessage = t("macOS notification permission enabled.", "macOS 알림 권한을 허용했습니다.", "已获得 macOS 通知权限。")
+                noticeMessage = t("macOS notification permission enabled.")
                 appendNotificationHistory(NotificationHistoryEntry(kind: .permissionEnabled, connectionLabel: connectionLabel))
             case .denied:
-                noticeMessage = t(
-                    "Notification permission was denied. Enable NVBeacon notifications in System Settings.",
-                    "알림 권한이 거부되었습니다. 시스템 설정에서 NVBeacon 알림을 허용하세요.",
-                    "通知权限被拒绝。请在「系统设置」中允许 NVBeacon 发送通知。"
-                )
+                noticeMessage = t("Notification permission was denied. Enable NVBeacon notifications in System Settings.")
                 appendNotificationHistory(NotificationHistoryEntry(kind: .permissionDenied, connectionLabel: connectionLabel))
             case .notDetermined:
-                noticeMessage = t("Could not determine the notification permission state.", "알림 권한 상태를 확인하지 못했습니다.", "无法确认通知权限状态。")
+                noticeMessage = t("Could not determine the notification permission state.")
             case .unsupported:
-                noticeMessage = t(
-                    "macOS notifications are available only when running the bundled app (.app).",
-                    "번들 앱(.app)으로 실행할 때만 macOS 알림을 사용할 수 있습니다.",
-                    "请打开打包好的 NVBeacon.app 以使用 macOS 通知。"
-                )
+                noticeMessage = t("macOS notifications are available only when running the bundled app (.app).")
             }
         }
     }
@@ -745,14 +733,14 @@ final class NVBeaconStore: ObservableObject {
             notificationPermissionState = state
 
             guard state == .authorized else {
-                noticeMessage = t("Allow macOS notification permission first.", "먼저 macOS 알림 권한을 허용하세요.", "请先在 macOS 中允许发送通知。")
+                noticeMessage = t("Allow macOS notification permission first.")
                 return
             }
 
             let didSchedule = await notificationManager.sendTestNotification()
             noticeMessage = didSchedule
-                ? t("A test notification will be sent in 1 second.", "1초 뒤 테스트 알림을 보냅니다.", "将在 1 秒后发送测试通知。")
-                : t("Failed to schedule the test notification.", "테스트 알림 예약에 실패했습니다.", "无法安排发送测试通知。")
+                ? t("A test notification will be sent in 1 second.")
+                : t("Failed to schedule the test notification.")
 
             if didSchedule {
                 appendNotificationHistory(NotificationHistoryEntry(kind: .testNotificationScheduled, connectionLabel: serverStates.first?.server.displayName))
@@ -777,13 +765,13 @@ final class NVBeaconStore: ObservableObject {
 
         guard settings.isConfigured else {
             snapshot = nil
-            lastErrorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.", "请输入 SSH 目标以开始监控。")
+            lastErrorMessage = t("Enter an SSH target to start polling.")
             return
         }
 
         guard !settings.pollableServers.isEmpty else {
             snapshot = nil
-            lastErrorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.", "请至少启用一台已配置的服务器以开始监控。")
+            lastErrorMessage = t("Enable at least one configured server to start polling.")
             return
         }
 
@@ -1045,7 +1033,7 @@ final class NVBeaconStore: ObservableObject {
             let data = try JSONEncoder().encode(settings)
             userDefaults.set(data, forKey: settingsKey)
         } catch {
-            lastErrorMessage = t("Failed to save settings: \(error.localizedDescription)", "설정을 저장하지 못했습니다: \(error.localizedDescription)", "无法保存设置：\(error.localizedDescription)")
+            lastErrorMessage = t("Failed to save settings: %@", error.localizedDescription)
         }
     }
 
@@ -1054,7 +1042,7 @@ final class NVBeaconStore: ObservableObject {
             let data = try JSONEncoder().encode(watchedProcesses)
             userDefaults.set(data, forKey: watchedProcessesKey)
         } catch {
-            lastErrorMessage = t("Failed to save watches: \(error.localizedDescription)", "감시 목록을 저장하지 못했습니다: \(error.localizedDescription)", "无法保存监视列表：\(error.localizedDescription)")
+            lastErrorMessage = t("Failed to save watches: %@", error.localizedDescription)
         }
     }
 
@@ -1063,11 +1051,7 @@ final class NVBeaconStore: ObservableObject {
             let data = try JSONEncoder().encode(watchedIdleGPUs)
             userDefaults.set(data, forKey: watchedIdleGPUsKey)
         } catch {
-            lastErrorMessage = t(
-                "Failed to save GPU idle watches: \(error.localizedDescription)",
-                "GPU idle 감시 목록을 저장하지 못했습니다: \(error.localizedDescription)",
-                "无法保存 GPU 空闲监视列表：\(error.localizedDescription)"
-            )
+            lastErrorMessage = t("Failed to save GPU idle watches: %@", error.localizedDescription)
         }
     }
 
@@ -1076,11 +1060,7 @@ final class NVBeaconStore: ObservableObject {
             let data = try JSONEncoder().encode(notificationHistory)
             userDefaults.set(data, forKey: notificationHistoryKey)
         } catch {
-            lastErrorMessage = t(
-                "Failed to save notification history: \(error.localizedDescription)",
-                "알림 이력을 저장하지 못했습니다: \(error.localizedDescription)",
-                "无法保存通知记录：\(error.localizedDescription)"
-            )
+            lastErrorMessage = t("Failed to save notification history: %@", error.localizedDescription)
         }
     }
 
@@ -1149,11 +1129,7 @@ final class NVBeaconStore: ObservableObject {
     }
 
     private func missingPasswordSessionMessage() -> String {
-        t(
-            "Open Settings and unlock the saved SSH password to resume password-based polling.",
-            "Settings를 열고 저장된 SSH 비밀번호를 한 번 해제해야 password-based polling이 다시 시작됩니다.",
-            "请在设置中解锁已保存的 SSH 密码，以继续监控。"
-        )
+        t("Open Settings and unlock the saved SSH password to resume password-based polling.")
     }
 
     private func appendNotificationHistory(_ entry: NotificationHistoryEntry) {
@@ -1216,11 +1192,7 @@ final class NVBeaconStore: ObservableObject {
             return
         } catch {
             updateServerState(serverID) { state in
-                state.lastErrorMessage = t(
-                    "Failed to load process details: \(error.localizedDescription)",
-                    "프로세스 상세를 가져오지 못했습니다: \(error.localizedDescription)",
-                    "无法获取进程详情：\(error.localizedDescription)"
-                )
+                state.lastErrorMessage = t("Failed to load process details: %@", error.localizedDescription)
             }
             syncAggregateRuntimeState()
         }
@@ -1242,29 +1214,21 @@ final class NVBeaconStore: ObservableObject {
         if let existingIndex = watchedProcesses.firstIndex(where: { $0.matches(process) && $0.connectionFingerprint == server.connectionFingerprint }) {
             let removedWatch = watchedProcesses.remove(at: existingIndex)
             persistWatchedProcesses()
-            noticeMessage = t("Process exit alert disabled.", "프로세스 종료 알림을 해제했습니다.", "已关闭进程退出通知。")
+            noticeMessage = t("Process exit alert disabled.")
             appendNotificationHistory(NotificationHistoryEntry(kind: .watchRemoved, watch: removedWatch))
             return
         }
 
         guard notificationManager.isSupportedEnvironment else {
             notificationPermissionState = .unsupported
-            noticeMessage = t(
-                "Process exit alerts are available only when running the bundled app (.app).",
-                "프로세스 종료 알림은 번들 앱(.app)으로 실행할 때만 사용할 수 있습니다.",
-                "请打开打包好的 NVBeacon.app 以使用进程退出通知。"
-            )
+            noticeMessage = t("Process exit alerts are available only when running the bundled app (.app).")
             return
         }
 
         let isAuthorized = await notificationManager.requestAuthorizationIfNeeded()
         notificationPermissionState = await notificationManager.authorizationStatus()
         guard isAuthorized else {
-            noticeMessage = t(
-                "Process exit alert could not be enabled because macOS notification permission is missing.",
-                "macOS 알림 권한이 없어 종료 알림을 등록하지 못했습니다.",
-                "请先在 macOS 中允许发送通知，再开启进程退出通知。"
-            )
+            noticeMessage = t("Process exit alert could not be enabled because macOS notification permission is missing.")
             return
         }
 
@@ -1282,7 +1246,7 @@ final class NVBeaconStore: ObservableObject {
             return lhs.connectionLabel.localizedCaseInsensitiveCompare(rhs.connectionLabel) == .orderedAscending
         }
         persistWatchedProcesses()
-        noticeMessage = t("Process exit alert enabled.", "프로세스 종료 알림을 등록했습니다.", "已开启进程退出通知。")
+        noticeMessage = t("Process exit alert enabled.")
         appendNotificationHistory(NotificationHistoryEntry(kind: .watchAdded, watch: newWatch))
     }
 
@@ -1293,29 +1257,21 @@ final class NVBeaconStore: ObservableObject {
             let removedWatch = watchedIdleGPUs.remove(at: existingIndex)
             idleWatchTrackingStates.removeValue(forKey: removedWatch.id)
             persistWatchedIdleGPUs()
-            noticeMessage = t("GPU idle alert disabled.", "GPU idle 알림을 해제했습니다.", "已关闭 GPU 空闲通知。")
+            noticeMessage = t("GPU idle alert disabled.")
             appendNotificationHistory(NotificationHistoryEntry(kind: .idleWatchRemoved, idleWatch: removedWatch))
             return
         }
 
         guard notificationManager.isSupportedEnvironment else {
             notificationPermissionState = .unsupported
-            noticeMessage = t(
-                "GPU idle alerts are available only when running the bundled app (.app).",
-                "GPU idle 알림은 번들 앱(.app)으로 실행할 때만 사용할 수 있습니다.",
-                "请打开打包好的 NVBeacon.app 以使用 GPU 空闲通知。"
-            )
+            noticeMessage = t("GPU idle alerts are available only when running the bundled app (.app).")
             return
         }
 
         let isAuthorized = await notificationManager.requestAuthorizationIfNeeded()
         notificationPermissionState = await notificationManager.authorizationStatus()
         guard isAuthorized else {
-            noticeMessage = t(
-                "GPU idle alert could not be enabled because macOS notification permission is missing.",
-                "macOS 알림 권한이 없어 GPU idle 알림을 등록하지 못했습니다.",
-                "请先在 macOS 中允许发送通知，再开启 GPU 空闲通知。"
-            )
+            noticeMessage = t("GPU idle alert could not be enabled because macOS notification permission is missing.")
             return
         }
 
@@ -1332,16 +1288,12 @@ final class NVBeaconStore: ObservableObject {
             idleWatchTrackingStates[newWatch.id] = GPUIdleWatchTrackingState(idleSince: serverState(for: serverID)?.snapshot?.takenAt ?? Date())
         }
         persistWatchedIdleGPUs()
-        noticeMessage = t("GPU idle alert enabled.", "GPU idle 알림을 등록했습니다.", "已开启 GPU 空闲通知。")
+        noticeMessage = t("GPU idle alert enabled.")
         appendNotificationHistory(
             NotificationHistoryEntry(
                 kind: .idleWatchAdded,
                 idleWatch: newWatch,
-                detail: t(
-                    "Idle \(settings.idleNotificationSeconds)s · <=\(settings.idleMemoryThresholdMB)MB",
-                    "Idle \(settings.idleNotificationSeconds)s · <=\(settings.idleMemoryThresholdMB)MB",
-                    "空闲 \(settings.idleNotificationSeconds) 秒 · 显存 ≤ \(settings.idleMemoryThresholdMB) MB"
-                )
+                detail: t("Idle %@s · <=%@MB", settings.idleNotificationSeconds, settings.idleMemoryThresholdMB)
             )
         )
     }
@@ -1385,15 +1337,11 @@ final class NVBeaconStore: ObservableObject {
             persistWatchedProcesses()
 
             if notifiedProcesses.isEmpty {
-                noticeMessage = t(
-                    "A process exit was detected, but scheduling the macOS notification failed.",
-                    "프로세스 종료는 감지했지만 macOS 알림 예약에는 실패했습니다.",
-                    "已检测到进程退出，发送 macOS 通知失败。"
-                )
+                noticeMessage = t("A process exit was detected, but scheduling the macOS notification failed.")
             } else if notifiedProcesses.count == 1 {
-                noticeMessage = t("Sent an exit alert for \(notifiedProcesses[0]).", "\(notifiedProcesses[0]) 종료 알림을 보냈습니다.", "已发送 \(notifiedProcesses[0]) 的退出通知。")
+                noticeMessage = t("Sent an exit alert for %@.", notifiedProcesses[0])
             } else {
-                noticeMessage = t("Sent exit alerts for \(notifiedProcesses.count) processes.", "\(notifiedProcesses.count)개 프로세스 종료 알림을 보냈습니다.", "已发送 \(notifiedProcesses.count) 个进程的退出通知。")
+                noticeMessage = t("Sent exit alerts for %@ processes.", notifiedProcesses.count)
             }
         } catch {
             return
@@ -1447,11 +1395,7 @@ final class NVBeaconStore: ObservableObject {
                     NotificationHistoryEntry(
                         kind: .idleNotificationScheduled,
                         idleWatch: watch,
-                        detail: t(
-                            "Idle \(Int(idleDuration.rounded()))s · \(gpu.memoryUsedMB)MB",
-                            "Idle \(Int(idleDuration.rounded()))s · \(gpu.memoryUsedMB)MB",
-                            "已空闲 \(Int(idleDuration.rounded())) 秒 · 显存占用 \(gpu.memoryUsedMB) MB"
-                        )
+                        detail: t("Idle %@s · %@MB", Int(idleDuration.rounded()), gpu.memoryUsedMB)
                     )
                 )
             } else {
@@ -1461,20 +1405,12 @@ final class NVBeaconStore: ObservableObject {
 
         if !notifiedGPUIndices.isEmpty {
             if notifiedGPUIndices.count == 1, let gpuIndex = notifiedGPUIndices.first {
-                noticeMessage = t(
-                    "Sent a GPU idle alert for \(server.displayName) GPU \(gpuIndex).",
-                    "\(server.displayName) GPU \(gpuIndex) idle 알림을 보냈습니다.",
-                    "已发送 \(server.displayName) 的 GPU \(gpuIndex) 空闲通知。"
-                )
+                noticeMessage = t("Sent a GPU idle alert for %@ GPU %@.", server.displayName, gpuIndex)
             } else {
-                noticeMessage = t("Sent GPU idle alerts for \(notifiedGPUIndices.count) GPUs.", "\(notifiedGPUIndices.count)개 GPU idle 알림을 보냈습니다.", "已发送 \(notifiedGPUIndices.count) 张 GPU 的空闲通知。")
+                noticeMessage = t("Sent GPU idle alerts for %@ GPUs.", notifiedGPUIndices.count)
             }
         } else if !failedNotificationGPUIndices.isEmpty {
-            noticeMessage = t(
-                "A GPU idle state was detected, but scheduling the macOS notification failed.",
-                "GPU idle 상태는 감지했지만 macOS 알림 예약에는 실패했습니다.",
-                "已检测到 GPU 空闲，发送 macOS 通知失败。"
-            )
+            noticeMessage = t("A GPU idle state was detected, but scheduling the macOS notification failed.")
         }
     }
 
@@ -1562,9 +1498,9 @@ final class NVBeaconStore: ObservableObject {
 
         let errorMessage: String?
         if !settings.isConfigured {
-            errorMessage = t("Enter an SSH target to start polling.", "SSH target를 입력하면 polling을 시작합니다.", "请输入 SSH 目标以开始监控。")
+            errorMessage = t("Enter an SSH target to start polling.")
         } else if settings.pollableServers.isEmpty {
-            errorMessage = t("Enable at least one configured server to start polling.", "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.", "请至少启用一台已配置的服务器以开始监控。")
+            errorMessage = t("Enable at least one configured server to start polling.")
         } else {
             errorMessage = serverStates.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
         }
@@ -1713,11 +1649,7 @@ final class NVBeaconStore: ObservableObject {
         }
 
         if server.sshAuthenticationMode == .passwordBased {
-            return language.text(
-                "Open Settings and unlock the saved SSH password to resume password-based polling.",
-                "Settings를 열고 저장된 SSH 비밀번호를 한 번 해제해야 password-based polling이 다시 시작됩니다.",
-                "请在设置中解锁已保存的 SSH 密码，以继续监控。"
-            )
+            return language.text("Open Settings and unlock the saved SSH password to resume password-based polling.")
         }
 
         return nil
@@ -1728,10 +1660,6 @@ final class NVBeaconStore: ObservableObject {
             return states.first(where: { $0.lastErrorMessage != nil })?.lastErrorMessage
         }
 
-        return language.text(
-            "Enable at least one configured server to start polling.",
-            "Polling을 시작하려면 설정된 서버를 하나 이상 활성화하세요.",
-            "请至少启用一台已配置的服务器以开始监控。"
-        )
+        return language.text("Enable at least one configured server to start polling.")
     }
 }

@@ -211,6 +211,10 @@ fi
 echo "Bundling Sparkle.framework..."
 ditto "$SPARKLE_FRAMEWORK_SOURCE_PATH" "$FRAMEWORKS_DIR/Sparkle.framework"
 
+echo "Bundling interface translations..."
+mkdir -p "$APP_PATH/Contents/Resources/Localization"
+cp "$ROOT_DIR"/Shared/Localization/*.json "$APP_PATH/Contents/Resources/Localization/"
+
 generate_app_icon
 
 ICON_PLIST_ENTRY=""

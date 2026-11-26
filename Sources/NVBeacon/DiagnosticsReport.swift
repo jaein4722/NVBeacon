@@ -79,19 +79,8 @@ enum DiagnosticsReport {
 
     /// The same categories as the report, for showing in the app's language.
     static func errorCategoryTitle(_ message: String?, in language: AppInterfaceLanguage) -> String {
-        let category = errorCategory(message)
-        return switch category {
-        case "Output limit": language.text(category, "출력 제한 초과", "输出超过上限")
-        case "Timeout": language.text(category, "시간 초과", "超时")
-        case "Host key verification": language.text(category, "호스트 키 확인 실패", "主机密钥验证失败")
-        case "Authentication": language.text(category, "인증 실패", "认证失败")
-        case "Host resolution": language.text(category, "호스트 이름 확인 실패", "主机名解析失败")
-        case "Connection refused": language.text(category, "연결 거부", "连接被拒绝")
-        case "Network unreachable": language.text(category, "네트워크에 연결할 수 없음", "网络不可达")
-        case "Metrics output": language.text(category, "수집 결과 오류", "监控数据输出异常")
-        case "None": language.text(category, "없음", "无")
-        default: language.text(category, "기타 오류", "其他错误")
-        }
+        // The categories are keys of the shared translation files, as "error::<category>".
+        language.text("error::" + errorCategory(message))
     }
 
     static func errorCategory(_ message: String?) -> String {

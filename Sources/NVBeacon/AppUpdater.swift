@@ -15,42 +15,26 @@ enum AppUpdaterAvailability: Equatable {
     func title(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .ready:
-            return language.text("Ready", "준비됨", "就绪")
+            return language.text("Ready")
         case .requiresAppBundle:
-            return language.text("Packaged App Required", "패키징된 앱 필요", "需要使用已打包的应用")
+            return language.text("Packaged App Required")
         case .missingFeedURL:
-            return language.text("Feed URL Missing", "피드 URL 없음", "缺少更新地址")
+            return language.text("Feed URL Missing")
         case .missingPublicKey:
-            return language.text("Signing Key Missing", "서명 키 없음", "缺少签名密钥")
+            return language.text("Signing Key Missing")
         }
     }
 
     func detail(in language: AppInterfaceLanguage) -> String {
         switch self {
         case .ready:
-            return language.text(
-                "Sparkle is configured and can check for updates.",
-                "Sparkle이 구성되어 있으며 업데이트를 확인할 수 있습니다.",
-                "Sparkle 已配置，可以检查更新。"
-            )
+            return language.text("Sparkle is configured and can check for updates.")
         case .requiresAppBundle:
-            return language.text(
-                "Updates are available only when NVBeacon runs from a packaged .app bundle.",
-                "업데이트 기능은 NVBeacon이 패키징된 .app 번들로 실행될 때만 사용할 수 있습니다.",
-                "请打开打包好的 NVBeacon.app 以检查更新。"
-            )
+            return language.text("Updates are available only when NVBeacon runs from a packaged .app bundle.")
         case .missingFeedURL:
-            return language.text(
-                "The appcast feed URL is missing from the app bundle, so update checks are disabled.",
-                "앱 번들에 appcast feed URL이 없어 업데이트 확인이 비활성화되어 있습니다.",
-                "应用缺少更新地址，无法检查更新。"
-            )
+            return language.text("The appcast feed URL is missing from the app bundle, so update checks are disabled.")
         case .missingPublicKey:
-            return language.text(
-                "The Sparkle public signing key is missing from the app bundle, so secure update checks are disabled.",
-                "앱 번들에 Sparkle 공개 서명 키가 없어 안전한 업데이트 확인이 비활성화되어 있습니다.",
-                "应用缺少用于验证更新签名的 Sparkle 公钥，无法检查更新。"
-            )
+            return language.text("The Sparkle public signing key is missing from the app bundle, so secure update checks are disabled.")
         }
     }
 }
