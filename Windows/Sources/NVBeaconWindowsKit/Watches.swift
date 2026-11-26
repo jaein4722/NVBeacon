@@ -4,13 +4,7 @@ import NVBeaconCore
 // Process-exit and GPU-idle alerts, ported from the macOS app (GPUModels.swift and
 // NVBeaconStore.swift). Field names, ids and matching rules are the same.
 
-extension ServerSettings {
-    /// Same as macOS `ServerConfig.connectionFingerprint`: watches survive renames
-    /// but not a change of where or how the app connects.
-    public var connectionFingerprint: String {
-        [sshTarget, sshPort, sshIdentityFilePath, sshAuthenticationMode.rawValue].joined(separator: "|")
-    }
-}
+extension ServerSettings: SSHConnectionFingerprinting {}
 
 public struct ProcessExitWatch: Codable, Identifiable, Equatable, Sendable {
     public let connectionFingerprint: String

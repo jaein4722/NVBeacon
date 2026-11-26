@@ -39,3 +39,6 @@ extension GPUSnapshot {
         gpus.filter { $0.isBusy(using: settings) }.count
     }
 }
+
+extension ServerConfig: SSHConnectionFingerprinting {}
+extension AppSettings: SSHConnectionFingerprinting {}
