@@ -1,7 +1,7 @@
 "use strict";
 
 // Settings page. Mirrors the macOS Settings window (Sources/NVBeacon/SettingsView.swift):
-// five tabs of grouped forms, auto-applied 350 ms after the last change. A server's
+// seven tabs of grouped forms, auto-applied 350 ms after the last change. A server's
 // connection fields and commands apply when the field is left or Enter is pressed,
 // so a half-typed login or command never reaches a server. Every edit is also sent
 // as a draft, which Swift applies if the window closes before it was applied.
@@ -183,7 +183,7 @@ function passwordRows(server) {
   const forget = button(t("Forget Saved Password"), () => send({ type: "forgetPassword", serverId: server.id }),
     { className: "destructive", disabled: !saved, key: "password-forget" });
   return [
-    row(t("Saved password"), [status, forget]),
+    row(t("Password session"), [status, forget]),
     row(t("SSH password"), [field, saveButton]),
   ];
 }
@@ -223,9 +223,9 @@ function generalPane() {
   const statusText = status === "enabled" ? t("On") : status === "otherLocation"
     ? t("Registered for another copy of NVBeacon") : t("Off");
   const startupRows = [
-    toggleRow(t("Launch at login"), "launch-at-login", status === "enabled",
+    toggleRow(t("Launch NVBeacon at login"), "launch-at-login", status === "enabled",
       (value) => send({ type: "setLaunchAtLogin", enabled: value })),
-    row(t("Status"), [
+    row(t("Startup status"), [
       h("span", status === "enabled" ? "status-enabled" : status === "otherLocation" ? "status-warning" : "", statusText),
       button(t("Refresh"), () => send({ type: "reloadHosts" }), { key: "startup-refresh" })],
       ui.launchError || null),
@@ -233,7 +233,7 @@ function generalPane() {
   return [
     section(t("Startup"), startupRows,
       t("Uses the per-user Run key, the same list as Task Manager's Startup apps.")),
-    section(t("Language"), [
+    section(t("App"), [
       row(t("Language"), select("language", d.languagePreference, languageChoices(),
         (value) => { d.languagePreference = value; changed(); })),
     ]),
@@ -264,7 +264,7 @@ function serversPane() {
   }, { icon: "chevronDown", className: "icon", disabled: index < 0 || index === servers.length - 1, key: "server-down" });
   const remove = button(t("Remove Server…"), () => confirmRemoveServer(index),
     { icon: "trash", className: "icon destructive", disabled: index < 0, key: "server-remove" });
-  nodes.push(section(t("Servers"), [row(t("Selected server"), [picker, moveUp, moveDown, remove])],
+  nodes.push(section(t("Servers"), [row(t("Current"), [picker, moveUp, moveDown, remove])],
     t("The popover lists servers in this order.")));
 
   const hosts = ui.data.sshConfigHosts || [];
@@ -319,7 +319,7 @@ function serversPane() {
       t("Optional · Default 22 or the ssh config")),
     row(t("Authentication"), select("server-auth", server.sshAuthenticationMode, [
       { value: "keyBased", label: t("Key-based") },
-      { value: "passwordBased", label: t("Password") },
+      { value: "passwordBased", label: t("Password-based") },
     ], (value) => updateServer("sshAuthenticationMode", value, true))),
     row(t("Key file"), [
       textField("server-identity", server.sshIdentityFilePath, t("Optional"), "w-240",
@@ -338,7 +338,7 @@ function serversPane() {
     : t("Every refresh opens a brand-new SSH connection. This is slower, but suits unusual SSH servers.");
   const testResult = ui.testResult && ui.testResult.serverId === server.id ? ui.testResult : null;
   nodes.push(section(t("SSH Connection"), [
-    row(t("Connection reuse"), [
+    row(t("SSH connection"), [
       select("server-reuse", reuseMode, [
         { value: "reuseWhenPossible", label: t("Reuse connection (Recommended)") },
         { value: "newConnectionEachRefresh", label: t("New connection every refresh") },
@@ -368,17 +368,17 @@ function monitoringPane() {
     row(t("Refresh interval"),
       stepper("poll-interval", d.pollIntervalSeconds, 1, 300, "s", (value) => { d.pollIntervalSeconds = value; changed(); }),
       t("1–300 s · Default 10 s")),
-    row(t("Busy detection"), select("busy-mode", d.busyDetectionMode, BUSY_MODES(), (value) => { d.busyDetectionMode = value; changed({ rerender: true }); })),
+    row(t("Busy GPU detection"), select("busy-mode", d.busyDetectionMode, BUSY_MODES(), (value) => { d.busyDetectionMode = value; changed({ rerender: true }); })),
   ];
   if (d.busyDetectionMode === "memoryThreshold" || d.busyDetectionMode === "activeProcessOrMemoryThreshold") {
-    collectionRows.push(row(t("Busy memory threshold"),
+    collectionRows.push(row(t("Memory threshold"),
       stepper("busy-memory", d.busyMemoryThresholdMB, 0, 10240, "MB", (value) => { d.busyMemoryThresholdMB = value; changed(); }),
-      t("0–10240 MB · Default 50 MB")));
+      t("0–10,240 MB · Default 50 MB")));
   }
   if (d.busyDetectionMode === "utilizationThreshold") {
-    collectionRows.push(row(t("Busy utilization threshold"),
+    collectionRows.push(row(t("Utilization threshold"),
       stepper("busy-util", d.busyUtilizationThresholdPercent, 0, 100, "%", (value) => { d.busyUtilizationThresholdPercent = value; changed(); }),
-      t("0–100 % · Default 10 %")));
+      t("0–100% · Default 10%")));
   }
   collectionRows.push(toggleRow(t("Highlight my processes"), "highlight-mine", d.highlightsMyProcesses,
     (value) => { d.highlightsMyProcesses = value; changed({ rerender: true }); },
@@ -420,9 +420,9 @@ function refreshServerPickerLabel() {
 const HISTORY_TITLES = {
   permissionEnabled: "Permission enabled",
   permissionDenied: "Permission denied",
-  watchAdded: "Process watch added",
+  watchAdded: "Process watch enabled",
   watchRemoved: "Process watch removed",
-  idleWatchAdded: "GPU idle watch added",
+  idleWatchAdded: "GPU idle watch enabled",
   idleWatchRemoved: "GPU idle watch removed",
   testNotificationScheduled: "Test notification sent",
   exitNotificationScheduled: "Process exit notification sent",
@@ -430,7 +430,7 @@ const HISTORY_TITLES = {
 };
 
 function watchRow(badge, badgeClass, title, primary, secondary, id) {
-  const remove = button(t("watch::Remove"), () => send({ type: "removeWatch", id }), { key: "remove:" + id });
+  const remove = button(t("Disable"), () => send({ type: "removeWatch", id }), { key: "remove:" + id });
   return h("div", "row watch-row",
     h("div", "row-label",
       h("span", "", h("span", "watch-badge " + badgeClass, badge), " ", h("strong", "", title)),
@@ -462,10 +462,10 @@ function notificationsPane() {
     section(t("GPU Idle Alert"), [
       row(t("Idle duration"),
         stepper("idle-seconds", d.idleNotificationSeconds, 1, 3600, "s", (value) => { d.idleNotificationSeconds = value; changed(); }),
-        t("1–3600 s · Default 300 s")),
+        t("1–3,600 s · Default 300 s")),
       row(t("Memory threshold"),
         stepper("idle-memory", d.idleMemoryThresholdMB, 0, 10240, "MB", (value) => { d.idleMemoryThresholdMB = value; changed(); }),
-        t("0–10240 MB · Default 50 MB")),
+        t("0–10,240 MB · Default 50 MB")),
     ], t("Starred GPUs send an alert when they stay idle this long.")),
     section(t("Active Watches"), watchRows,
       watchRows.length ? null : t("There are no watches.")),
@@ -501,8 +501,9 @@ function displayPane() {
         { value: "window", label: t("Window") },
       ], (value) => { d.displayMode = value; changed({ rerender: true }); }),
         t("Window keeps NVBeacon open like a normal app window.")),
-      toggleRow(t("Keep window on top"), "window-on-top", d.windowAlwaysOnTop,
-        (value) => { d.windowAlwaysOnTop = value; changed(); }, { disabled: d.displayMode !== "window" }),
+      // Only for the window, as on macOS.
+      ...(d.displayMode === "window" ? [toggleRow(t("Keep window on top"), "window-on-top", d.windowAlwaysOnTop,
+        (value) => { d.windowAlwaysOnTop = value; changed(); })] : []),
       row(t("Theme"), select("theme", d.appearanceMode, [
         { value: "system", label: t("System") },
         { value: "light", label: t("Light") },
@@ -510,20 +511,18 @@ function displayPane() {
       ], (value) => { d.appearanceMode = value; changed(); })),
     ]),
     section(t("Popover"), [
-      row(t("Popover width"),
+      row(t("Width"),
         stepper("popover-width", d.popoverWidth, 480, 800, "pt", (value) => { d.popoverWidth = value; changed(); }, 20),
         t("480–800 pt · Default 500 pt")),
-      row(t("Popover height"), [
+      row(t("Height"),
         select("popover-height-mode", d.popoverHeightMode, [
           { value: "automatic", label: t("Fit Content") },
           { value: "fixed", label: t("Fixed") },
         ], (value) => { d.popoverHeightMode = value; changed({ rerender: true }); }),
-        d.popoverHeightMode === "fixed"
-          ? stepper("popover-height", d.popoverHeight, 320, 1100, "pt", (value) => { d.popoverHeight = value; changed(); }, 20)
-          : null,
-      ], d.popoverHeightMode === "fixed"
-        ? t("320–1100 pt · Default 600 pt · Content scrolls inside")
-        : t("Up to the screen height")),
+        d.popoverHeightMode === "fixed" ? null : t("Up to the screen height")),
+      ...(d.popoverHeightMode === "fixed" ? [row(t("Fixed height"),
+        stepper("popover-height", d.popoverHeight, 320, 1100, "pt", (value) => { d.popoverHeight = value; changed(); }, 20),
+        t("320–1100 pt · Default 600 pt · Content scrolls inside"))] : []),
       toggleRow(t("Close on outside click"), "close-outside", d.closesPopoverOnOutsideClick,
         (value) => { d.closesPopoverOnOutsideClick = value; changed({ rerender: true }); },
         { sublabel: d.closesPopoverOnOutsideClick
@@ -550,16 +549,16 @@ function commandSection(title, key, field, defaultCommand, footer) {
 function advancedPane() {
   const d = ui.draft;
   return [
-    section(t("Server Settings Backup"), [row(t("Servers"), [
+    section(t("Server Backup"), [row(t("Servers"), [
       button(t("Export Servers…"), () => send({ type: "exportServers" }), { disabled: !d.servers.some((s) => (s.sshTarget || "").trim()) }),
       button(t("Import Servers…"), () => send({ type: "importServers" }))])],
       t("Exports host names, key file paths and remote commands. Passwords, private key contents and watches are excluded. Imports add disabled servers without replacing existing settings. The file format is shared with NVBeacon for macOS.")),
     section(t("Support"), [row(t("Diagnostic information"),
       button(t("Copy Diagnostic Information…"), () => send({ type: "diagnostics" })))],
       t("Preview a report of the current app and collection state. No additional SSH commands are run.")),
-    section(t("Saved State"), [row(t("Settings"), [
+    section(t("Saved Settings"), [row(t("Settings"), [
       button(t("Open settings.json"), () => send({ type: "openSettingsFile" })),
-      button(t("Reload Settings"), () => {
+      button(t("Reload Current Settings"), () => {
         // Reading the file replaces edits that were not applied yet.
         clearTimeout(ui.applyTimer);
         ui.applyPending = false;

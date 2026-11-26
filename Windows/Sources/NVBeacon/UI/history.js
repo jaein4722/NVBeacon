@@ -70,7 +70,7 @@ function controls() {
   if (!ui.recording) {
     const status = h("div", "status");
     status.innerHTML = '<svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M6.4 5.5v5M9.6 5.5v5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>';
-    status.append(t("Recording is off. Turn on Record GPU history in Settings › Appearance."));
+    status.append(t("Recording is off. Turn on Record GPU history in Monitoring settings."));
     nodes.push(status);
   }
   const gpus = server()?.gpus || [];

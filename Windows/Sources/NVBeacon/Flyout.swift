@@ -19,7 +19,7 @@ final class Flyout {
     private let host: WebViewHost
     private var hiddenAt: UInt64 = 0
     private let releaseAfter: UINT
-    /// Popover width in logical (96 DPI) pixels; Settings › Appearance.
+    /// Popover width in logical (96 DPI) pixels; Settings › Display.
     var logicalWidth = 500.0 { didSet { if isVisible { position() } } }
     var closesOnOutsideClick = true
     /// Settings › Popover Height › Fixed, in logical pixels; nil follows the content.
@@ -242,7 +242,7 @@ func paintBackground(_ window: HWND?, _ dc: HDC?) {
 }
 
 enum Theme {
-    /// Settings › Appearance › Theme; UI thread only.
+    /// Settings › Display › Theme; UI thread only.
     nonisolated(unsafe) static var preference = AppearancePreference.system
     nonisolated(unsafe) static var languagePreference = LanguagePreference.system
 
