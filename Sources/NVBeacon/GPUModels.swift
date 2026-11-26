@@ -473,15 +473,6 @@ struct ServerConfig: Codable, Identifiable, Equatable, Sendable {
         id == "legacy-primary"
     }
 
-    var connectionFingerprint: String {
-        [
-            sshTarget,
-            sshPort,
-            sshIdentityFilePath,
-            sshAuthenticationMode.rawValue,
-        ].joined(separator: "|")
-    }
-
     func normalized() -> Self {
         var copy = self
         copy.name = name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -899,15 +890,6 @@ struct AppSettings: Codable, Equatable, Sendable {
         }
 
         return port
-    }
-
-    var connectionFingerprint: String {
-        [
-            sshTarget,
-            sshPort,
-            sshIdentityFilePath,
-            sshAuthenticationMode.rawValue,
-        ].joined(separator: "|")
     }
 
     func detectedSSHUsername(
