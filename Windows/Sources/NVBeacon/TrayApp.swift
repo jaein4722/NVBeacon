@@ -740,7 +740,7 @@ final class TrayApp {
                 case .failure(let message):
                     ok = false
                     let category = DiagnosticsReport.errorCategory(message)
-                    text = language.text("windows::error::" + category) + " — " + message
+                    text = language.text("error::" + category) + " — " + message
                 }
                 UIThread.run { trayApp?.postToSettings(["type": "testResult", "serverId": serverID, "ok": ok, "text": text]) }
             }

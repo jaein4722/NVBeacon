@@ -350,10 +350,10 @@ public final class WatchStore: @unchecked Sendable {
                     appendHistory(NotificationHistoryEntry(kind: .idleNotificationScheduled, idleWatch: watch,
                                                            detail: "Idle \(seconds)s · \(gpu.memoryUsedMB)MB"))
                     let body = [watch.connectionLabel, watch.gpuName,
-                                language.text("windows::Idle %@s", seconds),
+                                language.text("Idle %@s", seconds),
                                 language.text("Mem %@ MB", gpu.memoryUsedMB)]
                         .filter { !$0.isEmpty }.joined(separator: " · ")
-                    notifications.append(PendingNotification(title: language.text("windows::%@ is idle", watch.title), body: body))
+                    notifications.append(PendingNotification(title: language.text("%@ is idle", watch.title), body: body))
                 }
                 tracking[watch.id] = state
             }

@@ -203,7 +203,7 @@ function newServer(fields) {
 const TABS = [
   { id: "general", icon: "gear", label: () => t("General") },
   { id: "servers", icon: "serverRack", label: () => t("Servers") },
-  { id: "monitoring", icon: "chart", label: () => t("windows::Monitoring") },
+  { id: "monitoring", icon: "chart", label: () => t("Monitoring") },
   { id: "notifications", icon: "bell", label: () => t("Notifications") },
   { id: "display", icon: "display", label: () => t("Display") },
   { id: "advanced", icon: "sliders", label: () => t("Advanced") },
@@ -302,13 +302,13 @@ function serversPane() {
 
   const server = selectedServer();
   if (!server) {
-    nodes.push(section(t("windows::Selected Server"), [],
+    nodes.push(section(t("Selected Server"), [],
       t("Add a server to start monitoring remote GPUs.")));
     return nodes;
   }
   const password = server.sshAuthenticationMode === "passwordBased";
   const connectionRows = [
-    toggleRow(t("windows::Enabled"), "server-enabled", server.isEnabled, (value) => updateServer("isEnabled", value)),
+    toggleRow(t("Enabled"), "server-enabled", server.isEnabled, (value) => updateServer("isEnabled", value)),
     row(t("Name"), textField("server-name", server.name, server.sshTarget || "GPU Server", "w-240",
       (value) => { updateServer("name", value); refreshServerPickerLabel(); })),
     row(t("SSH target"), textField("server-target", server.sshTarget, "gpu-prod or user@host", "w-320",
@@ -357,7 +357,7 @@ function serversPane() {
 
   nodes.push(commandSection(t("GPU Query Command"), "gpu-command", "remoteCommand", ui.data.defaults.gpuCommand,
     t("Leave empty to restore the default command.")));
-  nodes.push(commandSection(t("windows::Host Information Query Command"), "host-command", "hostCommand", ui.data.defaults.hostCommand,
+  nodes.push(commandSection(t("Host Information Query Command"), "host-command", "hostCommand", ui.data.defaults.hostCommand,
     t("Collects CPU, RAM/Swap and network in the same refresh. Keep the section markers and collection switches when customizing. Leave empty to restore the default command.")));
   return nodes;
 }
@@ -443,7 +443,7 @@ function notificationsPane() {
   const n = ui.data.notifications || { processWatches: [], idleWatches: [], history: [] };
   const watchRows = [];
   for (const watch of n.idleWatches) {
-    watchRows.push(watchRow(t("windows::GPU Idle"), "idle", watch.title, watch.subtitle,
+    watchRows.push(watchRow(t("GPU Idle"), "idle", watch.title, watch.subtitle,
       t("Idle %@ s · ≤%@ MB", d.idleNotificationSeconds, d.idleMemoryThresholdMB), watch.id));
   }
   for (const watch of n.processWatches) {
@@ -467,7 +467,7 @@ function notificationsPane() {
         stepper("idle-memory", d.idleMemoryThresholdMB, 0, 10240, "MB", (value) => { d.idleMemoryThresholdMB = value; changed(); }),
         t("0–10240 MB · Default 50 MB")),
     ], t("Starred GPUs send an alert when they stay idle this long.")),
-    section(t("windows::Active Watches"), watchRows,
+    section(t("Active Watches"), watchRows,
       watchRows.length ? null : t("There are no watches.")),
     section(t("Recent 24 Hours"), historyRows,
       historyRows.length ? null : t("Nothing in the last 24 hours.")),
@@ -501,7 +501,7 @@ function displayPane() {
         { value: "window", label: t("Window") },
       ], (value) => { d.displayMode = value; changed({ rerender: true }); }),
         t("Window keeps NVBeacon open like a normal app window.")),
-      toggleRow(t("windows::Keep window on top"), "window-on-top", d.windowAlwaysOnTop,
+      toggleRow(t("Keep window on top"), "window-on-top", d.windowAlwaysOnTop,
         (value) => { d.windowAlwaysOnTop = value; changed(); }, { disabled: d.displayMode !== "window" }),
       row(t("Theme"), select("theme", d.appearanceMode, [
         { value: "system", label: t("System") },
@@ -524,7 +524,7 @@ function displayPane() {
       ], d.popoverHeightMode === "fixed"
         ? t("320–1100 pt · Default 600 pt · Content scrolls inside")
         : t("Up to the screen height")),
-      toggleRow(t("windows::Close on outside click"), "close-outside", d.closesPopoverOnOutsideClick,
+      toggleRow(t("Close on outside click"), "close-outside", d.closesPopoverOnOutsideClick,
         (value) => { d.closesPopoverOnOutsideClick = value; changed({ rerender: true }); },
         { sublabel: d.closesPopoverOnOutsideClick
           ? t("Closes when you click outside it or switch to another app.")

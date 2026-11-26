@@ -100,7 +100,7 @@ function updatedPill(updatedAt) {
 function pills(average, busy, total, processes, updatedAt) {
   const row = h("div", "pills",
     summaryPill(t("Avg"), average + "%"),
-    summaryPill(t("windows::Busy"), busy + "/" + total),
+    summaryPill(t("Busy"), busy + "/" + total),
     summaryPill(t("Proc"), String(processes)));
   if (updatedAt) row.append(updatedPill(updatedAt));
   return row;
@@ -143,7 +143,7 @@ function headerStrip(state) {
     top.append(iconButton("openWindow", t("Show as Window"), () => send({ type: "setDisplayMode", mode: "window" }), "to-window"));
   }
   if (servers.length) {
-    top.append(iconButton("refresh", t("windows::Refresh now and restart polling if needed"),
+    top.append(iconButton("refresh", t("Refresh now and restart polling if needed"),
       () => send({ type: "refresh" }), "refresh-all"));
   }
   top.append(iconButton("gear", t("Settings…"), () => send({ type: "settings" }), "open-settings"));
@@ -155,8 +155,8 @@ function headerStrip(state) {
     const text = !servers.length
       ? t("Open Settings with the gear button to add a server.")
       : pollable === 0
-        ? t("windows::No enabled server is ready for polling.")
-        : t("windows::Waiting for the first polling result.");
+        ? t("No enabled server is ready for polling.")
+        : t("Waiting for the first polling result.");
     strip.append(h("span", "caption secondary", text));
   }
   if (state.displayMode !== "window") {
@@ -167,7 +167,7 @@ function headerStrip(state) {
   if (processes + idle > 0) {
     const parts = [];
     if (processes) parts.push(t("%@ process exit", processes));
-    if (idle) parts.push(t("windows::%@ GPU idle", idle));
+    if (idle) parts.push(t("%@ GPU idle", idle));
     strip.append(h("span", "watching", icon("bellFill"), t("Watching %@", parts.join(" · "))));
   }
   return strip;
@@ -309,7 +309,7 @@ function gpuRow(server, gpu) {
 
   // macOS layout: the idle-alert star sits left of the row, outside the expand button.
   const star = h("button", "star-button" + (gpu.isWatchingIdle ? " on" : ""), icon(gpu.isWatchingIdle ? "starFill" : "star"));
-  star.title = gpu.isWatchingIdle ? t("windows::Disable GPU idle alert") : t("windows::Enable GPU idle alert");
+  star.title = gpu.isWatchingIdle ? t("Disable GPU idle alert") : t("Enable GPU idle alert");
   star.setAttribute("aria-label", star.title);
   star.setAttribute("aria-pressed", String(!!gpu.isWatchingIdle));
   star.dataset.key = "star:" + key;
@@ -317,7 +317,7 @@ function gpuRow(server, gpu) {
 
   const card = h("div", "gpu" + (expanded ? " expanded" : "") + (gpu.hasMine ? " mine" : ""), h("div", "gpu-line", star, toggle));
   if (gpu.isWatchingIdle) {
-    const armed = h("span", "armed", icon("starFill"), t("windows::Idle notification armed"));
+    const armed = h("span", "armed", icon("starFill"), t("Idle notification armed"));
     card.append(h("div", "armed-row", armed));
   }
   if (expanded) {
@@ -377,7 +377,7 @@ function serverSection(server) {
 
   const details = h("div", "details" + (view.justToggled === "server:" + server.id ? " appear" : ""));
   if (!server.isEnabled) {
-    details.append(h("div", "message secondary", t("windows::This server is disabled in Settings.")));
+    details.append(h("div", "message secondary", t("This server is disabled in Settings.")));
   } else if (server.inactiveReason === "password") {
     details.append(h("div", "message orange", t("Save the SSH password for this server in Settings. Polling is paused until a password is saved.")));
   } else if (server.inactiveReason === "passwordRejected") {
@@ -398,7 +398,7 @@ function serverSection(server) {
     if (server.myUser && view.state.servers.length > 1) details.append(myProcessesLabel(server.myUser));
   } else {
     details.append(h("div", "message" + (server.error ? " orange" : " secondary"),
-      server.error || t("windows::Waiting for the first polling result.")));
+      server.error || t("Waiting for the first polling result.")));
   }
   section.append(details);
   return section;
