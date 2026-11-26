@@ -21,6 +21,17 @@ jobs:
       - name: Test platform-independent core
         run: swift test --package-path Shared/NVBeaconCore --build-system native
 
+  translations:
+    name: Translations
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check keys and placeholders
+        run: python3 scripts/translations.py check
+      - name: Check generated iOS strings
+        run: python3 scripts/translations.py ios --check
+
   macos:
     name: macOS integration
     runs-on: macos-15
