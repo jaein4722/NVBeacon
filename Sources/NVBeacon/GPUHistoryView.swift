@@ -174,7 +174,7 @@ struct GPUHistoryWindowView: View {
         VStack(alignment: .leading, spacing: 12) {
             if let selected {
                 if store.serverStates.count > 1 {
-                    Picker(language.text("Server", "서버"), selection: Binding(get: { selected.id }, set: { serverID = $0 })) {
+                    Picker(language.text("Server", "서버", "服务器"), selection: Binding(get: { selected.id }, set: { serverID = $0 })) {
                         ForEach(store.serverStates) { Text($0.server.displayName).tag($0.id) }
                     }
                     .labelsHidden()
@@ -183,7 +183,7 @@ struct GPUHistoryWindowView: View {
                 GPUHistoryView(store: store, state: selected)
                     .id(selected.id)
             } else {
-                Text(language.text("Configure a server to begin recording GPU history.", "GPU 기록을 시작하려면 서버를 설정하세요."))
+                Text(language.text("Configure a server to begin recording GPU history.", "GPU 기록을 시작하려면 서버를 설정하세요.", "配置服务器后即可记录 GPU 使用情况。"))
                     .foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -201,7 +201,7 @@ struct GPUHistoryView: View {
     @State private var prepared: GPUHistoryRenderData?
 
     private var language: AppInterfaceLanguage { store.settings.resolvedLanguage }
-    private func t(_ english: String, _ korean: String) -> String { language.text(english, korean) }
+    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String { language.text(english, korean, simplifiedChinese) }
     private var history: [GPUHistorySample] { store.gpuHistory[state.id] ?? [] }
     private var indices: [Int] {
         let current = state.snapshot?.gpus.map(\.index) ?? []
@@ -218,19 +218,21 @@ struct GPUHistoryView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             if !store.settings.recordsGPUHistory {
-                Label(t("Recording is off. Turn on Record GPU history in General settings.", "기록이 꺼져 있습니다. 일반 설정에서 GPU 기록 저장을 켜세요."),
+                Label(t("Recording is off. Turn on Record GPU history in General settings.", "기록이 꺼져 있습니다. 일반 설정에서 GPU 기록 저장을 켜세요.", "记录已关闭。可在「设置 → 监控」中开启 GPU 使用记录。"),
                       systemImage: "pause.circle")
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
             }
             HStack(spacing: 10) {
-                Picker(t("GPU", "GPU"), selection: $gpuIndex) {
+                Picker(t("GPU", "GPU", "GPU"), selection: $gpuIndex) {
                     ForEach(indices, id: \.self) { index in Text("GPU \(index)").tag(index) }
                 }
                 .labelsHidden()
                 .frame(width: 112)
-                Picker(t("Time range", "시간 범위"), selection: $hours) {
-                    ForEach([1, 5, 12, 24], id: \.self) { value in Text("\(value)h").tag(value) }
+                Picker(t("Time range", "시간 범위", "时间范围"), selection: $hours) {
+                    ForEach([1, 5, 12, 24], id: \.self) { value in
+                        Text(t("\(value)h", "\(value)h", "\(value) 小时")).tag(value)
+                    }
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
@@ -242,7 +244,7 @@ struct GPUHistoryView: View {
                     .id("\(selectedGPU):\(selectedUUID ?? "")")
             }
             if let error = store.gpuHistoryErrors[state.id] {
-                Text(t("History could not be saved: \(error)", "기록 저장 실패: \(error)"))
+                Text(t("History could not be saved: \(error)", "기록 저장 실패: \(error)", "无法保存使用记录：\(error)"))
                     .font(.caption2).foregroundStyle(.orange)
             }
         }
@@ -259,7 +261,7 @@ private struct GPUHistoryContent: View {
     let data: GPUHistoryRenderData
     let language: AppInterfaceLanguage
     @State private var selectedIndex: Int?
-    private func t(_ english: String, _ korean: String) -> String { language.text(english, korean) }
+    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String { language.text(english, korean, simplifiedChinese) }
     private var sample: GPUHistorySample? {
         if let selectedIndex, data.samples.indices.contains(selectedIndex) { return data.samples[selectedIndex] }
         return data.samples.last
@@ -267,16 +269,16 @@ private struct GPUHistoryContent: View {
 
     var body: some View {
         if data.points.isEmpty {
-            Text(t("Waiting for the first history sample.", "첫 GPU 기록을 기다리는 중입니다."))
+            Text(t("Waiting for the first history sample.", "첫 GPU 기록을 기다리는 중입니다.", "正在等待第一条 GPU 使用记录。"))
                 .font(.caption).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, minHeight: 230, alignment: .center)
         } else {
             if let sample {
                 HStack {
-                    Text(sample.timestamp, format: .dateTime.month().day().hour().minute())
+                    Text(sample.timestamp, format: .dateTime.month().day().hour().minute().locale(language.locale))
                     Spacer()
-                    Text(t("\(data.rollupMinutes)m avg", "\(data.rollupMinutes)분 평균"))
-                        .help(t("Interval averages. Short per-user sampling gaps are connected visually, but read as unavailable. Offline and longer gaps stay open.", "구간 평균입니다. 짧은 사용자별 측정 누락은 시각적으로 연결하지만 측정 불가로 표시합니다. 오프라인 및 긴 누락 구간은 연결하지 않습니다."))
+                    Text(t("\(data.rollupMinutes)m avg", "\(data.rollupMinutes)분 평균", "\(data.rollupMinutes) 分钟平均值"))
+                        .help(t("Interval averages. Short per-user sampling gaps are connected visually, but read as unavailable. Offline and longer gaps stay open.", "구간 평균입니다. 짧은 사용자별 측정 누락은 시각적으로 연결하지만 측정 불가로 표시합니다. 오프라인 및 긴 누락 구간은 연결하지 않습니다.", "图中显示各时段的平均值。每位用户短暂缺测时，曲线会连起来，数值仍显示为不可用。服务器离线或长时间缺测时，曲线断开。"))
                 }
                 .font(.system(size: 13).monospacedDigit()).foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 6) {
@@ -290,26 +292,27 @@ private struct GPUHistoryContent: View {
             }
             // Selection lives outside the equatable marks view: moving the pointer
             // updates only the legend and overlay, never the area/line geometry.
-            GPUHistoryStaticChart(data: data, selectedIndex: $selectedIndex)
+            GPUHistoryStaticChart(data: data, language: language, selectedIndex: $selectedIndex)
                 .equatable()
                 .frame(height: 230)
-                .accessibilityLabel(t("GPU utilization history by user", "사용자별 GPU 사용률 기록"))
+                .accessibilityLabel(t("GPU utilization history by user", "사용자별 GPU 사용률 기록", "按用户显示的 GPU 使用率记录"))
             if data.users.isEmpty || data.samples.last?.users == nil {
-                Text(t("Per-user SM sampling unavailable or GPU idle. The gray line is measured GPU utilization.", "사용자별 SM 측정 불가 또는 GPU 유휴 상태입니다. 회색 선은 GPU 사용률입니다."))
+                Text(t("Per-user SM sampling unavailable or GPU idle. The gray line is measured GPU utilization.", "사용자별 SM 측정 불가 또는 GPU 유휴 상태입니다. 회색 선은 GPU 사용률입니다.", "无法按用户采集 SM 使用率，或 GPU 当前空闲。灰线表示实际测得的 GPU 使用率。"))
                     .font(.caption2).foregroundStyle(.secondary)
             }
         }
     }
 
     private func metricRow(user: String, value: Double?) -> some View {
-        HStack(spacing: 10) {
+        let label = user == GPUHistoryPlot.totalLabel ? t("GPU total", "GPU 전체", "GPU 总使用率") : user
+        return HStack(spacing: 10) {
             RoundedRectangle(cornerRadius: 3).fill(user == GPUHistoryPlot.totalLabel ? Color.secondary : data.colors[user] ?? .blue)
                 .frame(width: 18, height: 12)
-            Text(user == GPUHistoryPlot.totalLabel ? t("GPU total", "GPU 전체") : user)
+            Text(label)
                 .font(.system(size: 14, weight: .medium)).lineLimit(1).truncationMode(.middle)
-                .help(user)
+                .help(label)
             Spacer()
-            Text(value.map { String(format: "%.1f%%", $0) } ?? t("Unavailable", "측정 불가"))
+            Text(value.map { String(format: "%.1f%%", $0) } ?? t("Unavailable", "측정 불가", "无数据"))
                 .font(.system(size: 15, weight: .semibold).monospacedDigit())
                 .foregroundStyle(value == nil ? Color.secondary : Color.primary)
                 .frame(width: 108, alignment: .trailing)
@@ -320,28 +323,34 @@ private struct GPUHistoryContent: View {
 
 private struct GPUHistoryStaticChart: View, Equatable {
     let data: GPUHistoryRenderData
+    let language: AppInterfaceLanguage
     @Binding var selectedIndex: Int?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.data.id == rhs.data.id }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.data.id == rhs.data.id && lhs.language == rhs.language
+    }
 
     var body: some View {
+        let timeLabel = language.text("Time", "시간", "时间")
+        let usageLabel = language.text("SM %", "SM %", "SM 使用率")
+        let segmentLabel = language.text("Segment", "구간", "区间")
         Chart {
             ForEach(data.areas) { area in
-                AreaMark(x: .value("Time", area.point.timestamp),
-                         yStart: .value("SM %", area.lower), yEnd: .value("SM %", area.upper),
-                         series: .value("Segment", area.point.series))
+                AreaMark(x: .value(timeLabel, area.point.timestamp),
+                         yStart: .value(usageLabel, area.lower), yEnd: .value(usageLabel, area.upper),
+                         series: .value(segmentLabel, area.point.series))
                     .foregroundStyle((data.colors[area.point.user] ?? .blue).opacity(0.28))
                     .interpolationMethod(.linear)
-                LineMark(x: .value("Time", area.point.timestamp), y: .value("SM %", area.upper),
-                         series: .value("Segment", area.point.series))
+                LineMark(x: .value(timeLabel, area.point.timestamp), y: .value(usageLabel, area.upper),
+                         series: .value(segmentLabel, area.point.series))
                     .foregroundStyle(data.colors[area.point.user] ?? .blue)
                     .lineStyle(StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
                     .interpolationMethod(.linear)
             }
             ForEach(data.totalPoints) { point in
-                LineMark(x: .value("Time", point.timestamp), y: .value("SM %", point.value),
-                         series: .value("Segment", point.series))
+                LineMark(x: .value(timeLabel, point.timestamp), y: .value(usageLabel, point.value),
+                         series: .value(segmentLabel, point.series))
                     .foregroundStyle(Color.secondary.opacity(0.65))
                     .lineStyle(StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
             }
@@ -362,7 +371,7 @@ private struct GPUHistoryStaticChart: View, Equatable {
         .chartXAxis { AxisMarks(values: data.ticks) { value in
             AxisValueLabel(anchor: value.index == 0 ? .topLeading : value.index == value.count - 1 ? .topTrailing : .top) {
                 if let date = value.as(Date.self) {
-                    Text(date, format: .dateTime.hour().minute())
+                    Text(date, format: .dateTime.hour().minute().locale(language.locale))
                         .font(.system(size: 12).monospacedDigit())
                 }
             }

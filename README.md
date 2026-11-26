@@ -61,7 +61,7 @@ On each server you only need SSH access and `nvidia-smi`.
 **Connections**
 - SSH keys or passwords, several servers at once, and JSON backup and restore of server settings.
 - Move every server from your Mac to iPhone with a QR code.
-- English and Korean, light and dark appearance.
+- English and Korean, plus Simplified Chinese on Mac. Light and dark appearance.
 
 ### In action
 

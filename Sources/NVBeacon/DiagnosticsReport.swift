@@ -80,33 +80,34 @@ enum DiagnosticsReport {
     /// The same categories as the report, for showing in the app's language.
     static func errorCategoryTitle(_ message: String?, in language: AppInterfaceLanguage) -> String {
         let category = errorCategory(message)
-        guard language == .korean else { return category }
         return switch category {
-        case "Output limit": "출력 제한 초과"
-        case "Timeout": "시간 초과"
-        case "Host key verification": "호스트 키 확인 실패"
-        case "Authentication": "인증 실패"
-        case "Host resolution": "호스트 이름 확인 실패"
-        case "Connection refused": "연결 거부"
-        case "Network unreachable": "네트워크에 연결할 수 없음"
-        case "Metrics output": "수집 결과 오류"
-        case "None": "없음"
-        default: "기타 오류"
+        case "Output limit": language.text(category, "출력 제한 초과", "输出超过上限")
+        case "Timeout": language.text(category, "시간 초과", "超时")
+        case "Host key verification": language.text(category, "호스트 키 확인 실패", "主机密钥验证失败")
+        case "Authentication": language.text(category, "인증 실패", "认证失败")
+        case "Host resolution": language.text(category, "호스트 이름 확인 실패", "主机名解析失败")
+        case "Connection refused": language.text(category, "연결 거부", "连接被拒绝")
+        case "Network unreachable": language.text(category, "네트워크에 연결할 수 없음", "网络不可达")
+        case "Metrics output": language.text(category, "수집 결과 오류", "监控数据输出异常")
+        case "None": language.text(category, "없음", "无")
+        default: language.text(category, "기타 오류", "其他错误")
         }
     }
 
     static func errorCategory(_ message: String?) -> String {
         guard let message, !message.isEmpty else { return "None" }
         let text = message.lowercased()
-        if text.contains("output exceeded") || (text.contains("출력") && text.contains("제한")) { return "Output limit" }
-        if text.contains("timed out") || text.contains("시간 초과") { return "Timeout" }
+        if text.contains("output exceeded") || (text.contains("출력") && text.contains("제한"))
+            || text.contains("ssh 输出超过") { return "Output limit" }
+        if text.contains("timed out") || text.contains("시간 초과") || text.contains("ssh 命令执行超时") { return "Timeout" }
         if text.contains("host key") || text.contains("host identification") { return "Host key verification" }
         if text.contains("permission denied") || text.contains("authentication") || text.contains("password")
-            || text.contains("비밀번호") || text.contains("인증") { return "Authentication" }
+            || text.contains("비밀번호") || text.contains("인증") || text.contains("ssh 密码") { return "Authentication" }
         if text.contains("could not resolve") || text.contains("name or service") { return "Host resolution" }
         if text.contains("connection refused") { return "Connection refused" }
         if text.contains("no route") || text.contains("unreachable") { return "Network unreachable" }
-        if text.contains("parsed") || text.contains("파싱") || text.contains("empty") || text.contains("비어") { return "Metrics output" }
+        if text.contains("parsed") || text.contains("파싱") || text.contains("empty") || text.contains("비어")
+            || text.hasPrefix("无法解析") || text.contains("nvidia-smi 未返回任何内容") { return "Metrics output" }
         return "Other (details omitted)"
     }
 }

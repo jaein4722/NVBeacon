@@ -25,26 +25,39 @@ struct SSHMetricsFetcher: Sendable {
             let language = AppLocalizer.currentLanguage()
             switch self {
             case .commandFailed(_, let message):
-                return message.isEmpty ? language.text("ssh command failed.", "ssh 명령이 실패했습니다.") : message
+                return message.isEmpty ? language.text("ssh command failed.", "ssh 명령이 실패했습니다.", "SSH 命令执行失败。") : message
             case .commandTimedOut(let seconds):
                 return language.text(
                     "ssh command timed out after \(seconds) seconds.",
-                    "ssh 명령이 \(seconds)초 뒤 시간 초과되었습니다."
+                    "ssh 명령이 \(seconds)초 뒤 시간 초과되었습니다.",
+                    "SSH 命令执行超时（\(seconds) 秒）。"
                 )
             case .outputLimitExceeded(let limit):
-                return language.text("SSH output exceeded the \(limit / 1_048_576) MiB limit.", "SSH 출력이 \(limit / 1_048_576)MiB 제한을 초과했습니다.")
+                return language.text(
+                    "SSH output exceeded the \(limit / 1_048_576) MiB limit.",
+                    "SSH 출력이 \(limit / 1_048_576)MiB 제한을 초과했습니다.",
+                    "SSH 输出超过 \(limit / 1_048_576) MiB 上限。"
+                )
             case .emptyResponse:
-                return language.text("nvidia-smi output was empty.", "nvidia-smi 출력이 비어 있습니다.")
+                return language.text("nvidia-smi output was empty.", "nvidia-smi 출력이 비어 있습니다.", "nvidia-smi 未返回任何内容。")
             case .invalidOutput(let line):
-                return language.text("nvidia-smi output could not be parsed: \(line)", "nvidia-smi 출력을 파싱할 수 없습니다: \(line)")
+                return language.text("nvidia-smi output could not be parsed: \(line)", "nvidia-smi 출력을 파싱할 수 없습니다: \(line)", "无法解析 nvidia-smi 的输出：\(line)")
             case .invalidProcessOutput(let line):
-                return language.text("nvidia-smi process output could not be parsed: \(line)", "nvidia-smi process 출력을 파싱할 수 없습니다: \(line)")
+                return language.text(
+                    "nvidia-smi process output could not be parsed: \(line)",
+                    "nvidia-smi process 출력을 파싱할 수 없습니다: \(line)",
+                    "无法解析 nvidia-smi 返回的进程信息：\(line)"
+                )
             case .invalidPSOutput(let line):
-                return language.text("ps output could not be parsed: \(line)", "ps 출력을 파싱할 수 없습니다: \(line)")
+                return language.text("ps output could not be parsed: \(line)", "ps 출력을 파싱할 수 없습니다: \(line)", "无法解析 ps 的输出：\(line)")
             case .askPassScriptCreationFailed:
-                return language.text("Failed to create the temporary script for SSH password authentication.", "SSH 비밀번호 인증을 위한 임시 스크립트를 만들지 못했습니다.")
+                return language.text(
+                    "Failed to create the temporary script for SSH password authentication.",
+                    "SSH 비밀번호 인증을 위한 임시 스크립트를 만들지 못했습니다.",
+                    "无法创建用于 SSH 密码认证的临时脚本。"
+                )
             case .missingTarget:
-                return language.text("SSH target is missing.", "SSH target이 비어 있습니다.")
+                return language.text("SSH target is missing.", "SSH target이 비어 있습니다.", "缺少 SSH 目标。")
             }
         }
     }

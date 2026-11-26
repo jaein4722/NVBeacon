@@ -33,10 +33,12 @@ extension ServerSettingsBackup {
             switch self {
             case .unresolved(let name):
                 language.text("Could not resolve the SSH endpoint for \(name). Check the SSH configuration.",
-                              "\(name)의 SSH 주소를 확인할 수 없습니다. SSH 설정을 확인하세요.")
+                              "\(name)의 SSH 주소를 확인할 수 없습니다. SSH 설정을 확인하세요.",
+                              "无法解析 \(name) 的 SSH 连接地址。请检查 SSH 配置。")
             case .requiresProxy(let name, let option):
                 language.text("\(name) requires \(option). The backup format cannot store that route.",
-                              "\(name) 연결에는 \(option) 설정이 필요합니다. 이 경유 경로는 백업 형식에 저장할 수 없습니다.")
+                              "\(name) 연결에는 \(option) 설정이 필요합니다. 이 경유 경로는 백업 형식에 저장할 수 없습니다.",
+                              "\(name) 需要通过 \(option) 连接。当前备份格式无法保存该连接路径。")
             }
         }
     }
@@ -87,10 +89,10 @@ extension ServerSettingsBackup.Entry {
 extension ServerSettingsBackup.BackupError {
     func message(in language: AppInterfaceLanguage) -> String {
         switch self {
-        case .unsupportedFormat: language.text("This is not a supported NVBeacon server backup.", "지원되는 NVBeacon 서버 백업 파일이 아닙니다.")
-        case .invalidServer: language.text("The backup contains an invalid SSH target or port.", "백업에 올바르지 않은 SSH 대상 또는 포트가 있습니다.")
-        case .invalidServerCount: language.text("A server backup must contain between 1 and 100 servers.", "서버 백업에는 1개 이상 100개 이하의 서버가 있어야 합니다.")
-        case .fileTooLarge: language.text("The server backup is too large (maximum 1 MB).", "서버 백업 파일이 너무 큽니다(최대 1MB).")
+        case .unsupportedFormat: language.text("This is not a supported NVBeacon server backup.", "지원되는 NVBeacon 서버 백업 파일이 아닙니다.", "NVBeacon 无法读取这种备份格式。")
+        case .invalidServer: language.text("The backup contains an invalid SSH target or port.", "백업에 올바르지 않은 SSH 대상 또는 포트가 있습니다.", "备份中包含无效的 SSH 目标或端口。")
+        case .invalidServerCount: language.text("A server backup must contain between 1 and 100 servers.", "서버 백업에는 1개 이상 100개 이하의 서버가 있어야 합니다.", "服务器备份须包含 1–100 台服务器。")
+        case .fileTooLarge: language.text("The server backup is too large (maximum 1 MB).", "서버 백업 파일이 너무 큽니다(최대 1MB).", "服务器备份过大，最大支持 1 MB。")
         }
     }
 }

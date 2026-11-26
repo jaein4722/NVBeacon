@@ -50,15 +50,18 @@ struct ServerImportReviewView: View {
     let importServers: () -> Void
     let cancel: () -> Void
 
-    private func t(_ english: String, _ korean: String) -> String { language.text(english, korean) }
+    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
+        language.text(english, korean, simplifiedChinese)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(t("Review Server Import", "서버 가져오기 확인")).font(.title2.bold())
+            Text(t("Review Server Import", "서버 가져오기 확인", "确认导入服务器")).font(.title2.bold())
             Text(fileName).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
             Text(t(
                 "Add \(backup.servers.count) servers. Your \(existingServerCount) existing servers will be kept. Imported servers start disabled.",
-                "서버 \(backup.servers.count)개를 추가합니다. 기존 서버 \(existingServerCount)개는 유지되며, 가져온 서버는 비활성화 상태로 시작합니다."
+                "서버 \(backup.servers.count)개를 추가합니다. 기존 서버 \(existingServerCount)개는 유지되며, 가져온 서버는 비활성화 상태로 시작합니다.",
+                "将添加 \(backup.servers.count) 台服务器。现有的 \(existingServerCount) 台服务器会保留，导入的服务器默认停用。"
             ))
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 12) {
@@ -66,17 +69,17 @@ struct ServerImportReviewView: View {
                         GroupBox {
                             VStack(alignment: .leading, spacing: 7) {
                                 Text(server.displayName).font(.headline)
-                                LabeledContent(t("SSH target", "SSH 대상"), value: server.sshTarget)
-                                LabeledContent(t("Port", "포트"), value: server.sshPort.isEmpty ? t("Default", "기본값") : server.sshPort)
-                                LabeledContent(t("Authentication", "인증 방식"), value: server.sshAuthenticationMode.title(in: language))
-                                LabeledContent(t("SSH connection", "SSH 연결"), value: server.sshConnectionReuseMode.title(in: language))
+                                LabeledContent(t("SSH target", "SSH 대상", "SSH 目标"), value: server.sshTarget)
+                                LabeledContent(t("Port", "포트", "端口"), value: server.sshPort.isEmpty ? t("Default", "기본값", "默认") : server.sshPort)
+                                LabeledContent(t("Authentication", "인증 방식", "认证方式"), value: server.sshAuthenticationMode.title(in: language))
+                                LabeledContent(t("SSH connection", "SSH 연결", "SSH 连接"), value: server.sshConnectionReuseMode.title(in: language))
                                 if !server.sshIdentityFilePath.isEmpty {
-                                    Text(t("Identity file: ", "키 파일: ") + server.sshIdentityFilePath)
+                                    Text(t("Identity file: ", "키 파일: ", "密钥文件：") + server.sshIdentityFilePath)
                                         .font(.caption).textSelection(.enabled)
                                 }
-                                Text(t("GPU command", "GPU 명령")).font(.caption.weight(.semibold))
+                                Text(t("GPU command", "GPU 명령", "GPU 查询命令")).font(.caption.weight(.semibold))
                                 Text(server.remoteCommand).font(.caption.monospaced()).textSelection(.enabled)
-                                Text(t("Host information command", "호스트 정보 수집 명령")).font(.caption.weight(.semibold))
+                                Text(t("Host information command", "호스트 정보 수집 명령", "主机信息查询命令")).font(.caption.weight(.semibold))
                                 Text(server.hostCommand).font(.caption.monospaced()).textSelection(.enabled)
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
@@ -87,12 +90,13 @@ struct ServerImportReviewView: View {
             }
             Text(t(
                 "Keychain passwords are not included. Review the connection details and commands before adding the servers.",
-                "키체인 비밀번호는 포함되지 않습니다. 연결 정보와 명령을 확인한 뒤 서버를 추가하세요."
+                "키체인 비밀번호는 포함되지 않습니다. 연결 정보와 명령을 확인한 뒤 서버를 추가하세요.",
+                "备份中没有钥匙串密码。请在添加前核对连接信息和命令。"
             )).font(.caption).foregroundStyle(.secondary)
             HStack {
                 Spacer()
-                Button(t("Cancel", "취소"), action: cancel).keyboardShortcut(.cancelAction)
-                Button(t("Add Servers", "서버 추가"), action: importServers).keyboardShortcut(.defaultAction)
+                Button(t("Cancel", "취소", "取消"), action: cancel).keyboardShortcut(.cancelAction)
+                Button(t("Add Servers", "서버 추가", "添加服务器"), action: importServers).keyboardShortcut(.defaultAction)
             }
         }
         .padding(20)
@@ -106,14 +110,17 @@ struct DiagnosticsPreviewView: View {
     let close: () -> Void
     @State private var copied = false
 
-    private func t(_ english: String, _ korean: String) -> String { language.text(english, korean) }
+    private func t(_ english: String, _ korean: String, _ simplifiedChinese: String) -> String {
+        language.text(english, korean, simplifiedChinese)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(t("Diagnostic Information", "진단 정보")).font(.title2.bold())
+            Text(t("Diagnostic Information", "진단 정보", "诊断信息")).font(.title2.bold())
             Text(t(
                 "Review this local snapshot before sharing it. Hosts, users, key paths, custom commands and raw errors are omitted.",
-                "공유 전에 내용을 확인하세요. 호스트·사용자·키 경로·커스텀 명령·원문 오류는 제외한 현재 상태입니다."
+                "공유 전에 내용을 확인하세요. 호스트·사용자·키 경로·커스텀 명령·원문 오류는 제외한 현재 상태입니다.",
+                "分享前请先核对内容。此报告已省略主机、用户、密钥路径、自定义命令和原始错误。"
             )).font(.callout).foregroundStyle(.secondary)
             ScrollView([.vertical, .horizontal]) {
                 Text(report)
@@ -125,11 +132,11 @@ struct DiagnosticsPreviewView: View {
             .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
             HStack {
                 if copied {
-                    Label(t("Copied", "복사됨"), systemImage: "checkmark").foregroundStyle(.secondary)
+                    Label(t("Copied", "복사됨", "已复制"), systemImage: "checkmark").foregroundStyle(.secondary)
                 }
                 Spacer()
-                Button(t("Close", "닫기"), action: close).keyboardShortcut(.cancelAction)
-                Button(t("Copy", "복사")) {
+                Button(t("Close", "닫기", "关闭"), action: close).keyboardShortcut(.cancelAction)
+                Button(t("Copy", "복사", "复制")) {
                     NSPasteboard.general.clearContents()
                     copied = NSPasteboard.general.setString(report, forType: .string)
                 }

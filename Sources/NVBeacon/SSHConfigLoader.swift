@@ -21,19 +21,19 @@ struct SSHConfigHost: Identifiable, Equatable {
         var parts = [String]()
 
         if let user, !user.isEmpty {
-            parts.append(language.text("User \(user)", "사용자 \(user)"))
+            parts.append(language.text("User \(user)", "사용자 \(user)", "用户 \(user)"))
         }
 
         if let hostName, !hostName.isEmpty {
-            parts.append(language.text("Host \(hostName)", "호스트 \(hostName)"))
+            parts.append(language.text("Host \(hostName)", "호스트 \(hostName)", "主机 \(hostName)"))
         }
 
         if let port, !port.isEmpty {
-            parts.append("Port \(port)")
+            parts.append(language.text("Port \(port)", "Port \(port)", "端口 \(port)"))
         }
 
         if let identityFilePath, !identityFilePath.isEmpty {
-            parts.append(language.text("Identity \(identityFilePath)", "Identity \(identityFilePath)"))
+            parts.append(language.text("Identity \(identityFilePath)", "Identity \(identityFilePath)", "密钥文件 \(identityFilePath)"))
         }
 
         return parts.joined(separator: " · ")
