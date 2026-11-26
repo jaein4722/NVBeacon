@@ -85,4 +85,8 @@ records (`%APPDATA%\NVBeacon`, `%LOCALAPPDATA%\NVBeacon`) and saved SSH password
 default answer is No, and a silent uninstall keeps the data. The
 installer is not code-signed, so SmartScreen warns on first run.
 
+Releases: from 1.0.0, the Release workflow builds the installer for every `vX.Y.Z`
+tag and attaches it to the same GitHub Release as the macOS DMG. Run the workflow
+manually for a dry run that only uploads the installer as a workflow artifact.
+
 Current limits: no automatic updates yet.
